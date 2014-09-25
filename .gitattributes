@@ -1,0 +1,2 @@
+brilws/_version.py export-subst
+*.py diff=python
