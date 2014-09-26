@@ -53,7 +53,9 @@ def briltag_main():
          import briltag_norm
          parseresult = docopt.docopt(briltag_norm.__doc__,argv=cmmdargv)
          parseresult = briltag_norm.validate(parseresult,sources=choice_sources,applyto=choice_applyto)
-         
+         if not parseresult['--name']:
+            print 'display all norm tag summary'
+            
       elif args['<command>'] == 'lut':
          import briltag_lut
          parseresult = docopt.docopt(briltag_lut.__doc__,argv=cmmdargv)
