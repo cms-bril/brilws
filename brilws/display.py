@@ -31,7 +31,8 @@ def listdf(df,npp=30, columns=None, formatters=None, index=False):
 
 if __name__=='__main__':
     chunksize = 200
-    rowdef = np.dtype([('tagid',np.uint64),('tagname',object),('value',np.float32)])
+    #rowdef = np.dtype([('tagid',np.uint64),('tagname',object),('value',np.float32)])
+    rowdef = np.dtype([('tagid','u8'),('tagname','O'),('value','f4')]) 
     mydf = np.empty( (chunksize,), dtype=rowdef )
     myformatter = {'value':_floatformatter}
     for i in xrange(chunksize):
@@ -39,6 +40,7 @@ if __name__=='__main__':
         mydf['tagid'][i]=i
         mydf['value'][i]=0.5*i
     df = pd.DataFrame.from_records(mydf,index=None,columns=rowdef.names)
+    print rowdef.names
     listdf(df,npp=30,formatters=myformatter,columns=['tagid','tagname'])
 
 
