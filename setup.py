@@ -14,6 +14,7 @@ versioneer.parentdir_prefix = 'brilws' # dirname like 'myproject-1.2.0'
 kwds = {'scripts':[]}
 kwds['scripts'].append('bin/briltag')
 kwds['scripts'].append('bin/brilcalc')
+kwds['scripts'].append('bin/brilschema')
 
 setup(
     name = "brilws",

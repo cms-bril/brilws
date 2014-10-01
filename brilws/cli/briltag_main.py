@@ -1,7 +1,11 @@
 import sys,logging,os
 import docopt
 import schema
+import coral
+import numpy as np
+import pandas as pd
 import brilws
+from brilws import api,display
 
 log = logging.getLogger('briltag')
 logformatter = logging.Formatter('%(levelname)s %(message)s')
@@ -15,6 +19,21 @@ log.addHandler(ch)
 
 choice_sources = ['BHM','BCM1F','PLT','HFOC','PIXEL']
 choice_applyto = ['LUMI','BKG']
+
+def combine_params(groups):
+    '''
+    paramname:value,
+    '''
+    result = []
+    for paramidx in groups['paramidx']:
+        val = ''
+        if groups['f4'].values[paramidx]:
+          val = '{0:.3f}'.format(groups['f4'].values[paramidx])
+        val = val or groups['s'].values[paramidx] or groups['i8'].values[paramidx]
+        colstring = groups['paramname'].values[paramidx]+':'+str(val)
+        result.append(colstring)
+    groups['params']=','.join(result)
+    return groups
 
 def briltag_main():
     docstr='''
@@ -47,15 +66,61 @@ def briltag_main():
 
     log.debug('command arguments: %s',cmmdargv)
     parseresult = {}
-
-    try:
+    svc = coral.ConnectionService()    
+    try:      
       if args['<command>'] == 'norm':
          import briltag_norm
          parseresult = docopt.docopt(briltag_norm.__doc__,argv=cmmdargv)
          parseresult = briltag_norm.validate(parseresult,sources=choice_sources,applyto=choice_applyto)
-         if not parseresult['--name']:
-            print 'display all norm tag summary'
-            
+         dbconnect = parseresult['-c']
+
+         dbsession = svc.connect(dbconnect, accessMode = coral.access_ReadOnly)
+         dbsession.transaction().start(True)
+         qHandle = dbsession.nominalSchema().newQuery()
+         qTablelist = [('CONDTAGREGISTRY','registry')]
+         qOutputRowDef = {'TAGID':('unsigned long long','tagid'),'TAGNAME':('string','tagname'),'ISDEFAULT':('unsigned char','isdefault'),'CREATIONUTC':('string','creation time'),'TAGDATATABLE':('string','tagdatatable'),'PARAMTABLE':('string','paramtable'),'DATASOURCE':('string','datasource'),'APPLYTO':('string','applyto'),'COMMENT':('string','comment')}
+         qConditionStrs = []
+         qCondition = coral.AttributeList()
+         if parseresult['--applyto']:
+             qConditionStrs.append('APPLYTO=:applyto')
+             qCondition.extend('applyto','string')
+             qCondition['applyto'].setData(parseresult['--applyto'])
+         if parseresult['--source']:
+             qConditionStrs.append('DATASOURCE=:datasource')
+             qCondition.extend('datasource','string')
+             qCondition['datasource'].setData(parseresult['--source'])
+         if parseresult['--default-only']:    
+             qConditionStrs.append('ISDEFAULT=1')
+         qConditionStr = ' AND '.join(qConditionStrs)
+         regdf = pd.DataFrame.from_records(api.db_query_generator(qHandle,qTablelist,qOutputRowDef,qConditionStr,qCondition))
+         del qHandle
+
+         if parseresult['--name']:
+             tagname = parseresult['--name']
+             selectedtag = regdf.loc[(regdf['tagname']==tagname),['tagid','tagdatatable','paramtable']].values
+             for tagid,tagtable,paramtable in selectedtag:
+                qHandle = dbsession.nominalSchema().newQuery()
+                #select n.comment,n.amodetag,n.egev,n.minbiasxsec,n.funcname, p.* from $paramtable p where p.tagid=:tagid 
+                qOutputRowDef = {'n.SINCERUN':('unsigned int','sincerun'),'n.COMMENT':('string','comment'),'n.AMODETAG':('string','amodetag'),'n.EGEV':('unsigned int','egev'),'n.MINBIASXSEC':('unsigned int','minbiasxsec'),'n.FUNCNAME':('string','funcname'),'p.PARAMIDX':('unsigned int','paramidx'),'p.PARAMNAME':('string','paramname'),'p.U1':('unsigned char','u1'),'p.I1':('char','i1'),'p.U2':('unsigned short','u2'),'p.I2':('short','i2'),'p.F4':('float','f4'),'p.U4':('unsigned int','u4'),'p.I4':('int','i4'),'p.U8':('unsigned long long','u8'),'p.I8':('long long','i8'),'p.S':('string','s')}
+                qTablelist = [(tagtable,'n'),(paramtable,'p')]
+                
+                qConditionStr = 'n.TAGID=p.TAGID AND n.SINCERUN=p.SINCERUN AND n.TAGID=:tagid'
+                qCondition = coral.AttributeList()
+                qCondition.extend('tagid','unsigned long long')
+                qCondition['tagid'].setData(tagid)
+               
+                paramdf = pd.DataFrame.from_records(api.db_query_generator(qHandle,qTablelist,qOutputRowDef,qConditionStr,qCondition))
+                grouped = paramdf.groupby(['sincerun'])
+                result = grouped.apply(combine_params)
+                display.listdf(result,columns=['sincerun','amodetag','egev','minbiasxsec','funcname','params','comment'])
+                del qHandle
+         dbsession.transaction().commit()
+         del dbsession
+         if regdf.empty:
+             print 'No result found'
+         else:
+             display.listdf(regdf,columns=['tagname','datasource','applyto','creation time','isdefault','comment'])
+
       elif args['<command>'] == 'lut':
          import briltag_lut
          parseresult = docopt.docopt(briltag_lut.__doc__,argv=cmmdargv)
@@ -72,6 +137,8 @@ def briltag_main():
       raise docopt.DocoptExit('Error: incorrect input format for '+args['<command>'])            
     except schema.SchemaError as e:
       exit(e)
+    del svc
+
 
     if not parseresult.has_key('--debug'):
        if parseresult.has_key('--nowarning'):
