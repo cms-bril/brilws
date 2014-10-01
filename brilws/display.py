@@ -3,7 +3,20 @@ import numpy as np
 
 _floatformatter='{:,.3f}'.format
 
-def listdf(df,npp=30, columns=None, formatters=None, index=False, justify='left', pagination=False):
+pd.set_option('display.max_columns', 4)
+pd.set_option('display.max_colwidth', 200)
+pd.set_option('display.max_rows', 1000)
+pd.set_option('display.width', 200)
+pd.set_option('display.float_format',_floatformatter)
+
+def formatter_tuple((x,y)):
+    if isinstance(x,float):
+        x = _floatformatter(x)
+    if isinstance(y,float):
+        y = _floatformatter(y)
+    return '(%s,%s)'%(x,y)
+
+def listdf(df,npp=100, columns=None, formatters=None, index=False, justify='left', pagination=False):
     '''
     Inputs:
         df:         dataframe
@@ -11,6 +24,9 @@ def listdf(df,npp=30, columns=None, formatters=None, index=False, justify='left'
         formatters: field formatter (default=None)
         index:      display row id (default=False)
     '''
+    if not pagination:
+        print df.to_string(columns=columns,formatters=formatters,index=index, justify=justify)
+    return
     nrows, ncols = df.shape
     total_pages = nrows/npp + 1 
     rec_last_pg = nrows % npp # number of records in last page
@@ -23,12 +39,11 @@ def listdf(df,npp=30, columns=None, formatters=None, index=False, justify='left'
            torow = fromrow + npp -1
         ptr = torow +1
         print df.ix[fromrow:torow,:].to_string(columns=columns,formatters=formatters,index=index, justify=justify)
-        if pagination:
-            if i!=(total_pages-1):
-                try: 
-                   raw_input("Press a key to continue or '^C' to break...")
-                except KeyboardInterrupt:
-                   break
+        if i!=(total_pages-1):
+            try: 
+                raw_input("Press a key to continue or '^C' to break...")
+            except KeyboardInterrupt:
+                break
 
 if __name__=='__main__':
     chunksize = 200

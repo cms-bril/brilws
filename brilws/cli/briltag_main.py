@@ -22,19 +22,13 @@ choice_applyto = ['LUMI','BKG']
 
 def combine_params(groups):
     '''
-    paramname:value,
+    paramname:combine paramname and not null param into one row of [('paramname',paramval)]
     '''
-    result = []
-    for paramidx in groups['paramidx']:
-        val = ''
-        if groups['f4'].values[paramidx]:
-          val = '{0:.3f}'.format(groups['f4'].values[paramidx])
-        val = val or groups['s'].values[paramidx] or groups['i8'].values[paramidx]
-        colstring = groups['paramname'].values[paramidx]+':'+str(val)
-        result.append(colstring)
-    groups['params']=','.join(result)
+    result = pd.concat([groups['f4'].dropna(),groups['s'].dropna(),groups['u4'].dropna()])
+    result = zip( groups['paramname'].values,result.values)
+    groups['params']= ''.join(map(display.formatter_tuple,result))
     return groups
-
+    
 def briltag_main():
     docstr='''
 
@@ -111,7 +105,7 @@ def briltag_main():
                
                 paramdf = pd.DataFrame.from_records(api.db_query_generator(qHandle,qTablelist,qOutputRowDef,qConditionStr,qCondition))
                 grouped = paramdf.groupby(['sincerun'])
-                result = grouped.apply(combine_params)
+                result = grouped.apply(combine_params)                                               
                 display.listdf(result,columns=['sincerun','amodetag','egev','minbiasxsec','funcname','params','comment'])
                 del qHandle
          dbsession.transaction().commit()
