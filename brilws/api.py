@@ -1,6 +1,10 @@
 import numpy as np
 import pandas as pd
 import coral
+import decimal 
+
+decimalcontext = decimal.getcontext().copy()
+decimalcontext.prec = 3
 
 oracletypemap={
 'unsigned char':'number(3)',
@@ -339,6 +343,8 @@ def db_query_generator(qHandle,qTablelist,qOutputRowDef={},qConditionStr=None,qC
           for icol in xrange(dbrow.size()):
             varname = dbrow[icol].specification().name()
             varval = dbrow[icol].data()
+            if type(varval) == float: 
+               varval=decimalcontext.create_decimal(varval)
             resultrow[varname] = varval
           yield resultrow
     except Exception, e:
