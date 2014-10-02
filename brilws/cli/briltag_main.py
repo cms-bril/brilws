@@ -1,14 +1,10 @@
-import sys,logging,os
-import docopt
-import schema
+import sys,logging,os,gc
+import docopt,schema
 import coral
 import numpy as np
 import pandas as pd
 import brilws
 from brilws import api,display,prettytable
-import itertools
-import operator
-import gc
 
 log = logging.getLogger('briltag')
 logformatter = logging.Formatter('%(levelname)s %(message)s')
@@ -20,18 +16,9 @@ ch.setFormatter(logformatter)
 log.addHandler(ch)
 #log.addHandler(fh)
 
-choice_sources = ['BHM','BCM1F','PLT','HFOC','PIXEL']
-choice_applyto = ['LUMI','BKG']
-
-def stringfy_listoftuples(inlist):
-    return ','.join([str(x)+':'+str(y) for x,y in inlist])
-       
-
-def clean_paramrow(paramrow):
-    result = {}
-    result['since'] = paramrow['since']
-    result[paramrow['paramname']] = paramrow['f4'] or paramrow['s'] or paramrow['u4'] or paramrow['i4']
-    return result
+choice_sources = ['bhm','bcm1f','plt','hfoc','pixel']
+choice_applyto = ['lumi','bkg']
+choices_ostyles = ['tab','csv','html']
 
 def combine_params(groups):
     '''
@@ -89,7 +76,7 @@ def briltag_main():
       if args['<command>'] == 'norm':
          import briltag_norm
          parseresult = docopt.docopt(briltag_norm.__doc__,argv=cmmdargv)
-         parseresult = briltag_norm.validate(parseresult,sources=choice_sources,applyto=choice_applyto)
+         parseresult = briltag_norm.validate(parseresult,sources=choice_sources,applyto=choice_applyto,ostyles=choices_ostyles)
          dbconnect = parseresult['-c']
          dbsession = svc.connect(dbconnect, accessMode = coral.access_ReadOnly)
          regdf = None
@@ -105,7 +92,7 @@ def briltag_main():
              qConditionStrs.append('APPLYTO=:applyto')
              qCondition.extend('applyto','string')
              qCondition['applyto'].setData(parseresult['--applyto'])
-         if parseresult['--source']:
+         if parseresult['--datasource']:
              qConditionStrs.append('DATASOURCE=:datasource')
              qCondition.extend('datasource','string')
              qCondition['datasource'].setData(parseresult['--source'])
@@ -129,29 +116,44 @@ def briltag_main():
                 taginfo_df = pd.DataFrame.from_records(api.db_query_generator(qHandle,qTablelist,qOutputRowDef,qConditionStr,qCondition))
                 del qHandle
                 grouped =  taginfo_df.groupby(['since'])
-                result = grouped.apply(combine_params)
+                result = grouped.apply(combine_params).loc[:,['since','amodetag','egev','minbiasxsec','func','params','comment']]
                 del taginfo_df
                 gc.collect()
-                x = prettytable.PrettyTable(['since','amodetag','egev','minbiasxsec','func','params','comment'])
-                x.sortby = 'since'
-                x.align = 'l'
-                x.header_style = 'cap'
-                x.max_width['params']=60
-                t = result.loc[:,['since','amodetag','egev','minbiasxsec','func','params','comment']].values
-                map(x.add_row,t)
-                print tagname
-                print(x)
+                
+                if parseresult['--output-style'].lower() in ['tab','html']:           
+                    x = prettytable.PrettyTable(['since','amodetag','egev','minbiasxsec','func','params','comment'])
+                    x.sortby = 'since'
+                    x.align = 'l'
+                    x.header_style = 'cap'
+                    x.max_width['params']=60
+                    map(x.add_row,result.values) 
+                    if parseresult['--output-style'].lower()=='tab':
+                        print '\n%s'%tagname
+                        print(x)
+                    else:
+                        print tagname
+                        print(x.get_html_string())
+                else:
+                    print '#%s'%tagname
+                    print result.to_csv(header=['#since','amodetag','egev','minbiasxsec','func','params','comment'],index=False)
          else:
              if regdf.empty:
                 print 'No result found'
              else:
-                x = prettytable.PrettyTable(['tagname','datasource','applyto','isdefault','creation time','comment'])
-                x.sortby = 'applyto'
-                x.align = 'l'
-                x.header_style = 'cap'
-                t = regdf.loc[:,['tagname','datasource','applyto','isdefault','creation time','comment']].values
-                map(x.add_row,t)
-                print(x)
+                t = regdf.loc[:,['tagname','datasource','applyto','isdefault','creation time','comment']]
+                if parseresult['--output-style'].lower() in ['tab','html']:   
+                    x = prettytable.PrettyTable(['tagname','datasource','applyto','isdefault','creation time','comment'])
+                    x.sortby = 'applyto'
+                    x.align = 'l'
+                    x.header_style = 'cap'
+                    map(x.add_row,t.values)
+                    if parseresult['--output-style'].lower()=='tab':
+                        print(x)
+                    else:
+                        print(x.get_html_string())
+                else:
+                    print t.to_csv(header=['#tagname','datasource','applyto','isdefault','creation time','comment'],index=False)
+
          dbsession.transaction().commit()         
          del dbsession
 
