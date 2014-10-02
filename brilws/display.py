@@ -14,7 +14,7 @@ def formatter_tuple((x,y)):
         x = _floatformatter(x)
     if isinstance(y,float):
         y = _floatformatter(y)
-    return '(%s,%s)'%(x,y)
+    return '%s:%s'%(x,y)
 
 def listdf(df,npp=100, columns=None, formatters=None, index=False, justify='left', pagination=False):
     '''
