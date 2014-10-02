@@ -6,6 +6,8 @@ import numpy as np
 import pandas as pd
 import brilws
 from brilws import api,display
+import itertools
+import operator
 
 log = logging.getLogger('briltag')
 logformatter = logging.Formatter('%(levelname)s %(message)s')
@@ -20,14 +22,45 @@ log.addHandler(ch)
 choice_sources = ['BHM','BCM1F','PLT','HFOC','PIXEL']
 choice_applyto = ['LUMI','BKG']
 
+def stringfy_listoftuples(inlist):
+    return ','.join([str(x)+':'+str(y) for x,y in inlist])
+       
+
+def clean_paramrow(paramrow):
+    result = {}
+    result['since'] = paramrow['since']
+    result[paramrow['paramname']] = paramrow['f4'] or paramrow['s'] or paramrow['u4'] or paramrow['i4']
+    return result
+
 def combine_params(groups):
     '''
     paramname:combine paramname and not null param into one row of [('paramname',paramval)]
     '''
     result = pd.concat([groups['f4'].dropna(),groups['s'].dropna(),groups['u4'].dropna()])
-    result = zip( groups['paramname'].values,result.values)
-    groups['params']= ''.join(map(display.formatter_tuple,result))
-    return groups
+    groups.drop('f4',axis=1,inplace=True)
+    groups.drop('s',axis=1,inplace=True)
+    groups.drop('u4',axis=1,inplace=True)
+    groups.drop('i4',axis=1,inplace=True)
+    groups.drop('u8',axis=1,inplace=True)
+    groups.drop('i8',axis=1,inplace=True)
+    groups.drop('u2',axis=1,inplace=True)
+    groups.drop('i2',axis=1,inplace=True)
+    groups.drop('u1',axis=1,inplace=True)
+    groups.drop('i1',axis=1,inplace=True)
+    #print 'result ',result
+    varnames = groups['paramname'].values
+    #print varnames
+    newdf = pd.DataFrame(result.values,columns=['params'],index=varnames)
+    print newdf.values
+    print newdf.index.values
+    print groups.index.values
+    print 'groups.columns ',groups.columns
+    #groups.set_index(['sincerun','params'], inplace=True)   
+    #print 'df1 ',df1.to_string()
+    #return r
+    #result = zip( groups['paramname'].values,result.values)
+    #groups['params']= ''.join(map(display.formatter_tuple,result))
+    #return groups
     
 def briltag_main():
     docstr='''
@@ -94,20 +127,32 @@ def briltag_main():
              selectedtag = regdf.loc[(regdf['tagname']==tagname),['tagid','tagdatatable','paramtable']].values
              for tagid,tagtable,paramtable in selectedtag:
                 qHandle = dbsession.nominalSchema().newQuery()
-                #select n.comment,n.amodetag,n.egev,n.minbiasxsec,n.funcname, p.* from $paramtable p where p.tagid=:tagid 
-                qOutputRowDef = {'n.SINCERUN':('unsigned int','sincerun'),'n.COMMENT':('string','comment'),'n.AMODETAG':('string','amodetag'),'n.EGEV':('unsigned int','egev'),'n.MINBIASXSEC':('unsigned int','minbiasxsec'),'n.FUNCNAME':('string','funcname'),'p.PARAMIDX':('unsigned int','paramidx'),'p.PARAMNAME':('string','paramname'),'p.U1':('unsigned char','u1'),'p.I1':('char','i1'),'p.U2':('unsigned short','u2'),'p.I2':('short','i2'),'p.F4':('float','f4'),'p.U4':('unsigned int','u4'),'p.I4':('int','i4'),'p.U8':('unsigned long long','u8'),'p.I8':('long long','i8'),'p.S':('string','s')}
-                qTablelist = [(tagtable,'n'),(paramtable,'p')]
-                
-                qConditionStr = 'n.TAGID=p.TAGID AND n.SINCERUN=p.SINCERUN AND n.TAGID=:tagid'
+                #select sincerun, comment,amodetag,egev,minbiasxsec,funcname from tagtable where tagid=:tagid
+                qOutputRowDef = {'SINCERUN':('unsigned int','since'),'COMMENT':('string','comment'),'AMODETAG':('string','amodetag'),'EGEV':('unsigned int','egev'),'MINBIASXSEC':('unsigned int','minbiasxsec'),'FUNCNAME':('string','func')}
+                qTablelist = [(tagtable,'')]
+                qConditionStr = 'TAGID=:tagid'
                 qCondition = coral.AttributeList()
                 qCondition.extend('tagid','unsigned long long')
                 qCondition['tagid'].setData(tagid)
-               
-                paramdf = pd.DataFrame.from_records(api.db_query_generator(qHandle,qTablelist,qOutputRowDef,qConditionStr,qCondition))
-                grouped = paramdf.groupby(['sincerun'])
-                result = grouped.apply(combine_params)                                               
-                display.listdf(result,columns=['sincerun','amodetag','egev','minbiasxsec','funcname','params','comment'])
+                taginfo_df = pd.DataFrame.from_records(api.db_query_generator(qHandle,qTablelist,qOutputRowDef,qConditionStr,qCondition))
                 del qHandle
+
+                qHandle = dbsession.nominalSchema().newQuery()
+                #select * from paramtable where tagid=:tagid
+                qOutputRowDef = {'SINCERUN':('unsigned int','since'),'PARAMNAME':('string','paramname'),'U1':('unsigned char','u1'),'I1':('char','i1'),'U2':('unsigned short','u2'),'I2':('short','i2'),'F4':('float','f4'),'U4':('unsigned int','u4'),'I4':('int','i4'),'U8':('unsigned long long','u8'),'I8':('long long','i8'),'S':('string','s')}
+                qTablelist = [(paramtable,'')]               
+                g = api.db_query_generator(qHandle,qTablelist,qOutputRowDef,qConditionStr,qCondition)
+                result = map(clean_paramrow,g)
+                r = {}
+                for k,ig in itertools.groupby(result,key=operator.itemgetter('since')):
+                    for gdict in list(ig): 
+                        gg = {key:value for key,value in gdict.items() if key !='since'}
+                        r.setdefault(k,[]).append(gg.items()[0])
+#                print r
+                rr = {x:stringfy_listoftuples(y) for x,y in r.items()}
+                print 'rr',rr
+                display.listdf(taginfo_df,columns=['since','amodetag','egev','minbiasxsec','func','comment'])
+
          dbsession.transaction().commit()
          del dbsession
          if regdf.empty:
