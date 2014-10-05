@@ -1,0 +1,26 @@
+LUMIRESULT_&suffix
+   columns:
+     - lumiresultid: uint64
+     - datasourceid: uint16
+     - algoid: uint16
+     - timeindexid: uint64
+     - isbest: uint8
+     - lastupdate: uint32
+     - lastupdatestr: string
+     - normtagid: uint64
+     - datatagid: uint64
+     - delivered: float
+     - recorded: float
+     - avgpu: float
+     
+LUMIBXRESULT_&suffix
+   columns:
+     - lumiresultid: uint64
+     - bxidx: uint16
+     - delivered: float
+     - recorded: float
+     - specific: float
+
+
+    
+ 

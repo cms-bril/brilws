@@ -5,6 +5,7 @@ CONDTAGREGISTRY:  #format convention: table names in upper case
     - creationutc: string
     - tagdatatable: string   
     - paramtable: string
+    - datasourceid: uint64
     - datasource: string     #hfoc,bhm,plt,pix
     - applyto: string        #lumi,bkg
     - isdefault: unsigned char

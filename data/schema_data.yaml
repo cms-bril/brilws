@@ -1,0 +1,184 @@
+DATATABLEREGISTRY:
+  columns:
+    - datasourceid: uint16
+    - datatableid: uint16
+    - datatablename: string
+    - dataidcolumnname: string
+  pk: [datasourceid,datatableid]
+  unique: [datatablename]
+  notnull: [datatablename]
+
+DATASOURCEMAP: 
+  columns: 
+    - datasourceid: uint16
+    - datasource: string
+    - algoid: uint16
+    - algoname: string
+  pk: [datasourceid,algoid]
+
+DATATAGTABLEREGISTRY:
+  columns: 
+    - datatagtableid: uint16
+    - datatagtablename: string
+    - datatagtype: string
+    - comment: string
+
+DATATAGREGISTRY:
+  columns:
+    - datatagid: uint64
+    - datatagname: string
+    - creationutc: string
+    - datatagtableid: uint64
+    - comment: string
+  pk: [datatagid]
+  unique: [datatagname]
+
+LUMIDATATAGS:
+  columns:
+    - datatagid: uint64
+    - timeindexid: uint64
+    - hflumiid: uint64
+    - bcm1flumiid: uint64
+    - pltlumiid: uint64
+    - hltid: uint64
+    - deadtimeid: uint64
+    - trgid: uint64
+    - beaminfoid: uint64
+  pk: [datatagid,timeindex]
+
+PIXELLUMIDATATAGS:
+  columns:
+    - datatagid: uint64
+    - timeindexid: uint64
+    - hltid: uint64
+    - pixellumiid: uint64
+    - beamid: uint64
+  pk: [datatagid,timeindex]
+
+BKGDATATAGS:
+  columns:
+    - datatagid: uint64
+    - timeindexid: uint64
+    - bhmbkgid: uint64
+    - beamid: uint64
+  pk: [datatagid,timeindex]
+ 
+TIMEINDEX:
+  column:
+    - timeindexid: uint64
+    - fillnum: uint32
+    - runnum: uint32
+    - lsnum: uint32
+    - cmslsnum: uint32
+    - timestamp: uint64
+    - timestampstr: string #just for display. do not query
+    - weekofyear: uint8
+    - dayofyear: uint16
+    - year: uint16
+    - month: uint16
+    - runinfoid: uint64
+    - fillinfoid: uint64
+  pk: [timeindexid]
+  
+FILLINFO:
+   columns:
+    - fillinfoid: uint64
+    - fillnum: uint32
+    - amodetag: string
+    - egev: uint32
+    - fillscheme: string
+    - ncollidingbx: uint16
+    - beamconfig: blob
+   pk: [fillinfoid]
+
+RUNINFO:
+   columns:
+    - runinfoid: uint64
+    - runnum: uint32
+    - hltconfigid: uint32
+    - hltkey: string
+    - l1seedexpression: string
+    - gt_rs_key: string
+   pk: [runinfoid]
+
+BEAMINFO:
+   columns:
+    - beaminfoid: uint64
+    - beamstatusid: uint8
+
+BEAMINTENSITY_&suffix:
+   columns:
+    - beaminfoid: uint64
+    - bxidx: uint16
+    - beam1intensity: uint32
+    - beam2intensity: uint32
+
+ BEAMSTATUSMAP:
+   columns:
+    - beamstatusid: uint8
+    - beamstatus: string
+
+HFLUMI_&suffix:
+   columns:
+    - hflumiid: uint64
+    - algoid: uint16
+    - bxidx: uint16
+    - instlumi: float
+   pk: [hflumiid,algoid,bxidx]
+
+TRGBITMAP:
+   columns:
+    - trgbitid: uint16
+    - trgbitname: string #name used in l1seed expression
+    - trgbitrawname: string #name used in hardware
+   pk: [trgbitid]
+
+TRG_&suffix:
+   columns:
+    - trgid: uint64
+    - trgbitid: uint16
+    - prescidx: uint16
+    - prescval: uint32  
+    - bitmask: uint8
+    - counts: uint32
+    - physicsdeclared: uint16
+   pk: [trgid,trgbitid]
+ 
+HLTSTREAMDATASET:
+   columns:
+    - hltpathid: uint16
+    - streamid: uint16
+    - streamlabel: string
+    - datasetid: uint16
+    - datasetlabel: string
+   pk: [hltpathid,streamid,datasetid]
+  
+ 
+HLTPATHMAP:
+   columns:
+    - hltpathid: uint16
+    - hltpathname: string
+#    - l1seedexpression: string
+   pk: [hltpathid]
+   notnull: [hltpathname]
+
+ 
+HLT_&suffix:  #per lshltpath
+   columns:
+    - hltid: uint64
+    - hltpathid: uint16
+    - prescidx: uint16
+    - prescval: uint32
+    - l1pass: uint32
+    - hltaccept: uint32
+   pk: [hltid,hltpathid]
+     
+DEADTIME:       #per ls
+   columns:
+    - deadtimeid: uint64
+    - deadtimefrac: float
+   pk: [deadtimeid] 
+
+
+
+
