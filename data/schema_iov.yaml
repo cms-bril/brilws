@@ -29,8 +29,8 @@ IOVP_F:
     - value: float 
     - iitemalias: string            
     - iposalias: string
-   pk: [payloadid,iitem,ipos]
-   notnull: [payloadid,iitem,ipos]
+  pk: [payloadid,iitem,ipos]
+  notnull: [payloadid,iitem,ipos]
 
 IOVP_I:
   columns:
@@ -40,8 +40,8 @@ IOVP_I:
     - value: unsigned int 
     - iitemalias: string            
     - iposalias: string
-   pk: [payloadid,iitem,ipos]
-   notnull: [payloadid,iitem,ipos]
+  pk: [payloadid,iitem,ipos]
+  notnull: [payloadid,iitem,ipos]
 
 IOVP_SI:
   columns:
@@ -51,8 +51,8 @@ IOVP_SI:
     - value: int 
     - iitemalias: string            
     - iposalias: string
-   pk: [payloadid,iitem,ipos]
-   notnull: [payloadid,iitem,ipos]
+  pk: [payloadid,iitem,ipos]
+  notnull: [payloadid,iitem,ipos]
 
 IOVP_H:
   columns:
@@ -62,8 +62,8 @@ IOVP_H:
     - value: unsigned short 
     - iitemalias: string            
     - iposalias: string
-   pk: [payloadid,iitem,ipos]
-   notnull: [payloadid,iitem,ipos]
+  pk: [payloadid,iitem,ipos]
+  notnull: [payloadid,iitem,ipos]
 
 IOVP_SH:
   columns:
@@ -73,8 +73,8 @@ IOVP_SH:
     - value: short 
     - iitemalias: string            
     - iposalias: string
-   pk: [payloadid,iitem,ipos]
-   notnull: [payloadid,iitem,ipos]
+  pk: [payloadid,iitem,ipos]
+  notnull: [payloadid,iitem,ipos]
 
 IOVP_L:
   columns:
@@ -84,8 +84,8 @@ IOVP_L:
     - value: unsigned long long 
     - iitemalias: string            
     - iposalias: string
-   pk: [payloadid,iitem,ipos]
-   notnull: [payloadid,iitem,ipos]
+  pk: [payloadid,iitem,ipos]
+  notnull: [payloadid,iitem,ipos]
 
 IOVP_SL:
   columns:
@@ -95,8 +95,8 @@ IOVP_SL:
     - value: long long 
     - iitemalias: string            
     - iposalias: string
-   pk: [payloadid,iitem,ipos]
-   notnull: [payloadid,iitem,ipos]
+  pk: [payloadid,iitem,ipos]
+  notnull: [payloadid,iitem,ipos]
 
 IOVP_STR:
   columns:
@@ -107,8 +107,8 @@ IOVP_STR:
     - maxlength: unsigned int
     - iitemalias: string            
     - iposalias: string
-   pk: [payloadid,iitem,ipos]
-   notnull: [payloadid,iitem,ipos]
+  pk: [payloadid,iitem,ipos]
+  notnull: [payloadid,iitem,ipos]
 
 IOVP_C:
   columns:
@@ -118,7 +118,7 @@ IOVP_C:
     - value: unsigned char 
     - iitemalias: string            
     - iposalias: string
-   pk: [payloadid,iitem,ipos]
-   notnull: [payloadid,iitem,ipos]
+  pk: [payloadid,iitem,ipos]
+  notnull: [payloadid,iitem,ipos]
 
 
