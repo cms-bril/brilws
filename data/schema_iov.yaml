@@ -104,6 +104,7 @@ IOVP_STR:
     - iitem: unsigned int
     - ipos: unsigned int
     - value: string
+    - maxlength: unsigned int
     - iitemalias: string            
     - iposalias: string
    pk: [payloadid,iitem,ipos]
