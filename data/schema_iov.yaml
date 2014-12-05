@@ -4,10 +4,9 @@ IOVTAGS:  #format convention: table names in upper case
     - tagname: string
     - creationutc: string
     - datadict: string   
-    - nitems: unsigned int
     - iovdataversion: string
     - datasource: string     #hfoc,bhm,plt,pix
-    - applyto: string        #lumi,bkg
+    - applyto: string        #lumi,bkg,daq
     - isdefault: unsigned char
     - comment: string
   pk: [tagid]
@@ -25,91 +24,99 @@ IOVP_F:
   columns:
     - payloadid: long long
     - iitem: unsigned int
+    - ifield: unsigned int
+    - fieldalias: string
     - ipos: unsigned int
-    - iposalias: string
     - val: float
-  pk: [payloadid,iitem,ipos]
-  notnull: [payloadid,iitem,ipos]
+  pk: [payloadid,iitem,ifield,ipos]
+  notnull: [payloadid,iitem,ifield,ipos]
 
 IOVP_I:
   columns:
     - payloadid: long long
     - iitem: unsigned int
+    - ifield: unsigned int
+    - fieldalias: string
     - ipos: unsigned int
-    - iposalias: string
     - val: unsigned int 
-  pk: [payloadid,iitem,ipos]
-  notnull: [payloadid,iitem,ipos]
+  pk: [payloadid,iitem,ifield,ipos]
+  notnull: [payloadid,iitem,ifield,ipos]
 
 IOVP_SI:
   columns:
     - payloadid: long long
     - iitem: unsigned int
+    - ifield: unsigned int
+    - fieldalias: string
     - ipos: unsigned int
-    - iposalias: string
     - val: int 
-  pk: [payloadid,iitem,ipos]
-  notnull: [payloadid,iitem,ipos]
+  pk: [payloadid,iitem,ifield,ipos]
+  notnull: [payloadid,iitem,ifield,ipos]
 
 IOVP_H:
   columns:
     - payloadid: long long
     - iitem: unsigned int
+    - ifield: unsigned int
+    - fieldalias: string
     - ipos: unsigned int
-    - iposalias: string
     - val: unsigned short 
-  pk: [payloadid,iitem,ipos]
-  notnull: [payloadid,iitem,ipos]
+  pk: [payloadid,iitem,ifield,ipos]
+  notnull: [payloadid,iitem,ifield,ipos]
 
 IOVP_SH:
   columns:
     - payloadid: long long
     - iitem: unsigned int
+    - ifield: unsigned int
+    - fieldalias: string
     - ipos: unsigned int
-    - iposalias: string
     - val: short 
-  pk: [payloadid,iitem,ipos]
-  notnull: [payloadid,iitem,ipos]
+  pk: [payloadid,iitem,ifield,ipos]
+  notnull: [payloadid,iitem,ifield,ipos]
 
 IOVP_L:
   columns:
     - payloadid: long long
     - iitem: unsigned int
+    - ifield: unsigned int
+    - fieldalias: string
     - ipos: unsigned int
-    - iposalias: string
     - val: unsigned long long 
-  pk: [payloadid,iitem,ipos]
-  notnull: [payloadid,iitem,ipos]
+  pk: [payloadid,iitem,ifield,ipos]
+  notnull: [payloadid,iitem,ifield,ipos]
 
 IOVP_SL:
   columns:
     - payloadid: long long
     - iitem: unsigned int
+    - ifield: unsigned int
+    - fieldalias: string
     - ipos: unsigned int
-    - iposalias: string
     - val: long long 
-  pk: [payloadid,iitem,ipos]
-  notnull: [payloadid,iitem,ipos]
+  pk: [payloadid,iitem,ifield,ipos]
+  notnull: [payloadid,iitem,ifield,ipos]
 
 IOVP_STR:
   columns:
     - payloadid: long long
     - iitem: unsigned int
+    - ifield: unsigned int
+    - fieldalias: string
     - ipos: unsigned int
-    - iposalias: string
-    - maxlength: unsigned int
     - val: string
-  pk: [payloadid,iitem,ipos]
-  notnull: [payloadid,iitem,ipos]
+  pk: [payloadid,iitem,ifield,ipos]
+  notnull: [payloadid,iitem,ifield,ipos]
 
 IOVP_B:
   columns:
     - payloadid: long long
     - iitem: unsigned int
+    - ifield: unsigned int
+    - fieldalias: string
     - ipos: unsigned int
-    - iposalias: string
     - val: unsigned char
-  pk: [payloadid,iitem,ipos]
-  notnull: [payloadid,iitem,ipos]
+  pk: [payloadid,iitem,ifield,ipos]
+  notnull: [payloadid,iitem,ifield,ipos]
 
 
