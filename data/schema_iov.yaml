@@ -25,7 +25,6 @@ IOVP_F:
     - payloadid: long long
     - iitem: unsigned int
     - ifield: unsigned int
-    - fieldalias: string
     - ipos: unsigned int
     - val: float
   pk: [payloadid,iitem,ifield,ipos]
@@ -36,7 +35,6 @@ IOVP_I:
     - payloadid: long long
     - iitem: unsigned int
     - ifield: unsigned int
-    - fieldalias: string
     - ipos: unsigned int
     - val: unsigned int 
   pk: [payloadid,iitem,ifield,ipos]
@@ -47,7 +45,6 @@ IOVP_SI:
     - payloadid: long long
     - iitem: unsigned int
     - ifield: unsigned int
-    - fieldalias: string
     - ipos: unsigned int
     - val: int 
   pk: [payloadid,iitem,ifield,ipos]
@@ -58,7 +55,6 @@ IOVP_H:
     - payloadid: long long
     - iitem: unsigned int
     - ifield: unsigned int
-    - fieldalias: string
     - ipos: unsigned int
     - val: unsigned short 
   pk: [payloadid,iitem,ifield,ipos]
@@ -69,7 +65,6 @@ IOVP_SH:
     - payloadid: long long
     - iitem: unsigned int
     - ifield: unsigned int
-    - fieldalias: string
     - ipos: unsigned int
     - val: short 
   pk: [payloadid,iitem,ifield,ipos]
@@ -80,7 +75,6 @@ IOVP_L:
     - payloadid: long long
     - iitem: unsigned int
     - ifield: unsigned int
-    - fieldalias: string
     - ipos: unsigned int
     - val: unsigned long long 
   pk: [payloadid,iitem,ifield,ipos]
@@ -91,7 +85,6 @@ IOVP_SL:
     - payloadid: long long
     - iitem: unsigned int
     - ifield: unsigned int
-    - fieldalias: string
     - ipos: unsigned int
     - val: long long 
   pk: [payloadid,iitem,ifield,ipos]
@@ -102,7 +95,6 @@ IOVP_STR:
     - payloadid: long long
     - iitem: unsigned int
     - ifield: unsigned int
-    - fieldalias: string
     - ipos: unsigned int
     - val: string
   pk: [payloadid,iitem,ifield,ipos]
@@ -113,7 +105,6 @@ IOVP_B:
     - payloadid: long long
     - iitem: unsigned int
     - ifield: unsigned int
-    - fieldalias: string
     - ipos: unsigned int
     - val: unsigned char
   pk: [payloadid,iitem,ifield,ipos]
