@@ -18,9 +18,10 @@ IOVTAGDATA:
     - tagid: long long   
     - since: unsigned int      
     - payloadid: long long
+    - comment: string
   pk: [tagid,since]
 
-IOVP_F:
+IOVP_FLOAT32:
   columns:
     - payloadid: long long
     - iitem: unsigned int
@@ -30,7 +31,7 @@ IOVP_F:
   pk: [payloadid,iitem,ifield,ipos]
   notnull: [payloadid,iitem,ifield,ipos]
 
-IOVP_I:
+IOVP_UINT32:
   columns:
     - payloadid: long long
     - iitem: unsigned int
@@ -40,7 +41,7 @@ IOVP_I:
   pk: [payloadid,iitem,ifield,ipos]
   notnull: [payloadid,iitem,ifield,ipos]
 
-IOVP_SI:
+IOVP_INT32:
   columns:
     - payloadid: long long
     - iitem: unsigned int
@@ -50,7 +51,7 @@ IOVP_SI:
   pk: [payloadid,iitem,ifield,ipos]
   notnull: [payloadid,iitem,ifield,ipos]
 
-IOVP_H:
+IOVP_UINT16:
   columns:
     - payloadid: long long
     - iitem: unsigned int
@@ -60,7 +61,7 @@ IOVP_H:
   pk: [payloadid,iitem,ifield,ipos]
   notnull: [payloadid,iitem,ifield,ipos]
 
-IOVP_SH:
+IOVP_INT16:
   columns:
     - payloadid: long long
     - iitem: unsigned int
@@ -70,7 +71,7 @@ IOVP_SH:
   pk: [payloadid,iitem,ifield,ipos]
   notnull: [payloadid,iitem,ifield,ipos]
 
-IOVP_L:
+IOVP_UINT64:
   columns:
     - payloadid: long long
     - iitem: unsigned int
@@ -80,7 +81,7 @@ IOVP_L:
   pk: [payloadid,iitem,ifield,ipos]
   notnull: [payloadid,iitem,ifield,ipos]
 
-IOVP_SL:
+IOVP_INT64:
   columns:
     - payloadid: long long
     - iitem: unsigned int
@@ -90,7 +91,7 @@ IOVP_SL:
   pk: [payloadid,iitem,ifield,ipos]
   notnull: [payloadid,iitem,ifield,ipos]
 
-IOVP_STR:
+IOVP_STRING:
   columns:
     - payloadid: long long
     - iitem: unsigned int
@@ -100,7 +101,7 @@ IOVP_STR:
   pk: [payloadid,iitem,ifield,ipos]
   notnull: [payloadid,iitem,ifield,ipos]
 
-IOVP_B:
+IOVP_UINT8:
   columns:
     - payloadid: long long
     - iitem: unsigned int
@@ -110,4 +111,12 @@ IOVP_B:
   pk: [payloadid,iitem,ifield,ipos]
   notnull: [payloadid,iitem,ifield,ipos]
 
-
+IOVP_INT8:
+  columns:
+    - payloadid: long long
+    - iitem: unsigned int
+    - ifield: unsigned int
+    - ipos: unsigned int
+    - val: char
+  pk: [payloadid,iitem,ifield,ipos]
+  notnull: [payloadid,iitem,ifield,ipos]
