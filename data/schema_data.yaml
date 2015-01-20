@@ -1,11 +1,12 @@
 BEAMSTATUSMAP:
    columns:
-    - beamstatusid: uint8
+    - beamstatusid: long long
     - beamstatus: string
+   pk: [beamstatusid]
    
 TRGBITMAP:
    columns:
-    - trgbitid: uint16
+    - trgbitid: long long
     - trgbitname: string #name used in l1seed expression
     - trgbitrawname: string #name used in hardware
    pk: [trgbitid]
@@ -13,77 +14,77 @@ TRGBITMAP:
 
 HLTPATHMAP:
    columns:
-    - hltpathid: uint16
+    - hltpathid: long long
     - hltpathname: string
    pk: [hltpathid]
    notnull: [hltpathname]
 
 
 DATATABLEREGISTRY:
-  columns:
+   columns:
     - datatablename: string
-    - dataidcolumnname: string
-  pk: [datatablename]
+    - dataidcolumnsname: string
+   pk: [datatablename]
 
 DATATAGS:
-  columns:
-    - datatagid: uint64
+   columns:
+    - datatagid: long long
     - datatagname: string
     - creationutc: string
     - datatagtable: string
     - comment: string
-  pk: [datatagid]
-  unique: [datatagname]
+   pk: [datatagid]
+   unique: [datatagname]
 
 LUMIDATATAGS:
-  columns:
-    - datatagid: uint64
-    - timeindexid: uint64
-    - hfoclumiid: uint64
-    - hfetlumiid: uint64
-    - bcm1flumiid: uint64
-    - pltlumiid: uint64
-    - pixellumiid: uint64
-    - hltid: uint64
-    - deadtimeid: uint64
-    - trgid: uint64
-    - beaminfoid: uint64
-  pk: [datatagid,timeindex]
+   columns:
+    - datatagid: long long
+    - timeindexid: long long
+    - hfoclumiid: long long
+    - hfetlumiid: long long
+    - bcm1flumiid: long long
+    - pltlumiid: long long
+    - pixellumiid: long long
+    - hltid: long long
+    - deadtimeid: long long
+    - trgid: long long
+    - beaminfoid: long long
+   pk: [datatagid,timeindex]
   
 
 TIMEINDEX:
-  column:
-    - timeindexid: uint64
-    - fillnum: uint32
-    - runnum: uint32
-    - lsnum: uint32
-    - cmslsnum: uint32
-    - timestamp: uint64
+  columns:
+    - timeindexid: long long
+    - fillnum: unsigned int
+    - runnum: unsigned int
+    - lsnum: unsigned int
+    - cmslsnum: unsigned int
+    - timestamp: long long
     - timestampstr: string #just for display. do not query
-    - weekofyear: uint8
-    - dayofyear: uint16
-    - year: uint16
-    - month: uint16
-    - runinfoid: uint64
-    - fillinfoid: uint64
+    - weekofyear: unsigned char
+    - dayofyear: unsigned short
+    - year: unsigned short
+    - month: unsigned short
+    - runinfoid: long long
+    - fillinfoid: long long
   pk: [timeindexid]
   
 FILLINFO:
    columns:
-    - fillinfoid: uint64
-    - fillnum: uint32
+    - fillinfoid: long long
+    - fillnum: unsigned int
     - amodetag: string
-    - egev: uint32
+    - egev: unsigned int
     - fillscheme: string
-    - ncollidingbx: uint16
+    - ncollidingbx: unsigned short
     - beamconfig: blob
    pk: [fillinfoid]
 
 RUNINFO:
    columns:
-    - runinfoid: uint64
-    - runnum: uint32
-    - hltconfigid: uint32
+    - runinfoid: long long
+    - runnum: unsigned int
+    - hltconfigid: unsigned int
     - hltkey: string
     - l1seedexpression: string
     - gt_rs_key: string
@@ -91,84 +92,86 @@ RUNINFO:
 
 BEAMINFO:
    columns:
-    - beaminfoid: uint64
-    - beamstatusid: uint8
+    - beaminfoid: long long
+    - beamstatusid: unsigned char
+   pk: [beaminfoid]
 
 BEAMINTENSITY_&suffix:
    columns:
-    - beaminfoid: uint64
-    - bxidx: uint16
-    - beam1intensity: uint32
-    - beam2intensity: uint32
+    - beamintensityid: long long
+    - bxidx: unsigned short
+    - beam1intensity: unsigned int
+    - beam2intensity: unsigned int
+   pk: [beamintensityid]
 
 HFLUMIOC_&suffix:
    columns:
-    - dataid: uint64
-    - bxidx: uint16
+    - dataid: long long
+    - bxidx: unsigned short
     - instlumi: float
    pk: [dataid,bxidx]
 
 HFLUMIET_&suffix:
    columns:
-    - dataid: uint64
-    - bxidx: uint16
+    - dataid: long long
+    - bxidx: unsigned short
     - instlumi: float
    pk: [dataid,bxidx]
 
 BCM1FLUMI_&suffix:
    columns:
-    - dataid: uint64
-    - bxidx: uint16
+    - dataid: long long
+    - bxidx: unsigned short
     - instlumi: float
    pk: [dataid,bxidx]
 
 PLTLUMI_&suffix:
    columns:
-    - dataid: uint64
-    - bxidx: uint16
+    - dataid: long long
+    - bxidx: unsigned short
     - instlumi: float
    pk: [dataid,bxidx]
 
 PIXELLUMI_&suffix:
    columns:
-    - dataid: uint64
-    - bxidx: uint16
+    - dataid: long long
+    - bxidx: unsigned short
     - instlumi: float
    pk: [dataid,bxidx]
 
 TRG_&suffix:
    columns:
-    - trgid: uint64
-    - trgbitid: uint16
-    - prescidx: uint16
-    - prescval: uint32  
-    - bitmask: uint8
-    - counts: uint32
-    - physicsdeclared: uint16
+    - trgid: long long
+    - trgbitid: unsigned short
+    - prescidx: unsigned short
+    - prescval: unsigned int  
+    - bitmask: unsigned char
+    - counts: unsigned int
+    - physicsdeclared: unsigned short
    pk: [trgid,trgbitid]
  
 HLTSTREAMDATASET:
    columns:
-    - hltpathid: uint16
-    - streamid: uint16
+    - hltpathid: unsigned short
+    - streamid: unsigned short
     - streamlabel: string
-    - datasetid: uint16
+    - datasetid: unsigned short
     - datasetlabel: string
    pk: [hltpathid,streamid,datasetid]
   
 HLT_&suffix:  #per lshltpath
    columns:
-    - hltid: uint64
-    - hltpathid: uint16
-    - prescidx: uint16
-    - prescval: uint32
-    - l1pass: uint32
-    - hltaccept: uint32
+    - hltid: long long
+    - hltpathid: unsigned short
+    - prescidx: unsigned short
+    - prescval: unsigned int
+    - l1pass: unsigned int
+    - hltaccept: unsigned int
    pk: [hltid,hltpathid]
      
 DEADTIME:       #per ls
    columns:
-    - deadtimeid: uint64
+    - deadtimeid: long long
     - deadtimefrac: float
    pk: [deadtimeid] 
 
