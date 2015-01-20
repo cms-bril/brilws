@@ -1,34 +1,36 @@
+BEAMSTATUSMAP:
+   columns:
+    - beamstatusid: uint8
+    - beamstatus: string
+   
+TRGBITMAP:
+   columns:
+    - trgbitid: uint16
+    - trgbitname: string #name used in l1seed expression
+    - trgbitrawname: string #name used in hardware
+   pk: [trgbitid]
+
+
+HLTPATHMAP:
+   columns:
+    - hltpathid: uint16
+    - hltpathname: string
+   pk: [hltpathid]
+   notnull: [hltpathname]
+
+
 DATATABLEREGISTRY:
   columns:
-    - datasourceid: uint16
-    - datatableid: uint16
     - datatablename: string
     - dataidcolumnname: string
-  pk: [datasourceid,datatableid]
-  unique: [datatablename]
-  notnull: [datatablename]
+  pk: [datatablename]
 
-DATASOURCEMAP: 
-  columns: 
-    - datasourceid: uint16
-    - datasource: string
-    - algoid: uint16
-    - algoname: string
-  pk: [datasourceid,algoid]
-
-DATATAGTABLEREGISTRY:
-  columns: 
-    - datatagtableid: uint16
-    - datatagtablename: string
-    - datatagtype: string
-    - comment: string
-
-DATATAGREGISTRY:
+DATATAGS:
   columns:
     - datatagid: uint64
     - datatagname: string
     - creationutc: string
-    - datatagtableid: uint64
+    - datatagtable: string
     - comment: string
   pk: [datatagid]
   unique: [datatagname]
@@ -37,32 +39,18 @@ LUMIDATATAGS:
   columns:
     - datatagid: uint64
     - timeindexid: uint64
-    - hflumiid: uint64
+    - hfoclumiid: uint64
+    - hfetlumiid: uint64
     - bcm1flumiid: uint64
     - pltlumiid: uint64
+    - pixellumiid: uint64
     - hltid: uint64
     - deadtimeid: uint64
     - trgid: uint64
     - beaminfoid: uint64
   pk: [datatagid,timeindex]
+  
 
-PIXELLUMIDATATAGS:
-  columns:
-    - datatagid: uint64
-    - timeindexid: uint64
-    - hltid: uint64
-    - pixellumiid: uint64
-    - beamid: uint64
-  pk: [datatagid,timeindex]
-
-BKGDATATAGS:
-  columns:
-    - datatagid: uint64
-    - timeindexid: uint64
-    - bhmbkgid: uint64
-    - beamid: uint64
-  pk: [datatagid,timeindex]
- 
 TIMEINDEX:
   column:
     - timeindexid: uint64
@@ -113,25 +101,40 @@ BEAMINTENSITY_&suffix:
     - beam1intensity: uint32
     - beam2intensity: uint32
 
- BEAMSTATUSMAP:
+HFLUMIOC_&suffix:
    columns:
-    - beamstatusid: uint8
-    - beamstatus: string
-
-HFLUMI_&suffix:
-   columns:
-    - hflumiid: uint64
-    - algoid: uint16
+    - dataid: uint64
     - bxidx: uint16
     - instlumi: float
-   pk: [hflumiid,algoid,bxidx]
+   pk: [dataid,bxidx]
 
-TRGBITMAP:
+HFLUMIET_&suffix:
    columns:
-    - trgbitid: uint16
-    - trgbitname: string #name used in l1seed expression
-    - trgbitrawname: string #name used in hardware
-   pk: [trgbitid]
+    - dataid: uint64
+    - bxidx: uint16
+    - instlumi: float
+   pk: [dataid,bxidx]
+
+BCM1FLUMI_&suffix:
+   columns:
+    - dataid: uint64
+    - bxidx: uint16
+    - instlumi: float
+   pk: [dataid,bxidx]
+
+PLTLUMI_&suffix:
+   columns:
+    - dataid: uint64
+    - bxidx: uint16
+    - instlumi: float
+   pk: [dataid,bxidx]
+
+PIXELLUMI_&suffix:
+   columns:
+    - dataid: uint64
+    - bxidx: uint16
+    - instlumi: float
+   pk: [dataid,bxidx]
 
 TRG_&suffix:
    columns:
@@ -153,16 +156,6 @@ HLTSTREAMDATASET:
     - datasetlabel: string
    pk: [hltpathid,streamid,datasetid]
   
- 
-HLTPATHMAP:
-   columns:
-    - hltpathid: uint16
-    - hltpathname: string
-#    - l1seedexpression: string
-   pk: [hltpathid]
-   notnull: [hltpathname]
-
- 
 HLT_&suffix:  #per lshltpath
    columns:
     - hltid: uint64
