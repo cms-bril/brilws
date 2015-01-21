@@ -61,6 +61,7 @@ def brilschema_main():
          schemadatadef={}
          infile = parseresult['-i']
          infilenamebase = os.path.basename(infile.name).split('.')[0]
+         suffix = parseresult['--suffix']             
          writeraccount = ''
          if parseresult['-f']=='oracle':
               columntypemap = api.oracletypemap
@@ -69,9 +70,9 @@ def brilschema_main():
               columntypemap = api.sqlitetypemap
          schemadatadef = yaml.load(parseresult['-i'])
          print 'Creating drop sql file for: %s'%infilenamebase
-         api.drop_tables_sql(infilenamebase,schemadatadef,yearsuffix='',dbflavor=parseresult['-f'])
+         api.drop_tables_sql(infilenamebase,schemadatadef,suffix=suffix,dbflavor=parseresult['-f'])
          print 'Creating create sql file for: %s'%infilenamebase
-         api.create_tables_sql(infilenamebase,schemadatadef,yearsuffix='',dbflavor=parseresult['-f'],writeraccount=writeraccount)
+         api.create_tables_sql(infilenamebase,schemadatadef,suffix=suffix,dbflavor=parseresult['-f'],writeraccount=writeraccount)
          print 'Done'
 
       elif args['<command>'] == 'fetch':

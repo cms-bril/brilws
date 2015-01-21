@@ -1,7 +1,10 @@
 import numpy as np
 import pandas as pd
-import coral
-import decimal 
+#import coral
+from sqlalchemy import *
+from sqlalchemy import exc
+import decimal
+import random, time
 
 decimalcontext = decimal.getcontext().copy()
 decimalcontext.prec = 3
@@ -136,29 +139,29 @@ def build_fk_stmt(tablename,fkdict):
     if results: return ';\n'.join(results)
     return ''
 
-def build_sqlfilename(schema_name,operationtype='create',yearsuffix='',dbflavor='sqlite'):
+def build_sqlfilename(schema_name,operationtype='create',suffix=None,dbflavor='sqlite'):
     result=''
-    if yearsuffix:
-       result='%s_%s%s_%s.sql'%(schema_name,dbflavor,operationtype,yearsuffix)
+    if suffix:
+       result='%s_%s%s_%s.sql'%(schema_name,dbflavor,operationtype,suffix)
     else:
        result='%s_%s%s.sql'%(schema_name,dbflavor,operationtype)
     return result
 
-def drop_tables_sql(schema_name,schema_def,yearsuffix,dbflavor='sqlite'):
+def drop_tables_sql(schema_name,schema_def,suffix=None,dbflavor='sqlite'):
     results=[]
     tables=schema_def.keys()
-    outfilename=build_sqlfilename(schema_name,operationtype='drop',yearsuffix=yearsuffix,dbflavor=dbflavor)
+    outfilename=build_sqlfilename(schema_name,operationtype='drop',suffix=suffix,dbflavor=dbflavor)
     for tname in tables:
         results.append(drop_table_stmt(tname,dbflavor=dbflavor))
     resultStr='\n'.join(results)
-    if yearsuffix:
-       resultStr=resultStr.replace('&suffix',yearsuffix)+';'
+    if suffix:
+       resultStr=resultStr.replace('&suffix',suffix)+';'
     resultStr=resultStr.upper() 
     with open(outfilename,'w') as sqlfile:
-        sqlfile.write('/* tablelist: %s */\n'%(','.join([t.replace('&suffix',yearsuffix).upper() for t in tables])))
+        sqlfile.write('/* tablelist: %s */\n'%(','.join([t.replace('&suffix',suffix).upper() for t in tables])))
         sqlfile.write(resultStr)
     
-def create_tables_sql(schema_name,schema_def,yearsuffix,dbflavor='sqlite',writeraccount=''):
+def create_tables_sql(schema_name,schema_def,suffix=None,dbflavor='sqlite',writeraccount=''):
     '''
     input :
         schema_name, schema name 
@@ -169,7 +172,7 @@ def create_tables_sql(schema_name,schema_def,yearsuffix,dbflavor='sqlite',writer
     fkresults=[]
     ixresults=[]
     tables=schema_def.keys()
-    outfilename=build_sqlfilename(schema_name,operationtype='create',yearsuffix=yearsuffix,dbflavor=dbflavor)
+    outfilename=build_sqlfilename(schema_name,operationtype='create',suffix=suffix,dbflavor=dbflavor)
     columntypemap={}  
     if dbflavor=='oracle':
         columntypemap = oracletypemap
@@ -208,11 +211,11 @@ def create_tables_sql(schema_name,schema_def,yearsuffix,dbflavor='sqlite',writer
             result=result+grant_stmt(tname,writeraccount)
         results.append(result)
     resultStr='\n'.join(results)
-    if yearsuffix:
-        resultStr=resultStr.replace('&suffix',yearsuffix)
+    if suffix:
+        resultStr=resultStr.replace('&suffix',suffix)
     resultStr=resultStr.upper()  
     with open(outfilename,'w') as sqlfile: 
-        sqlfile.write('/* tablelist: %s */\n'%(','.join([t.replace('&suffix',yearsuffix).upper() for t in tables])))
+        sqlfile.write('/* tablelist: %s */\n'%(','.join([t.replace('&suffix',suffix).upper() for t in tables])))
         sqlfile.write(resultStr)
         if fkresults:
             fkresultStr=';\n'.join([t.replace('&suffix',suffix).upper() for t in fkresults])
@@ -232,81 +235,66 @@ def db_connect_protocol(connectstr):
     else:
        raise 'unsupported db connection %s'%(connectstr)
 
-def db_getnextid(schema,tablename):
-    tablename = tablename.upper()
-    result = 0
-    try:
-       query = schema.tableHandle(tablename).newQuery()
-       query.addToOutputList('NEXTID')
-       query.setForUpdate()
-       cursor = query.execute()
-       while cursor.next():
-         result = cursor.currentRow()['NEXTID'].data()
-       dataEditor = schema.tableHandle(tablename).dataEditor()
-       inputData = coral.AttributeList()
-       dataEditor.updateRows('NEXTID = NEXTID+1','',inputData)
-       del query
-       return result
-    except Exception, e:
-       raise Exception, str(e)      
+#def db_getnextid(schema,tablename):
+#    tablename = tablename.upper()
+#    result = 0
+#    try:
+#       query = schema.tableHandle(tablename).newQuery()
+#       query.addToOutputList('NEXTID')
+#       query.setForUpdate()
+#       cursor = query.execute()
+#       while cursor.next():
+#         result = cursor.currentRow()['NEXTID'].data()
+#       dataEditor = schema.tableHandle(tablename).dataEditor()
+#       inputData = coral.AttributeList()
+#       dataEditor.updateRows('NEXTID = NEXTID+1','',inputData)
+#       del query
+#       return result
+#    except Exception, e:
+#       raise Exception, str(e)      
 
 
-def db_singleInsert(schema,tablename,rowdef,rowinputdict):
-    '''
-    input: 
-       tablename, string
-       rowdef,    [(colname:coltype)]
-       rowinputdict,  {colname:colval}
-    '''
-    tablename = tablename.upper()
-    try: 
-       dataEditor = schema.tableHandle(tablename).dataEditor()
-       insertdata = coral.AttributeList()
-       for (colname,coltype) in rowdef:          
-           insertdata.extend(colname,coltype)
-           if rowinputdict.has_key(colname):
-               insertdata[colname].setData(rowinputdict[colname])
-           else:
-               insertdata[colname].setData(None)
-       dataEditor.insertRow(insertdata)
-    except Exception, e:
-       raise Exception, 'api.db_singleInsert: '+str(e)
+#def db_singleInsert(schema,tablename,rowdef,rowinputdict):
+#    '''
+#    input: 
+#       tablename, string
+#       rowdef,    [(colname:coltype)]
+#       rowinputdict,  {colname:colval}
+#    '''
+#    tablename = tablename.upper()
+#    try: 
+#       dataEditor = schema.tableHandle(tablename).dataEditor()
+#       insertdata = coral.AttributeList()
+#       for (colname,coltype) in rowdef:          
+#           insertdata.extend(colname,coltype)
+#           if rowinputdict.has_key(colname):
+#               insertdata[colname].setData(rowinputdict[colname])
+#           else:
+#               insertdata[colname].setData(None)
+#       dataEditor.insertRow(insertdata)
+#    except Exception, e:
+#       raise Exception, 'api.db_singleInsert: '+str(e)
 
-def db_bulkInsert(schema,tablename,rowdef,bulkinput):
+def db_insert_row(session,tablename,inputrow):
     '''
-    input: 
-       tablename, string
-       rowdef,    [(colname:coltype)]
-       bulkinput,   [{colname:colval},{colname:colval}]
+    input:
+       tablename: string
+       inputrow:  {colname:colval}
     '''
-    tablename = tablename.upper()
-    try:
-       dataEditor = schema.tableHandle(tablename).dataEditor()
-       insertdata = coral.AttributeList()
-       for (colname,coltype) in rowdef:
-           insertdata.extend(colname,coltype)
-       bulkOperation = dataEditor.bulkInsert(insertdata,len(bulkinput))
-       for rowdict in bulkinput:
-           for (colname,coltype) in rowdef:
-               if rowdict.has_key(colname):
-                   colval = rowdict[colname]
-                   insertdata[colname].setData(colval)
-               else:
-                   insertdata[colname].setData(None)
-           bulkOperation.processNextIteration()
-       bulkOperation.flush()
-       del bulkOperation
-    except Exception, e:
-       raise Exception, 'api.db_bulkInsert '+str(e)      
-
-def db_getrowdef(schema,tablename):
-    result = []
-    desc = schema.tableHandle(tablename).description()
-    ncols = desc.numberOfColumns()
-    for icol in xrange(ncols):
-       col = desc.columnDescription(icol)
-       result.append((col.name(),col.type()))
-    return result
+    colnames = ','.join(inputrow.keys())
+    bindnames = ','.join([':'+c for c in inputrow.keys()] )
+    colvalues = inputrow.values()
+    session.execute("""insert into %s(%s) values(%s)"""%(tablename,colnames,bindnames),inputrow)
+   
+def db_insert_bulk(session,tablename,inputrows):
+    '''
+    input:
+       tablename: string
+       inputrows:  [{colname,colval}]
+    '''
+    colnames = ','.join(inputrows[0].keys())
+    bindnames = ','.join([':'+c for c in inputrows[0].keys()] )
+    session.execute("""insert into %s(%s) values(%s)"""%(tablename,colnames,bindnames),inputrows)
 
 def db_query_generator(qHandle,qTablelist,qOutputRowDef={},qConditionStr=None,qConditionVal=None):
     '''
@@ -351,27 +339,47 @@ def db_query_generator(qHandle,qTablelist,qOutputRowDef={},qConditionStr=None,qC
       print 'Database Error: ',e
       raise StopIteration
 
+def nonsequential_key(generator_id):
+    '''
+    http://ericmittelhammer.com/generating-nonsequential-primary-keys/
+    '''
+    now = int(time.time()*1000)
+    rmin = 1
+    rmax = 2**8 - 1
+    rdm = random.randint(1, rmax)
+    yield ((now << 22) + (generator_id << 14) + rdm )
+
 if __name__=='__main__':
-    svc = coral.ConnectionService()
-    connect = 'sqlite_file:pippo.db'
-    session = svc.connect(connect, accessMode = coral.access_ReadOnly)
-    session.transaction().start(True)
-    qHandle = session.nominalSchema().newQuery()
-    qTablelist = [('CONDTAGREGISTRY','')]
-    qOutputRowDef = {'TAGID':('unsigned long long','tagid'),'TAGNAME':('string','tagname')}
-    qConditionStr = 'APPLYTO=:applyto AND DATASOURCE=:datasource'
-    qCondition = coral.AttributeList()
-    qCondition.extend('applyto','string')
-    qCondition.extend('datasource','string')
-    qCondition['applyto'].setData('lumi')
-    qCondition['datasource'].setData('hfoc')
+    #svc = coral.ConnectionService()
+    #connect = 'sqlite_file:pippo.db'
+    #session = svc.connect(connect, accessMode = coral.access_ReadOnly)
+    #session.transaction().start(True)
+    #qHandle = session.nominalSchema().newQuery()
+    #qTablelist = [('CONDTAGREGISTRY','')]
+    #qOutputRowDef = {'TAGID':('unsigned long long','tagid'),'TAGNAME':('string','tagname')}
+    #qConditionStr = 'APPLYTO=:applyto AND DATASOURCE=:datasource'
+    #qCondition = coral.AttributeList()
+    #qCondition.extend('applyto','string')
+    #qCondition.extend('datasource','string')
+    #qCondition['applyto'].setData('lumi')
+    #qCondition['datasource'].setData('hfoc')
 
     #qTablelist = [('NORMS','')]
-    qOutputRowDef = {}
-    df = pd.DataFrame.from_records(db_query_generator(qHandle,qTablelist,qOutputRowDef,qConditionStr,qCondition))
-    del qHandle
-    session.transaction().commit()
-    if df.empty: 
-       print 'empty result'
-    else:
-       print df
+    #qOutputRowDef = {}
+    #df = pd.DataFrame.from_records(db_query_generator(qHandle,qTablelist,qOutputRowDef,qConditionStr,qCondition))
+    #del qHandle
+    #session.transaction().commit()
+    #if df.empty: 
+    #   print 'empty result'
+    #else:
+    #   print df
+
+    engine = create_engine('sqlite:///test.db')
+    session = sessionmaker(bind=engine)
+    s = session()
+    s.execute('''create table test ( a integer)''')
+    #for i in xrange(1,10):
+    api.db_insert_row(s,'test',{'a':1})
+    api.db_insert_bulk(s,'test',[{'a':4},{'a':2}]);
+    #s.execute("""insert into test(a) values(:a)""",[{'a':1},{'a':2}])
+    s.commit()
