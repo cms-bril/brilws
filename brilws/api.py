@@ -3,7 +3,6 @@ import pandas as pd
 #import coral
 from sqlalchemy import *
 from sqlalchemy import exc, text
-from sqlalchemy.orm import sessionmaker
 import decimal
 import random, time
 
@@ -224,6 +223,25 @@ def create_tables_sql(schema_name,schema_def,suffix=None,dbflavor='sqlite',write
         if ixresults:
             ixresultStr=';\n'.join([t.replace('&suffix',suffix).upper() for t in ixresults])
             sqlfile.write('\n'+ixresultStr+';')
+
+##### iovschema api
+def parsedatadict(datadictStr):
+    result = [] #[(tablesuffix,varlen,alias),(tablesuffix,varlen,alias)]
+    fields = datadictStr.split(',')
+    result = [(f.split(':')+[None]*99)[:3] for f in fields]
+    return result
+
+def getPtablename(typecode):
+    if typecode.find('STRING')<0:
+        return '_'.join([payloadtableprefix_,typecode])
+    else: # ignore STR length info in case any
+        return '_'.join([payloadtableprefix_,'STRING'])
+
+def getPtablenames():
+    result = []
+    for t in typecodes_:
+        result.append(getPtablename(t))
+    return result
 
 #def db_connect_protocol(connectstr):
 #    result = connectstr.split(':',1)
