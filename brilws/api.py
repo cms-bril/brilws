@@ -2,7 +2,8 @@ import numpy as np
 import pandas as pd
 #import coral
 from sqlalchemy import *
-from sqlalchemy import exc
+from sqlalchemy import exc, text
+from sqlalchemy.orm import sessionmaker
 import decimal
 import random, time
 
@@ -65,14 +66,14 @@ def create_table_stmt(tablename):
     result='CREATE TABLE %s'%(tablename)
     return result
 
-def create_sequencetable_stmt(tablename,dbflavor='sqlite'):
-    result=''
-    if dbflavor=='sqlite':
-        result='CREATE TABLE %s(NEXTID ULONGLONG, CONSTRAINT %s_PK PRIMARY KEY (NEXTID) );\n'%(tablename,tablename)
-    else:
-        result='CREATE TABLE %s(NEXTID NUMBER(20), CONSTRAINT %s_PK PRIMARY KEY (NEXTID) );\n'%(tablename,tablename)
-    result = result + 'INSERT INTO %s(NEXTID) VALUES(1);'%(tablename)
-    return result
+#def create_sequencetable_stmt(tablename,dbflavor='sqlite'):
+#    result=''
+#    if dbflavor=='sqlite':
+#        result='CREATE TABLE %s(NEXTID ULONGLONG, CONSTRAINT %s_PK PRIMARY KEY (NEXTID) );\n'%(tablename,tablename)
+#    else:
+#        result='CREATE TABLE %s(NEXTID NUMBER(20), CONSTRAINT %s_PK PRIMARY KEY (NEXTID) );\n'%(tablename,tablename)
+#    result = result + 'INSERT INTO %s(NEXTID) VALUES(1);'%(tablename)
+#    return result
 
 def drop_table_stmt(tablename, dbflavor='sqlite'):
     if dbflavor=='oracle':
@@ -224,16 +225,16 @@ def create_tables_sql(schema_name,schema_def,suffix=None,dbflavor='sqlite',write
             ixresultStr=';\n'.join([t.replace('&suffix',suffix).upper() for t in ixresults])
             sqlfile.write('\n'+ixresultStr+';')
 
-def db_connect_protocol(connectstr):
-    result = connectstr.split(':',1)
-    protocol = ''
-    if len(result)>1:
-       protocol = result[0]    
-       if protocol not in ['oracle','sqlite_file']:
-          raise 'unsupported technology %s'%(protocol)
-       return protocol
-    else:
-       raise 'unsupported db connection %s'%(connectstr)
+#def db_connect_protocol(connectstr):
+#    result = connectstr.split(':',1)
+#    protocol = ''
+#    if len(result)>1:
+#       protocol = result[0]    
+#       if protocol not in ['oracle','sqlite_file']:
+#          raise 'unsupported technology %s'%(protocol)
+#       return protocol
+#    else:
+#       raise 'unsupported db connection %s'%(connectstr)
 
 #def db_getnextid(schema,tablename):
 #    tablename = tablename.upper()
@@ -275,69 +276,50 @@ def db_connect_protocol(connectstr):
 #    except Exception, e:
 #       raise Exception, 'api.db_singleInsert: '+str(e)
 
-def db_insert_row(session,tablename,inputrow):
-    '''
-    input:
-       tablename: string
-       inputrow:  {colname:colval}
-    '''
-    colnames = ','.join(inputrow.keys())
-    bindnames = ','.join([':'+c for c in inputrow.keys()] )
-    colvalues = inputrow.values()
-    session.execute("""insert into %s(%s) values(%s)"""%(tablename,colnames,bindnames),inputrow)
-   
-def db_insert_bulk(session,tablename,inputrows):
-    '''
-    input:
-       tablename: string
-       inputrows:  [{colname,colval}]
-    '''
-    colnames = ','.join(inputrows[0].keys())
-    bindnames = ','.join([':'+c for c in inputrows[0].keys()] )
-    session.execute("""insert into %s(%s) values(%s)"""%(tablename,colnames,bindnames),inputrows)
 
-def db_query_generator(qHandle,qTablelist,qOutputRowDef={},qConditionStr=None,qConditionVal=None):
-    '''
-    Inputs:
-      qHandle, handle of coral Query
-      qTablelist, [(table name,table alias)]
-      qOutputRowDef, {columnname: (columctype,columnalias)}
-      qConditionStr, query condition string
-      qConditionVal, coral::AttributeList of condition bind variables
-    Output:
-      yield result row dict {colname:colval}
-        
-    '''
-    resultrow = {}
-    try:
-      for t,tt in qTablelist:
-          qHandle.addToTableList(t,tt)
-      if qOutputRowDef:
-          qResult = coral.AttributeList()
-          for colname in qOutputRowDef.keys():        
-              coltype,colalias = qOutputRowDef[colname]
-              varname = colalias or colname
-              qHandle.addToOutputList(colname,colalias)
-              qResult.extend(varname,coltype) #c++ type here 
-          qHandle.defineOutput(qResult)
-      if qConditionStr:
-          qHandle.setCondition(qConditionStr,qConditionVal)
-    
-      cursor = qHandle.execute()
-      while cursor.next():
-          dbrow = cursor.currentRow()
-          if not dbrow: break
-          resultrow = {}
-          for icol in xrange(dbrow.size()):
-            varname = dbrow[icol].specification().name()
-            varval = dbrow[icol].data()
-            if type(varval) == float: 
-               varval=decimalcontext.create_decimal(varval)
-            resultrow[varname] = varval
-          yield resultrow
-    except Exception, e:
-      print 'Database Error: ',e
-      raise StopIteration
+
+#def db_query_generator(qHandle,qTablelist,qOutputRowDef={},qConditionStr=None,qConditionVal=None):
+#    '''
+#    Inputs:
+#      qHandle, handle of coral Query
+#      qTablelist, [(table name,table alias)]
+#      qOutputRowDef, {columnname: (columctype,columnalias)}
+#      qConditionStr, query condition string
+#      qConditionVal, coral::AttributeList of condition bind variables
+#    Output:
+#      yield result row dict {colname:colval}
+#        
+#    '''
+#    resultrow = {}
+#    try:
+#      for t,tt in qTablelist:
+#          qHandle.addToTableList(t,tt)
+#      if qOutputRowDef:
+#          qResult = coral.AttributeList()
+#          for colname in qOutputRowDef.keys():        
+#              coltype,colalias = qOutputRowDef[colname]
+#              varname = colalias or colname
+#              qHandle.addToOutputList(colname,colalias)
+#              qResult.extend(varname,coltype) #c++ type here 
+#          qHandle.defineOutput(qResult)
+#      if qConditionStr:
+#          qHandle.setCondition(qConditionStr,qConditionVal)
+#    
+#      cursor = qHandle.execute()
+#      while cursor.next():
+#          dbrow = cursor.currentRow()
+#          if not dbrow: break
+#          resultrow = {}
+#          for icol in xrange(dbrow.size()):
+#            varname = dbrow[icol].specification().name()
+#            varval = dbrow[icol].data()
+#            if type(varval) == float: 
+#               varval=decimalcontext.create_decimal(varval)
+#            resultrow[varname] = varval
+#          yield resultrow
+#    except Exception, e:
+#      print 'Database Error: ',e
+#      raise StopIteration
 
 def nonsequential_key(generator_id):
     '''
@@ -349,6 +331,70 @@ def nonsequential_key(generator_id):
     rdm = random.randint(1, rmax)
     yield ((now << 22) + (generator_id << 14) + rdm )
 
+#String Folding
+#The rows of result data returned by SQLAlchemy contain many repeated strings
+#each one is a different Unicode object
+#When these are passed to Pandas, it stores a copy of the data for each string
+#on the C heap, which taking up memory.
+#We want a single shared string object for any one value
+#It's called folding.
+#http://www.mobify.com/blog/sqlalchemy-memory-magic/
+#
+
+class StringFolder(object):
+    """
+    Class that will fold strings.
+    This object may be safely deleted or go out of scope when strings have been folded.
+    """
+    def __init__(self):
+        self.unicode_map = {}
+    def fold_string(self,s):
+        """
+        Given a string (or unicode) parameter s, return a string object
+        that has the same value as s (and may be s). For all objects
+        with a given value, the same object will be returned. For unicode
+        objects that can be coerced to a string with the same value, a
+        string object will be returned.
+        If s is not a string or unicode object, it is returned unchanged.
+        :param s: a string or unicode object.
+        :return: a string or unicode object.
+        """
+        # If s is not a string or unicode object, return it unchanged
+        if not isinstance(s, basestring):
+            return s
+        
+        # If s is already a string, then str() has no effect.
+        # If s is Unicode, try and encode as a string and use intern.
+        # If s is Unicode and can't be encoded as a string, this try
+        # will raise a UnicodeEncodeError.
+        try:
+            return intern(str(s))
+        except UnicodeEncodeError:
+            # Fall through and handle s as Unicode
+            pass
+
+        # Look up the unicode value in the map and return
+        # the object from the map. If there is no matching entry,
+        # store this unicode object in the map and return it.
+        #t = self.unicode_map.get(s, None)
+        #if t is None:
+        #    # Put s in the map
+        #    t = self.unicode_map[s] = s
+        #return t
+        return self.unicode_map.setdefault(s,s)
+    
+def string_folding_wrapper(results):
+    """
+    This generator yields rows from the results as tuples,
+    with all string values folded.
+    """
+    # Get the list of keys so that we build tuples with all
+    # the values in key order.
+    keys = results.keys()
+    folder = StringFolder()
+    for row in results:
+        yield tuple( folder.fold_string(row[key]) for key in keys )
+        
 if __name__=='__main__':
     #svc = coral.ConnectionService()
     #connect = 'sqlite_file:pippo.db'
@@ -375,11 +421,26 @@ if __name__=='__main__':
     #   print df
 
     engine = create_engine('sqlite:///test.db')
-    session = sessionmaker(bind=engine)
-    s = session()
-    s.execute('''create table test ( a integer)''')
-    #for i in xrange(1,10):
-    api.db_insert_row(s,'test',{'a':1})
-    api.db_insert_bulk(s,'test',[{'a':4},{'a':2}]);
-    #s.execute("""insert into test(a) values(:a)""",[{'a':1},{'a':2}])
-    s.commit()
+    connection = engine.connect().execution_options(stream_results=True)
+    trans = connection.begin()
+    try:
+        connection.execute('''create table test ( a integer)''')
+        trans.commit()
+    except:
+        trans.rollback()
+        raise
+    
+    with connection.begin() as trans:
+        r = connection.execute("""insert into test(%s) values(%s)"""%('a',':a'),{'a':1})
+        print r
+        connection.execute("""insert into test(%s) values(%s)"""%('a',':a'),[{'a':2},{'a':3}])
+    stmt_1 = text("select a from test where a=:x")
+    stmt_2 = text("select * from test")
+    with connection.begin() as trans:
+        r = connection.execute(stmt_1,{'x':1})
+        for i in r:
+            print i
+        r = connection.execute(stmt_2,{})
+        df = pd.DataFrame(string_folding_wrapper(r))
+        df.columns = r.keys()
+        print df
