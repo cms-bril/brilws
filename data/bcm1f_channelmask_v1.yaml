@@ -1,0 +1,28 @@
+tagname: bcm1f_channelmask_v1
+
+datadict: "uint8:48"
+
+maxnitems: 40
+
+iovdataversion: "1.0.0"
+
+datasource: bcm1f
+
+applyto: daq
+
+isdefault: 1
+
+comment: "bcm1f 48 channel mask"
+
+1: #since
+  -
+   - [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]
+
+123450:
+  -
+   - [0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]
+
+#
+#format
+# {commonproperty:value, since:[[[]/{}],[[]/{}]]} [iitem[ifield[ipos]]]
+# ipos can be array or dict
