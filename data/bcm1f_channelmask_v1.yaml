@@ -2,7 +2,7 @@ tagname: bcm1f_channelmask_v1
 
 datadict: "uint8:48"
 
-maxnitems: 40
+maxnitems: 1
 
 iovdataversion: "1.0.0"
 
@@ -10,17 +10,19 @@ datasource: bcm1f
 
 applyto: daq
 
-isdefault: 1
+isdefault: 1                      #mutable
 
-comment: "bcm1f 48 channel mask"
+comment: "bcm1f 48 channel mask" 
 
 1: #since
-  -
-   - [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]
+  -                    #item_idx
+   - [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0] #field_idx
+  - comment:           #implicit_comment_item
 
 123450:
   -
    - [0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]
+  - comment:
 
 #
 #format

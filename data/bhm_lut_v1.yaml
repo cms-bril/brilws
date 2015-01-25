@@ -1,6 +1,6 @@
 tagname: bhm_lut_v1
 
-datadict: "str256:1,str1024:1"
+datadict: "pair(str256:1,str1024:1)"
 
 maxnitems: 40
 
@@ -15,9 +15,6 @@ isdefault: 1
 comment: "bhm lookuptable"
 
 1:   #since
-  -
-    - "CRATE:0 FIBER:2 FIBERCHAN:1 DEPTH:1"   #key
-    - "0 0 0 0 1 2 4 6 7 9 b d e 10 12 14 18 1b 1e 22 25 29 2d 32 37 3c 42 49 50 57 60 68 5a 63 6b 74 7c 85 8d 96 9e a7 af b7 c0 c8 d1 de ef 100 111 122 133 144 159 172 18c 1a5 1c3 1e5 207 22d 257 282 248 272 29d 2c8 2f2 31d 347 372 39d 3c7 3f2 3ff 3ff 3ff 3ff 3ff 3ff 3ff 3ff 3ff 3ff 3ff 3ff 3ff 3ff 3ff 3ff 3ff 3ff 3ff 3ff 3ff 3ff 3ff 3ff 3ff 3ff 3ff 3ff 3ff 3ff 3ff 3ff 3ff 3ff 3ff 3ff 3ff 3ff 3ff 3ff 3ff 3ff 3ff 3ff 3ff 3ff 3ff 3ff 3ff 3ff 3ff 3ff 3ff"  #value
-  -
-    - "CRATE:0 FIBER:2 FIBERCHAN:2 DEPTH:1"
-    - "0 0 0 0 1 3 4 6 8 9 b d f 10 12 15 18 1c 1f 23 26 2a 2e 33 38 3d 43 4a 51 59 62 6a 5a 63 6c 74 7d 86 8e 97 9f a8 b1 b9 c2 cb d3 e0 f1 103 114 125 136 148 15d 177 191 1ab 1c9 1ec 20e 235 260 28b 254 27e 2a9 2d3 2fe 328 353 37d 3a8 3d2 3fd 3ff 3ff 3ff 3ff 3ff 3ff 3ff 3ff 3ff 3ff 3ff 3ff 3ff 3ff 3ff 3ff 3ff 3ff 3ff 3ff 3ff 3ff 3ff 3ff 3ff 3ff 3ff 3ff 3ff 3ff 3ff 3ff 3ff 3ff 3ff 3ff 3ff 3ff 3ff 3ff 3ff 3ff 3ff 3ff 3ff 3ff 3ff 3ff 3ff 3ff 3ff 3ff 3ff"
+  -                    #item_idx
+    - "CRATE:0 FIBER:2 FIBERCHAN:1 DEPTH:1": "0 0 0 0 1 2 4 6 7 9 b d e 10 12 14 18 1b 1e 22 25 29 2d 32 37 3c 42 49 50 57 60 68 5a 63 6b 74 7c 85 8d 96 9e a7 af b7 c0 c8 d1 de ef 100 111 122 133 144 159 172 18c 1a5 1c3 1e5 207 22d 257 282 248 272 29d 2c8 2f2 31d 347 372 39d 3c7 3f2 3ff 3ff 3ff 3ff 3ff 3ff 3ff 3ff 3ff 3ff 3ff 3ff 3ff 3ff 3ff 3ff 3ff 3ff 3ff 3ff 3ff 3ff 3ff 3ff 3ff 3ff 3ff 3ff 3ff 3ff 3ff 3ff 3ff 3ff 3ff 3ff 3ff 3ff 3ff 3ff 3ff 3ff 3ff 3ff 3ff 3ff 3ff 3ff 3ff 3ff 3ff 3ff 3ff"       #field_idx
+    - "CRATE:0 FIBER:2 FIBERCHAN:2 DEPTH:1": "0 0 0 0 1 3 4 6 8 9 b d f 10 12 15 18 1c 1f 23 26 2a 2e 33 38 3d 43 4a 51 59 62 6a 5a 63 6c 74 7d 86 8e 97 9f a8 b1 b9 c2 cb d3 e0 f1 103 114 125 136 148 15d 177 191 1ab 1c9 1ec 20e 235 260 28b 254 27e 2a9 2d3 2fe 328 353 37d 3a8 3d2 3fd 3ff 3ff 3ff 3ff 3ff 3ff 3ff 3ff 3ff 3ff 3ff 3ff 3ff 3ff 3ff 3ff 3ff 3ff 3ff 3ff 3ff 3ff 3ff 3ff 3ff 3ff 3ff 3ff 3ff 3ff 3ff 3ff 3ff 3ff 3ff 3ff 3ff 3ff 3ff 3ff 3ff 3ff 3ff 3ff 3ff 3ff 3ff 3ff 3ff 3ff 3ff 3ff 3ff"

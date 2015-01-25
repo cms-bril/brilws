@@ -3,9 +3,12 @@ import pandas as pd
 #import coral
 from sqlalchemy import *
 from sqlalchemy import exc, text
+from datetime import datetime
 import decimal
-import random, time
-
+import os
+import random
+import time
+import yaml
 decimalcontext = decimal.getcontext().copy()
 decimalcontext.prec = 3
 
@@ -225,19 +228,22 @@ def create_tables_sql(schema_name,schema_def,suffix=None,dbflavor='sqlite',write
             sqlfile.write('\n'+ixresultStr+';')
 
 ##### iovschema api
-def parsedatadict(datadictStr):
+payloadtableprefix_ ='IOVP'
+iovdict_typecodes_ = ['FLOAT32','UINT32','INT32','UINT64','INT64','UINT16','INT16','UINT8','INT8','STRING']
+
+def iov_parsepayloaddatadict(datadictStr):
     result = [] #[(tablesuffix,varlen,alias),(tablesuffix,varlen,alias)]
     fields = datadictStr.split(',')
     result = [(f.split(':')+[None]*99)[:3] for f in fields]
     return result
 
-def getPtablename(typecode):
+def iov_getPtablename(typecode):
     if typecode.find('STRING')<0:
         return '_'.join([payloadtableprefix_,typecode])
     else: # ignore STR length info in case any
         return '_'.join([payloadtableprefix_,'STRING'])
 
-def getPtablenames():
+def iov_getPtablenames():
     result = []
     for t in typecodes_:
         result.append(getPtablename(t))
@@ -412,7 +418,102 @@ def string_folding_wrapper(results):
     folder = StringFolder()
     for row in results:
         yield tuple( folder.fold_string(row[key]) for key in keys )
-        
+
+def iov_createtag(connection,iovdata):
+    """
+    inputs:
+        connection:  db handle
+        iovdata:     {'tagname':tagname, 'datadict':datadict, 'maxnitems':maxnitems, 'iovdataversion':iovdataversion, 'datasource':datasource, 'applyto':applyto, 'isdefault':isdefault, 'comment':comment, sincex:[[dict or list,]],{'comment':comment}] }
+    """
+    tagid = next(nonsequential_key(78))
+    #print "creating iovtag %s"%iovdata['tagname']
+    sinces = [x for x in iovdata.keys() if isinstance(x, int) ]
+    nowstr = datetime.utcnow().strftime("%Y-%m-%d %H:%M")
+    datadict = iovdata['datadict']
+    maxnitems = iovdata['maxnitems']
+    
+    with connection.begin() as trans:
+        i = """insert into IOVTAGS(TAGID,TAGNAME,CREATIONUTC,DATADICT,MAXNITEMS,DATASOURCE,APPLYTO,ISDEFAULT,COMMENT) VALUES(:tagid, :tagname, :creationutc, :datadict, :maxnitems, :datasource, :applyto, :isdefault, :comment)"""
+        r = connection.execute(i,{'tagid':tagid, 'tagname':iovdata['tagname'], 'creationutc':nowstr, 'datadict':datadict, 'maxnitems':maxnitems, 'datasource':iovdata['datasource'], 'applyto':iovdata['applyto'], 'isdefault':iovdata['isdefault'], 'comment':iovdata['comment'] })
+        rowcache = {}
+        payloaddatadict = iov_parsepayloaddatadict(datadict)
+        for since in sinces:
+            payloadid = next(nonsequential_key(79))
+            ti = """insert into IOVTAGDATA(TAGID,SINCE,PAYLOADID,COMMENT) VALUES(:tagid, :since, :payloadid, :comment)"""
+            payloadcomment = ''
+            if len(iovdata[since])>1 and iovdata[since][-1]['comment'] is not None:
+                payloadcomment = iovdata[since][-1]['comment']
+            tr = connection.execute(ti, {'tagid':tagid, 'since':since, 'payloadid':payloadid, 'comment':payloadcomment })
+            for item_idx, payloaddata in enumerate(iovdata[since]):
+                for field_idx, fielddata in enumerate(payloaddata):
+                    (tablesuffix,varlen,alias) = payloaddatadict[field_idx]
+                    print 'field_idx, fielddata ',field_idx,fielddata
+                    print (tablesuffix,varlen,alias)
+                    payloadtable_name = iov_getPtablename(tablesuffix)
+                    if isinstance(fielddata,list):
+                        for ipos, val in enumerate(fielddata):
+                            rowcache.setdefault(payloadtable_name,[]).append({'PAYLOADID':payloadid,'IITEM':item_idx,'IFIELD':field_idx,'IPOS':ipos,'VAL':val})
+        print rowcache        
+    return tagid
+    
+def iov_appendtotag(connection,tagid,since,payloaddata,datadict,payloadcomment):
+    """
+    inputs:
+        connection: dbhandle
+        tagid:      tagid        
+        payloaddata: [[dict or list,]]
+        datadict: str
+        payloadcomment: 
+    """
+    (tablesuffix,varlen,alias) = iov_parsepayloaddatadict(datadict)
+    payloadid = next(nonsequential_key(79))
+    ti = """insert into IOVTAGDATA(TAGID,SINCE,PAYLOADID,COMMENT) VALUES(:tagid, :since, :payloadid, :comment)"""
+    with connection.begin() as trans:
+        tr = connection.execute(ti, {'tagid':tagid, 'since':since, 'payloadid':payloadid, 'comment':payloadcomment })
+        for item_idx, item in enumerate(payloaddata):
+                for field_idx, fielddata in enumerate(item):
+                    payloadtable_name = iov_getPtablename(tablesuffix)
+                    if isinstance(fielddata,list):
+                        for ipos, val in enumerate(fielddata):
+                            rowcache.setdefault(payloadtable_name,[]).append({'PAYLOADID':payloadid,'IITEM':item_idx,'IFIELD':field_idx,'IPOS':ipos,'VAL':val})
+                            
+    return payloadid
+
+def get_filepath_or_buffer(filepath_or_buffer):
+    """
+    Input: 
+    filepath_or_buffer: filepath or buffer
+    Output:
+    a filepath_or_buffer
+    """
+    if isinstance(filepath_or_buffer, str):
+        return os.path.expanduser(filepath_or_buffer)
+    return filepath_or_buffer    
+
+def read_yaml(path_or_buf):
+    """
+    safe_load yaml string or file 
+    """
+    filepath_or_buffer = get_filepath_or_buffer(path_or_buf)
+    if isinstance(filepath_or_buffer, str):
+        try:
+            exists = os.path.exists(filepath_or_buffer)
+        except (TypeError,ValueError):
+            exists = False
+        print 'exists ',exists
+        if exists:
+            with open(filepath_or_buffer,'r') as f:
+                obj = yaml.safe_load(f)
+        else:
+            obj = yaml.safe_load(path_or_buf)
+            if type(obj) is not dict and type(obj) is not list:
+                raise IOError('file %s does not exist'%filepath_or_buffer)
+    elif hasattr(filepath_or_buffer, 'read'):
+        obj = filepath_or_buffer.read()
+    else:
+        obj = filepath_or_buffer
+    return obj
+
 if __name__=='__main__':
     #svc = coral.ConnectionService()
     #connect = 'sqlite_file:pippo.db'
@@ -438,11 +539,12 @@ if __name__=='__main__':
     #else:
     #   print df
 
+    ## test db api , i.e. sqlalchemy sans orm
     engine = create_engine('sqlite:///test.db')
     connection = engine.connect().execution_options(stream_results=True)
     trans = connection.begin()
     try:
-        connection.execute('''create table test ( a integer)''')
+        connection.execute('''create table if not exists test ( a integer) ''')
         trans.commit()
     except:
         trans.rollback()
@@ -462,3 +564,24 @@ if __name__=='__main__':
         df = pd.DataFrame(string_folding_wrapper(r))
         df.columns = r.keys()
         print df
+
+    ## test iov api
+
+    #tagname = u'bcm1fchannelmask_v1'
+    #nowstr = datetime.utcnow().strftime("%Y-%m-%d %H:%M")
+    #isdefault = 1
+    #datasource = 'bcm1f'
+
+    #creationcomment = 'aaaa'    
+    #applyto = 'daq'
+    #maxnitems = 1
+    #iovdataversion = '1.0.0'
+    #datadict = 'UINT8:48'
+    #payloaddatadict = iov_parsepayloaddatadict(datadict)
+
+    iovdata = read_yaml('/home/zhen/work/brilws/data/bcm1f_channelmask_v1.yaml')
+    print iovdata
+    with connection.begin() as trans:
+        iov_createtag(connection,iovdata)
+   
+        
