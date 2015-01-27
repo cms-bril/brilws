@@ -9,6 +9,7 @@ import os
 import random
 import time
 import yaml
+import re
 decimalcontext = decimal.getcontext().copy()
 decimalcontext.prec = 3
 
@@ -232,9 +233,33 @@ payloadtableprefix_ ='IOVP'
 iovdict_typecodes_ = ['FLOAT32','UINT32','INT32','UINT64','INT64','UINT16','INT16','UINT8','INT8','STRING']
 
 def iov_parsepayloaddatadict(datadictStr):
-    result = [] #[(tablesuffix,varlen,alias),(tablesuffix,varlen,alias)]
+    """
+    input:
+        datadictstr: (key-value):len:alias,value:len:alias,...
+    output:
+        [{'key':keytablename, 'val':valtablename, 'alias':alias, 'maxnpos':maxnpos }]
+    """
+    result = []
     fields = datadictStr.split(',')
-    result = [(f.split(':')+[None]*99)[:3] for f in fields]
+    r = [(f.split(':')+[None]*99)[:3] for f in fields]
+    for [keyval,maxnpos,alias] in r:
+        [key,val] = (keyval.split('-')+[None]*99)[:2]
+        if not val:
+            val = key
+            key = ''
+        if not key:
+            keytablename = ''
+        elif re.search('str',key,re.IGNORECASE):
+            keytablename = payloadtableprefix_+'_STRING'
+        else:
+            keytablename = payloadtableprefix_+'_'+key.upper()
+        if not val:
+            valtablename = ''
+        elif re.search('str',val,re.IGNORECASE):
+            valtablename = payloadtableprefix_+'_STRING'
+        else:
+            valtablename = payloadtableprefix_+'_'+val.upper()
+        result.append({'key':keytablename,'val':valtablename,'alias':alias,'maxnpos':maxnpos})
     return result
 
 def iov_getPtablename(typecode):
@@ -419,41 +444,88 @@ def string_folding_wrapper(results):
     for row in results:
         yield tuple( folder.fold_string(row[key]) for key in keys )
 
+def iov_listtags(connection,tagname=None,datasource=None,applyto=None,isdefault=None):
+    """
+    inputs:
+        connection:  db handle
+        optional query parameters: tagid, tagname,datasource,applyto,isdefault
+    outputs:
+        {tagid: {'tagname': , 'creationutc': , 'datadict': , 'maxnitems':, 'datasource': , 'applyto': , 'isdefault': 'tagcomment': , since:{'payloadid':,'payloadcomment':} } }
+    sql:
+        select t.TAGID as tagid, t.TAGNAME as tagname, t.CREATIONUTC as creationutc, t.DATADICT as datadict, t.MAXNITEMS as maxnitems, t.DATASOURCE as datasource, t.APPLYTO as applyto, t.ISDEFAULT as isdefault, t.COMMENT as tagcomment, d.SINCE as since, d.PAYLOADID as payloadid, d.COMMENT as payloadcomment from IOVTAGS t, IOVTAGDATA d where t.TAGID=d.TAGID [and t.TAGNAME=:tagname and t.DATASOURCE=:datasource and t.APPLYTO=:applyto and t.isdefault=:isdefault ]; 
+    """
+    result = {}
+    q =  """select t.TAGID as tagid, t.TAGNAME as tagname, t.CREATIONUTC as creationutc, t.DATADICT as datadict, t.MAXNITEMS as maxnitems, t.DATASOURCE as datasource, t.APPLYTO as applyto, t.ISDEFAULT as isdefault, t.COMMENT as tagcomment, d.SINCE as since, d.PAYLOADID as payloadid, d.COMMENT as payloadcomment from IOVTAGS t, IOVTAGDATA d where t.TAGID=d.TAGID"""
+    param = {}
+    if tagname:
+        q += " and t.TAGNAME=:tagname"
+        param['tagname'] = tagname
+    if datasource:
+        q += " and t.DATASOURCE=:datasource"
+        param['datasource'] = datasource
+    if applyto:
+        q += " and t.APPLYTO=:applyto"
+        param['applyto'] = applyto
+    if isdefault:
+        q += " and t.ISDEFAULT=:isdefault"
+        param['isdefault'] = isdefault
+        
+    with connection.begin() as trans:
+        r = connection.execute(q,param)
+        for row in r:
+            tagid = row['tagid']
+            since = row['since']
+            if not result.has_key(tagid):
+                result[tagid] = {}
+                result[tagid]['tagname'] = row['tagname']
+                result[tagid]['creationutc'] = row['creationutc']
+                result[tagid]['datadict'] = row['datadict']
+                result[tagid]['maxnitems'] = row['maxnitems']
+                result[tagid]['datasource'] = row['datasource']
+                result[tagid]['applyto'] = row['applyto']
+                result[tagid]['isdefault'] = row['isdefault']
+                result[tagid]['tagcomment'] = row['tagcomment']
+            result[tagid][since] = {'payloadid':row['payloadid'],'payloadcomment':row['payloadcomment']}            
+    return result
+    
 def iov_createtag(connection,iovdata):
     """
     inputs:
         connection:  db handle
         iovdata:     {'tagname':tagname, 'datadict':datadict, 'maxnitems':maxnitems, 'iovdataversion':iovdataversion, 'datasource':datasource, 'applyto':applyto, 'isdefault':isdefault, 'comment':comment, sincex:[[dict or list,]],{'comment':comment}] }
+    output:
+        tagid
+    sql:
+        insert into IOVTAGS(TAGID,TAGNAME,CREATIONUTC,DATADICT,MAXNITEMS,DATASOURCE,APPLYTO,ISDEFAULT,COMMENT) VALUES(:tagid, :tagname, :creationutc, :datadict, :maxnitems, :datasource, :applyto, :isdefault, :comment)
+        insert into IOVTAGDATA(TAGID,SINCE,PAYLOADID,COMMENT) VALUES(:tagid, :since, :payloadid, :comment)
+        
     """
     tagid = next(nonsequential_key(78))
     #print "creating iovtag %s"%iovdata['tagname']
     sinces = [x for x in iovdata.keys() if isinstance(x, int) ]
     nowstr = datetime.utcnow().strftime("%Y-%m-%d %H:%M")
     datadict = iovdata['datadict']
+    payloaddatadict = iov_parsepayloaddatadict(datadict)
     maxnitems = iovdata['maxnitems']
     
+    i = """insert into IOVTAGS(TAGID,TAGNAME,CREATIONUTC,DATADICT,MAXNITEMS,DATASOURCE,APPLYTO,ISDEFAULT,COMMENT) VALUES(:tagid, :tagname, :creationutc, :datadict, :maxnitems, :datasource, :applyto, :isdefault, :comment)"""
+    ti = """insert into IOVTAGDATA(TAGID,SINCE,PAYLOADID,COMMENT) VALUES(:tagid, :since, :payloadid, :comment)"""
+    pi = """insert into %s(PAYLOADID,IITEM,IFIELD,IPOS,VAL) VALUES(:payloadid, :iitem, :ifield, :ipos, :val) """
+    
     with connection.begin() as trans:
-        i = """insert into IOVTAGS(TAGID,TAGNAME,CREATIONUTC,DATADICT,MAXNITEMS,DATASOURCE,APPLYTO,ISDEFAULT,COMMENT) VALUES(:tagid, :tagname, :creationutc, :datadict, :maxnitems, :datasource, :applyto, :isdefault, :comment)"""
         r = connection.execute(i,{'tagid':tagid, 'tagname':iovdata['tagname'], 'creationutc':nowstr, 'datadict':datadict, 'maxnitems':maxnitems, 'datasource':iovdata['datasource'], 'applyto':iovdata['applyto'], 'isdefault':iovdata['isdefault'], 'comment':iovdata['comment'] })
-        rowcache = {}
-        payloaddatadict = iov_parsepayloaddatadict(datadict)
+
         for since in sinces:
             payloadid = next(nonsequential_key(79))
-            ti = """insert into IOVTAGDATA(TAGID,SINCE,PAYLOADID,COMMENT) VALUES(:tagid, :since, :payloadid, :comment)"""
+            payloaddata = iovdata[since]
             payloadcomment = ''
             if len(iovdata[since])>1 and iovdata[since][-1]['comment'] is not None:
                 payloadcomment = iovdata[since][-1]['comment']
             tr = connection.execute(ti, {'tagid':tagid, 'since':since, 'payloadid':payloadid, 'comment':payloadcomment })
-            for item_idx, payloaddata in enumerate(iovdata[since]):
-                for field_idx, fielddata in enumerate(payloaddata):
-                    (tablesuffix,varlen,alias) = payloaddatadict[field_idx]
-                    print 'field_idx, fielddata ',field_idx,fielddata
-                    print (tablesuffix,varlen,alias)
-                    payloadtable_name = iov_getPtablename(tablesuffix)
-                    if isinstance(fielddata,list):
-                        for ipos, val in enumerate(fielddata):
-                            rowcache.setdefault(payloadtable_name,[]).append({'PAYLOADID':payloadid,'IITEM':item_idx,'IFIELD':field_idx,'IPOS':ipos,'VAL':val})
-        print rowcache        
+            rowcache = _iov_buildpayloadcache( payloadid, payloaddata, payloaddatadict, payloadcomment)
+            for ptablename, prows in rowcache.items():
+                if len(prows)==0: continue
+                pr = connection.execute(pi%ptablename, prows)
     return tagid
     
 def iov_appendtotag(connection,tagid,since,payloaddata,datadict,payloadcomment):
@@ -464,20 +536,55 @@ def iov_appendtotag(connection,tagid,since,payloaddata,datadict,payloadcomment):
         payloaddata: [[dict or list,]]
         datadict: str
         payloadcomment: 
+    output:
+        payloadid
+    sql:
+        insert into IOVTAGDATA(TAGID,SINCE,PAYLOADID,COMMENT) VALUES(:tagid, :since, :payloadid, :comment)
     """
-    (tablesuffix,varlen,alias) = iov_parsepayloaddatadict(datadict)
+    payloaddatadict = iov_parsepayloaddatadict(datadict)
     payloadid = next(nonsequential_key(79))
     ti = """insert into IOVTAGDATA(TAGID,SINCE,PAYLOADID,COMMENT) VALUES(:tagid, :since, :payloadid, :comment)"""
+    pi = """insert into %s(PAYLOADID,IITEM,IFIELD,IPOS,VAL) VALUES(:payloadid, :iitem, :ifield, :ipos, :val) """
+    
     with connection.begin() as trans:
         tr = connection.execute(ti, {'tagid':tagid, 'since':since, 'payloadid':payloadid, 'comment':payloadcomment })
-        for item_idx, item in enumerate(payloaddata):
-                for field_idx, fielddata in enumerate(item):
-                    payloadtable_name = iov_getPtablename(tablesuffix)
-                    if isinstance(fielddata,list):
-                        for ipos, val in enumerate(fielddata):
-                            rowcache.setdefault(payloadtable_name,[]).append({'PAYLOADID':payloadid,'IITEM':item_idx,'IFIELD':field_idx,'IPOS':ipos,'VAL':val})
-                            
+        rowcache = _iov_buildpayloadcache( payloadid, payloaddata, payloaddatadict, payloadcomment)
+        for ptablename, prows in rowcache.items():
+            if len(prows)==0: continue
+            pr = connection.execute(pi%ptablename, prows)
     return payloadid
+
+def _iov_buildpayloadcache(payloadid, payloaddata, payloaddatadict, payloadcomment):
+    """
+    input:
+        payloadid: 
+        payloaddata: [[list/dict,]]
+        payloaddatadict: [{'val':tablename, 'key':tablename,'alias':aliasname, 'maxnpos':maxnpos } ]
+    output: 
+        rowcache: {tablename: [{'payloadid':, 'iitem': 'ifield':, 'ipos':, 'val'},]}
+    """
+    rowcache = {}
+    for item_idx, item in enumerate(payloaddata):
+        for field_idx, fielddata in enumerate(item):
+            if isinstance(fielddata,list):
+                valtable_name = payloaddatadict[field_idx]['val']
+                if not valtable_name:
+                    raise ValueError('invalid value table name %s'%valtable_name)
+                for ipos, val in enumerate(fielddata):
+                    rowcache.setdefault(valtable_name,[]).append({'payloadid':payloadid,'iitem':item_idx,'ifield':field_idx,'ipos':ipos,'val':val})
+            elif isinstance(fielddata,dict):
+                ipos = 0
+                for key, val in fielddata.items():
+                    valtable_name = payloaddatadict[field_index]['val']
+                    if not valtable_name:
+                        raise ValueError('invalid value table name %s'%valtable_name)
+                    rowcache.setdefault(valtable_name,[]).append({'payloadid':payloadid,'iitem':item_idx,'ifield':field_idx,'ipos':ipos,'val':val})
+                    keytable_name = payloaddatadict[field_index]['key']
+                    if not keytable_name:
+                        raise ValueError('invalid key table name %s'%keytable_name)
+                    rowcache.setdefault(keytable_name,[]).append({'payloadid':payloadid,'iitem':item_idx,'ifield':field_idx,'ipos':ipos,'val':key})
+                    ipos += 1
+    return rowcache
 
 def get_filepath_or_buffer(filepath_or_buffer):
     """
@@ -576,12 +683,28 @@ if __name__=='__main__':
     #applyto = 'daq'
     #maxnitems = 1
     #iovdataversion = '1.0.0'
-    #datadict = 'UINT8:48'
-    #payloaddatadict = iov_parsepayloaddatadict(datadict)
-
+    datadict = 'UINT8:48'
+    payloaddatadict = iov_parsepayloaddatadict(datadict)
+    print payloaddatadict
+    datadict = 'STR12-STR256:40,UINT8:48'
+    print iov_parsepayloaddatadict(datadict)
     iovdata = read_yaml('/home/zhen/work/brilws/data/bcm1f_channelmask_v1.yaml')
     print iovdata
-    with connection.begin() as trans:
-        iov_createtag(connection,iovdata)
-   
-        
+    tagid = iov_createtag(connection,iovdata)
+    print tagid
+    alltags = iov_listtags(connection)
+    print 'alltags ', alltags
+    mytag = iov_listtags(connection,tagname='bcm1f_channelmask_v1')
+    print 'mytag ',mytag
+    mytagid = mytag.keys()[0]
+    oldsinces = [k for k in mytag[mytagid].keys() if isinstance(k,int) ]
+    lastsince = max(oldsinces)
+    print 'lastsince ',lastsince
+    newsince = lastsince+5
+    payloadcomment = 'blah'
+    payloaddata = [[48*[1]]]
+    datadict = 'UINT8:48'
+    print 'append to bcm1f_channelmask_v1'    
+    newpayloadid=iov_appendtotag(connection,mytagid,lastsince+5,payloaddata,datadict,payloadcomment)
+    print 'newpayloadid ',newpayloadid
+            
