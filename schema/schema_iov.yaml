@@ -6,7 +6,7 @@ IOVTAGS:  #format convention: table names in upper case
     - datadict: string   
     - maxnitems: unsigned int
     - iovdataversion: string
-    - datasource: string     #hfoc,bhm,plt,pix
+    - datasource: string     #hfoc,bhm,plt,pixel
     - applyto: string        #lumi,bkg,daq
     - isdefault: unsigned char
     - comment: string

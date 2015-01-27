@@ -47,20 +47,6 @@ sqlitetypemap={
 'timestamp':'timestamp'
 }
 
-ctodtypemap={
-  'unsigned char':'u1',
-  'unsigned short':'u2',
-  'unsigned int':'u4',
-  'unsigned long long':'u8',
-  'char':'i1',
-  'short':'i2',
-  'int':'i4',
-  'long long':'i8',
-  'float':'f4',
-  'double':'f8',
-  'string':'O'
-}
-
 
 def _seqdiff(original,exclude):
     return list(set(original)-set(exclude))
@@ -262,17 +248,17 @@ def iov_parsepayloaddatadict(datadictStr):
         result.append({'key':keytablename,'val':valtablename,'alias':alias,'maxnpos':maxnpos})
     return result
 
-def iov_getPtablename(typecode):
-    if typecode.find('STRING')<0:
-        return '_'.join([payloadtableprefix_,typecode])
-    else: # ignore STR length info in case any
-        return '_'.join([payloadtableprefix_,'STRING'])
+#def iov_getPtablename(typecode):
+#    if typecode.find('STRING')<0:
+#        return '_'.join([payloadtableprefix_,typecode])
+#    else: # ignore STR length info in case any
+#        return '_'.join([payloadtableprefix_,'STRING'])
 
-def iov_getPtablenames():
-    result = []
-    for t in typecodes_:
-        result.append(getPtablename(t))
-    return result
+#def iov_getPtablenames():
+#    result = []
+#    for t in typecodes_:
+#        result.append(getPtablename(t))
+#    return result
 
 #def db_connect_protocol(connectstr):
 #    result = connectstr.split(':',1)
@@ -389,7 +375,6 @@ def nonsequential_key(generator_id):
 #It's called folding.
 #http://www.mobify.com/blog/sqlalchemy-memory-magic/
 #
-
 class StringFolder(object):
     """
     Class that will fold strings.
@@ -607,7 +592,6 @@ def read_yaml(path_or_buf):
             exists = os.path.exists(filepath_or_buffer)
         except (TypeError,ValueError):
             exists = False
-        print 'exists ',exists
         if exists:
             with open(filepath_or_buffer,'r') as f:
                 obj = yaml.safe_load(f)
