@@ -1,32 +1,31 @@
 """    
 Usage:
-  briltag norm [options]
+  briltag insert [options]
 
 
 Options:
       -h --help                Show this screen.
       -c CONNECT               Connect string to DB.
       -p AUTHPATH              Path to authentication.xml file [default: .]
-      --name TAGNAME           Tag name 
-      --datasource DATASOURCE  Datasource filter on bhm,bcm1f,plt,hfoc,pixel
-      --applyto APPLYTO        Apply to which type of result lumi,bkg
-      --output-style OSTYLE    Output style tab,csv,html [default: tab]
-      --default-only           Show only default tags [default: False]
+      -i INPUTFILE             Input yaml file
+      --setdefault TAGNAME     Set tag as default of datasource, applyto 
+      --unsetdefault TAGNAME   Unset tag as default of datasource, applyto
+      --debug                  Debug mode
+      --nowarning              Switch off warnings
 """
 
 from docopt import docopt
 from schema import Schema, And, Or, Use
 import os
 
-def validate(optdict,sources,applyto,ostyles):
+def validate(optdict):
     result = {}
     s = Schema({
-      '-c': And(str,error='-c CONNECT must exist'),
+      '-c': And(str,error='-c CONNECT is required'),
       '-p': And(os.path.exists, error='AUTHPATH should exist'),
-      '--name': Or(None,str),
-      '--datasource': Or(None,And(str,lambda s: s.lower() in sources), error='--source choice must be in '+str(sources) ),
-      '--applyto': Or(None,And(str,lambda s: s.lower() in applyto), error='--applyto choice must be in '+str(applyto) ),
-      '--output-style': Or(None,And(str,lambda s: s.lower() in ostyles), error='--output-style choice must be in '+','.join(ostyles) ),
+      '-i': Or(None, And(os.path.exists, error='INPUTFILE should exist')), 
+      '--setdefault': Or(None,str),
+      '--unsetdefault': Or(None,str),
       str:object # catch all
     })
     result = s.validate(optdict)

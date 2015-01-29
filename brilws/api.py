@@ -1,6 +1,5 @@
 import numpy as np
 import pandas as pd
-#import coral
 from sqlalchemy import *
 from sqlalchemy import exc, text
 from datetime import datetime
@@ -62,7 +61,7 @@ def smart_open(filename=None):
         if fh is not sys.stdout:
             fh.close()
             
-def _seqdiff(original,exclude):
+def seqdiff(original,exclude):
     return list(set(original)-set(exclude))
 
 def create_table_stmt(tablename):
@@ -528,14 +527,14 @@ def iov_listtags(connection,tagname=None,datasource=None,applyto=None,isdefault=
                 result[tagid]['applyto'] = row['applyto']
                 result[tagid]['isdefault'] = row['isdefault']
                 result[tagid]['tagcomment'] = row['tagcomment']
-            result[tagid][since] = {'payloadid':row['payloadid'],'payloadcomment':row['payloadcomment']}            
+            result[tagid][since] = {'payloadid':row['payloadid'],'payloadcomment':row['payloadcomment']}
     return result
     
 def iov_createtag(connection,iovdata):
     """
     inputs:
         connection:  db handle
-        iovdata:     {'tagname':tagname, 'datadict':datadict, 'maxnitems':maxnitems, 'iovdataversion':iovdataversion, 'datasource':datasource, 'applyto':applyto, 'isdefault':isdefault, 'comment':comment, sincex:[[dict or list,]],{'comment':comment}] }
+        iovdata:     {'tagname':tagname, 'datadict':datadict, 'maxnitems':maxnitems, 'iovdataversion':iovdataversion, 'datasource':datasource, 'applyto':applyto, 'isdefault':isdefault, 'comment':comment, sincex:{'payload':[[dict or list,]],'comment':comment} }
     output:
         tagid
     sql:
@@ -545,7 +544,7 @@ def iov_createtag(connection,iovdata):
     """
     tagid = next(nonsequential_key(78))
     #print "creating iovtag %s"%iovdata['tagname']
-    sinces = [x for x in iovdata.keys() if isinstance(x, int) ]
+    sinces = sorted([x for x in iovdata.keys() if isinstance(x, int)])
     nowstr = datetime.utcnow().strftime("%Y-%m-%d %H:%M")
     datadict = iovdata['datadict']
     payloaddatadict = iov_parsepayloaddatadict(datadict)
@@ -557,13 +556,13 @@ def iov_createtag(connection,iovdata):
     
     with connection.begin() as trans:
         r = connection.execute(i,{'tagid':tagid, 'tagname':iovdata['tagname'], 'creationutc':nowstr, 'datadict':datadict, 'maxnitems':maxnitems, 'datasource':iovdata['datasource'], 'applyto':iovdata['applyto'], 'isdefault':iovdata['isdefault'], 'comment':iovdata['comment'] })
-
+        
         for since in sinces:
             payloadid = next(nonsequential_key(79))
-            payloaddata = iovdata[since]
+            payloaddata = iovdata[since]['payload']
             payloadcomment = ''
-            if len(iovdata[since])>1 and iovdata[since][-1]['comment'] is not None:
-                payloadcomment = iovdata[since][-1]['comment']
+            if iovdata[since].has_key('comment'):
+                payloadcomment = iovdata[since]['comment']
             tr = connection.execute(ti, {'tagid':tagid, 'since':since, 'payloadid':payloadid, 'comment':payloadcomment })
             rowcache = _iov_buildpayloadcache( payloadid, payloaddata, payloaddatadict, payloadcomment)
             for ptablename, prows in rowcache.items():
@@ -702,7 +701,6 @@ if __name__=='__main__':
     
     with connection.begin() as trans:
         r = connection.execute("""insert into test(%s) values(%s)"""%('a',':a'),{'a':1})
-        print r
         connection.execute("""insert into test(%s) values(%s)"""%('a',':a'),[{'a':2},{'a':3}])
     stmt_1 = text("select a from test where a=:x")
     stmt_2 = text("select * from test")
