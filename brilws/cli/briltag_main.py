@@ -1,9 +1,11 @@
 import sys,logging,os,gc
 import docopt,schema
 import coral
+import csv
 import numpy as np
 import pandas as pd
 import brilws
+from sqlalchemy import * 
 from brilws import api,display,prettytable
 
 log = logging.getLogger('briltag')
@@ -20,26 +22,6 @@ choice_sources = ['bhm','bcm1f','plt','hfoc','pixel']
 choice_applyto = ['lumi','bkg','daq']
 choices_ostyles = ['tab','csv','html']
 
-def combine_params(groups):
-    '''
-    paramname:combine paramname and not null param into one row of [('paramname',paramval)]
-    '''
-    result = pd.concat([groups['f4'].dropna(),groups['s'].dropna(),groups['u4'].dropna()])
-    groups.drop('f4',axis=1,inplace=True)
-    groups.drop('s',axis=1,inplace=True)
-    groups.drop('u4',axis=1,inplace=True)
-    groups.drop('i4',axis=1,inplace=True)
-    groups.drop('u8',axis=1,inplace=True)
-    groups.drop('i8',axis=1,inplace=True)
-    groups.drop('u2',axis=1,inplace=True)
-    groups.drop('i2',axis=1,inplace=True)
-    groups.drop('u1',axis=1,inplace=True)
-    groups.drop('i1',axis=1,inplace=True)
-    result = zip( groups['paramname'].values,result.values)
-    groups['params']= ' '.join(map(display.formatter_tuple,result))
-    groups.drop('paramname',axis=1,inplace=True)
-    return groups
-    
 def briltag_main():
     docstr='''
 
@@ -70,85 +52,94 @@ def briltag_main():
 
     log.debug('command arguments: %s',cmmdargv)
     parseresult = {}
-    svc = coral.ConnectionService()    
     try:      
       if args['<command>'] == 'list':
-        
          import briltag_list
-         from sqlalchemy import * 
          parseresult = docopt.docopt(briltag_list.__doc__,argv=cmmdargv)
          parseresult = briltag_list.validate(parseresult,sources=choice_sources,applyto=choice_applyto,ostyles=choices_ostyles)
          engine = create_engine(parseresult['-c'])
          connection = engine.connect().execution_options(stream_results=True)
          tags = api.iov_listtags(connection,tagname=parseresult['--name'],datasource=parseresult['--datasource'],applyto=parseresult['--applyto'],isdefault=parseresult['--default-only'])
-         ptable =  prettytable.PrettyTable(['name','creation','default','datasource','applyto','payload','items','iov','comment'])
-         ptable.sortby = 'applyto'
-         ptable.align = 'l'
-         ptable.header_style = 'cap'
-         ptable.max_width['params']=60
-         for tagid,tag in tags.items():
-             sinceStr = '\n'.join([str(x) for x in tag.keys() if isinstance(x,int)])
-             ptable.add_row([tag['tagname'],tag['creationutc'],tag['isdefault'],tag['datasource'],tag['applyto'],tag['datadict'],tag['maxnitems'],sinceStr,tag['tagcomment']])
-         print(ptable)         
-         """
-         grouped =  taginfo_df.groupby(['since'])
-         result = grouped.apply(combine_params).loc[:,['since','amodetag','egev','minbiasxsec','func','params','comment']]
-         del taginfo_df
-         gc.collect()
-                
-         if parseresult['--output-style'].lower() in ['tab','html']:           
-             x = prettytable.PrettyTable(['since','amodetag','egev','minbiasxsec','func','params','comment'])
-             x.sortby = 'since'
-             x.align = 'l'
-             x.header_style = 'cap'
-             x.max_width['params']=60
-             map(x.add_row,result.values) 
-             if parseresult['--output-style'].lower()=='tab':
-                 print '\n%s'%tagname
-                 print(x)
+         ofile = '-'
+         if parseresult['--name']:
+             tagid = tags.keys()[0]
+             sinces = [x for x in tags[tagid].keys() if isinstance(x,int)]
+             payloadids = [tags[tagid][since]['payloadid'] for since in sinces]
+             payloadcomments = [tags[tagid][since]['payloadcomment'] for since in sinces]
+             payloaddict = api.iov_parsepayloaddatadict(tags[tagid]['datadict'])
+             fieldalias = [field['alias']or'v_'+str(field_idx) for field_idx,field in enumerate(payloaddict)]
+             datahead = ' '.join(fieldalias)
+             maxnitems = tags[tagid]['maxnitems']
+             header = ['since', 'comment',datahead]
+             ofile = parseresult['-o']             
+             results = []
+             for payloadidx,payloadid in enumerate(payloadids):
+                 tagdetails = api.iov_getpayload(connection,payloadid,payloaddict,maxnitems=maxnitems)
+                 results.append([sinces[payloadidx],payloadcomments[payloadidx],tagdetails])
+
+             if parseresult['-o'] or parseresult['--output-style']=='csv':
+                 with api.smart_open(ofile) as fh:
+                     print >> fh, '#'+','.join(header)
+                     csvwriter = csv.writer(fh)
+                     for row in results:
+                         csvwriter.writerow(row)
              else:
-                 print tagname
-                 print(x.get_html_string())
+                 ptable = prettytable.PrettyTable(header)                 
+                 ptable.align = 'l'
+                 ptable.header_style = 'cap'
+                 ptable.max_width['params']=60
+                 for [s,c,d] in results:
+                     dataitems = []
+                     for item in d:
+                         fieldstr = []
+                         for field in item:
+                            if isinstance(field,list):
+                                val = ','.join([str(f) for f in field])
+                            if len(field) >1:
+                                val = '['+val+']'
+                            else:
+                                val = str(field)
+                         fieldstr.append(val)
+                     dataitems.append( ' '.join(fieldstr) )
+                     ptable.add_row([s,c,'\n'.join(dataitems)])
+                 if parseresult['--output-style']=='tab':
+                     print(ptable)
+                 elif parseresult['--output-style']=='html' :
+                     print(ptable.get_html_string())
+                 else:
+                     raise RuntimeError('Unsupported output style %s'%parseresult['--output-style'])
          else:
-             print '#%s'%tagname
-             print result.to_csv(header=['#since','amodetag','egev','minbiasxsec','func','params','comment'],index=False)
-         else:
-             if regdf.empty:
-                print 'No result found'
+             header = ['name','creation','default','datasource','applyto','payload','items','iov','comment']
+             if parseresult['-o'] or parseresult['--output-style']=='csv':
+                 ofile = parseresult['-o']
+                 with api.smart_open(ofile) as fh:
+                     print >> fh, '#'+','.join(header)
+                     csvwriter = csv.writer(fh)
+                     for tagid,tag in tags.items():
+                         sinceStr = str([x for x in tag.keys() if isinstance(x,int)])
+                         csvwriter.writerow([tag['tagname'],tag['creationutc'],tag['isdefault'],tag['datasource'],tag['applyto'],tag['datadict'],tag['maxnitems'],sinceStr,tag['tagcomment']])                     
              else:
-                t = regdf.loc[:,['tagname','datasource','applyto','isdefault','creation time','comment']]
-                if parseresult['--output-style'].lower() in ['tab','html']:   
-                    x = prettytable.PrettyTable(['tagname','datasource','applyto','isdefault','creation time','comment'])
-                    x.sortby = 'applyto'
-                    x.align = 'l'
-                    x.header_style = 'cap'
-                    map(x.add_row,t.values)
-                    if parseresult['--output-style'].lower()=='tab':
-                        print(x)
-                    else:
-                        print(x.get_html_string())
-                else:
-                    print t.to_csv(header=['#tagname','datasource','applyto','isdefault','creation time','comment'],index=False)
-
-"""
-      elif args['<command>'] == 'lut':
-         import briltag_lut
-         parseresult = docopt.docopt(briltag_lut.__doc__,argv=cmmdargv)
-         parseresult = briltag_lut.validate(parseresult,sources=choice_sources)
-
-      elif args['<command>'] == 'data':
-         import briltag_data
-         parseresult = docopt.docopt(briltag_data.__doc__,argv=cmmdargv)
-         parseresult = briltag_data.validate(parseresult)
-
+                 ptable = prettytable.PrettyTable(header)
+                 ptable.sortby = 'applyto'
+                 ptable.align = 'l'
+                 ptable.header_style = 'cap'
+                 ptable.max_width['params']=60
+                 for tagid,tag in tags.items():
+                     sinceStr = '\n'.join([str(x) for x in tag.keys() if isinstance(x,int)])
+                     ptable.add_row([tag['tagname'],tag['creationutc'],tag['isdefault'],tag['datasource'],tag['applyto'],tag['datadict'],tag['maxnitems'],sinceStr,tag['tagcomment']])
+                 if parseresult['--output-style']=='tab':
+                     print(ptable)
+                 elif parseresult['--output-style']=='html' :
+                     print(ptable.get_html_string())
+                 else:
+                     raise RuntimeError('Unsupported output style %s'%parseresult['--output-style'])
+      
       else:
           exit("%r is not a briltag command. See 'briltag --help'."%args['<command>']) 
     except docopt.DocoptExit:
       raise docopt.DocoptExit('Error: incorrect input format for '+args['<command>'])            
     except schema.SchemaError as e:
       exit(e)
-    del svc
-
 
     if not parseresult.has_key('--debug'):
        if parseresult.has_key('--nowarning'):

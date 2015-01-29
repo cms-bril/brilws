@@ -10,6 +10,9 @@ import random
 import time
 import yaml
 import re
+import contextlib
+import sys
+
 decimalcontext = decimal.getcontext().copy()
 decimalcontext.prec = 3
 
@@ -47,7 +50,18 @@ sqlitetypemap={
 'timestamp':'timestamp'
 }
 
-
+@contextlib.contextmanager
+def smart_open(filename=None):
+    if filename and filename != '-':
+        fh = open(filename, 'w')
+    else:
+        fh = sys.stdout
+    try:
+        yield fh
+    finally:
+        if fh is not sys.stdout:
+            fh.close()
+            
 def _seqdiff(original,exclude):
     return list(set(original)-set(exclude))
 
@@ -245,7 +259,7 @@ def iov_parsepayloaddatadict(datadictStr):
             valtablename = payloadtableprefix_+'_STRING'
         else:
             valtablename = payloadtableprefix_+'_'+val.upper()
-        result.append({'key':keytablename,'val':valtablename,'alias':alias,'maxnpos':maxnpos})
+        result.append({'key':keytablename,'val':valtablename,'alias':alias,'maxnpos':int(maxnpos)})
     return result
 
 #def iov_getPtablename(typecode):
@@ -429,6 +443,49 @@ def string_folding_wrapper(results):
     for row in results:
         yield tuple( folder.fold_string(row[key]) for key in keys )
 
+def iov_getpayload(connection,payloadid,payloaddatadict,maxnitems=1):
+    """
+    input:
+        connection:      db handle
+        payloadid:       payloadid
+        payloaddatadict: payload datadict [{'val':,'key':,'alias':,'maxnpos':}]
+    output:
+        payload:          [[[]]] or [[{}]] 
+        fieldalias:       [alias] 
+    sql:
+        select p.IITEM,p.IFIELD,p.IPOS,p.VAL as %s from %s p where p.PAYLOADID=:payloadid
+    """
+
+    nfields = len(payloaddatadict)
+    payload = [None]*maxnitems
+    q = """select IITEM, IFIELD, IPOS, VAL from %s where PAYLOADID=:payloadid"""
+    with connection.begin() as trans:
+        for field_idx, field_dict in enumerate(payloaddatadict):
+            valtable_name = payloaddatadict[field_idx]['val']            
+            maxnpos = payloaddatadict[field_idx]['maxnpos']
+            if not valtable_name:
+                raise ValueError('invalid value table name %s'%valtable_name)
+            valresult = connection.execute(q%(valtable_name),{'payloadid':payloadid})
+            keyresult = None
+            keytable_name =  payloaddatadict[field_idx]['key']
+            if keytable_name:
+                keyresult = connection.execute(q%(keytable_name),{'payloadid':payloadid,'field_idx':field_idx})
+            for r in valresult:
+                iitem = r['IITEM']
+                ifield = r['IFIELD']
+                ipos = r['IPOS']                
+                val = r['VAL']
+                if payload[iitem] is None:
+                    payload[iitem] = [None]*nfields
+                if payload[iitem][ifield] is None:
+                    payload[iitem][ifield] = [None]*maxnpos
+                if not keytable_name:
+                    payload[iitem][ifield][ipos] = val
+                else:
+                    key = keyresult[iitem][ifield][ipos]['VAL']
+                    payload[iitem][ifield][ipos] = {key:val}
+    return payload
+    
 def iov_listtags(connection,tagname=None,datasource=None,applyto=None,isdefault=None):
     """
     inputs:
@@ -439,6 +496,7 @@ def iov_listtags(connection,tagname=None,datasource=None,applyto=None,isdefault=
     sql:
         select t.TAGID as tagid, t.TAGNAME as tagname, t.CREATIONUTC as creationutc, t.DATADICT as datadict, t.MAXNITEMS as maxnitems, t.DATASOURCE as datasource, t.APPLYTO as applyto, t.ISDEFAULT as isdefault, t.COMMENT as tagcomment, d.SINCE as since, d.PAYLOADID as payloadid, d.COMMENT as payloadcomment from IOVTAGS t, IOVTAGDATA d where t.TAGID=d.TAGID [and t.TAGNAME=:tagname and t.DATASOURCE=:datasource and t.APPLYTO=:applyto and t.isdefault=:isdefault ]; 
     """
+    
     result = {}
     q =  """select t.TAGID as tagid, t.TAGNAME as tagname, t.CREATIONUTC as creationutc, t.DATADICT as datadict, t.MAXNITEMS as maxnitems, t.DATASOURCE as datasource, t.APPLYTO as applyto, t.ISDEFAULT as isdefault, t.COMMENT as tagcomment, d.SINCE as since, d.PAYLOADID as payloadid, d.COMMENT as payloadcomment from IOVTAGS t, IOVTAGDATA d where t.TAGID=d.TAGID"""
     param = {}
@@ -581,6 +639,7 @@ def get_filepath_or_buffer(filepath_or_buffer):
     if isinstance(filepath_or_buffer, str):
         return os.path.expanduser(filepath_or_buffer)
     return filepath_or_buffer    
+
 
 def read_yaml(path_or_buf):
     """
