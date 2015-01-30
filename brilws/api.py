@@ -11,6 +11,7 @@ import yaml
 import re
 import contextlib
 import sys
+import logging
 
 decimalcontext = decimal.getcontext().copy()
 decimalcontext.prec = 3
@@ -596,6 +597,24 @@ def iov_appendtotag(connection,tagid,since,payloaddata,datadict,payloadcomment):
             pr = connection.execute(pi%ptablename, prows)
     return payloadid
 
+def iov_updatedefault(connection,tagname,defaultval=1):
+    """
+    inputs:
+        connection: dbhandle
+        tagname:    tagname
+        defaultval: value(0 or 1) of isdefault column
+    sql:
+        update IOVTAGS set ISDEFAULT=:defaultval
+    """
+    log = logging.getLogger('brilws')
+    if not defaultval in [0,1]:
+        raise ValueError('ISDEFAULT value must be 0 or 1')
+    if log: log.debug('api.iov_updatedefault %s isdefault %d'%(tagname,defaultval))
+    ui = """update IOVTAGS set ISDEFAULT=:isdefault where TAGNAME=:tagname"""
+    with connection.begin() as trans:
+        log.debug('api.iov_updatedefault query %s %d'%(tagname,defaultval))
+        connection.execute(ui, {'isdefault': defaultval,'tagname':tagname})
+
 def _iov_buildpayloadcache(payloadid, payloaddata, payloaddatadict, payloadcomment):
     """
     input:
@@ -664,29 +683,6 @@ def read_yaml(path_or_buf):
     return obj
 
 if __name__=='__main__':
-    #svc = coral.ConnectionService()
-    #connect = 'sqlite_file:pippo.db'
-    #session = svc.connect(connect, accessMode = coral.access_ReadOnly)
-    #session.transaction().start(True)
-    #qHandle = session.nominalSchema().newQuery()
-    #qTablelist = [('CONDTAGREGISTRY','')]
-    #qOutputRowDef = {'TAGID':('unsigned long long','tagid'),'TAGNAME':('string','tagname')}
-    #qConditionStr = 'APPLYTO=:applyto AND DATASOURCE=:datasource'
-    #qCondition = coral.AttributeList()
-    #qCondition.extend('applyto','string')
-    #qCondition.extend('datasource','string')
-    #qCondition['applyto'].setData('lumi')
-    #qCondition['datasource'].setData('hfoc')
-
-    #qTablelist = [('NORMS','')]
-    #qOutputRowDef = {}
-    #df = pd.DataFrame.from_records(db_query_generator(qHandle,qTablelist,qOutputRowDef,qConditionStr,qCondition))
-    #del qHandle
-    #session.transaction().commit()
-    #if df.empty: 
-    #   print 'empty result'
-    #else:
-    #   print df
 
     ## test db api , i.e. sqlalchemy sans orm
     engine = create_engine('sqlite:///test.db')

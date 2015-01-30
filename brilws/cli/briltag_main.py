@@ -8,7 +8,7 @@ from sqlalchemy import *
 from sqlalchemy import exc
 from brilws import api,display,prettytable
 
-log = logging.getLogger('briltag')
+log = logging.getLogger('brilws')
 logformatter = logging.Formatter('%(levelname)s %(message)s')
 ch = logging.StreamHandler()
 ch.setLevel(logging.WARNING)
@@ -143,28 +143,40 @@ def briltag_main():
          parseresult = docopt.docopt(briltag_insert.__doc__,argv=cmmdargv)
          parseresult = briltag_insert.validate(parseresult)
          if parseresult['--setdefault'] and parseresult['--unsetdefault']:
-             exit("ERROR: option --setdefault --unsetdefault are mutually exclusive")         
+             exit("ERROR: option --setdefault --unsetdefault are mutually exclusive")        
          engine = create_engine(parseresult['-c'])
          connection = engine.connect().execution_options(stream_results=True)
-         iovdata = api.read_yaml(parseresult['-i'])
-         try:
-             tagid = api.iov_createtag(connection,iovdata)
-         except exc.IntegrityError:
-             tagname = iovdata['tagname']
-             log.warn('tag %s exists, switch to append mode'%tagname)
-             mytag = api.iov_listtags(connection,tagname=tagname)
-             mytagid = mytag.keys()[0]
-             oldsinces = [k for k in mytag[mytagid].keys() if isinstance(k,int) ]
-             newsinces = [k for k in iovdata.keys() if isinstance(k,int) ]
-             if oldsinces>=newsinces:
-                 exit('No new since to append, exit')
-             deltasince = api.seqdiff(newsinces,oldsinces)
-             deltasince = sorted(deltasince)
-             for since in deltasince:
-                 c = ''
-                 if iovdata[since].has_key('comment'):
-                     c = iovdata[since]['comment']                
-                 api.iov_appendtotag(connection,mytagid,since,iovdata[since]['payload'],mytag[mytagid]['datadict'],c)             
+         iovfile = parseresult['-i']
+         if iovfile:
+             iovdata = api.read_yaml(parseresult['-i'])
+             try:
+                 tagid = api.iov_createtag(connection,iovdata)
+             except exc.IntegrityError:
+                 tagname = iovdata['tagname']
+                 log.warn('tag %s exists, switch to append mode'%tagname)
+                 mytag = api.iov_listtags(connection,tagname=tagname)
+                 mytagid = mytag.keys()[0]
+                 oldsinces = [k for k in mytag[mytagid].keys() if isinstance(k,int) ]
+                 newsinces = [k for k in iovdata.keys() if isinstance(k,int) ]
+                 if oldsinces>=newsinces:
+                     exit('No new since to append, exit')
+                 deltasince = api.seqdiff(newsinces,oldsinces)
+                 deltasince = sorted(deltasince)
+                 for since in deltasince:
+                     c = ''
+                     if iovdata[since].has_key('comment'):
+                        c = iovdata[since]['comment']                
+                     api.iov_appendtotag(connection,mytagid,since,iovdata[since]['payload'],mytag[mytagid]['datadict'],c)
+         isdefault = None
+         updatetagname = None
+         if parseresult['--setdefault']:
+             isdefault = 1
+             updatetagname = parseresult['--setdefault']
+         elif parseresult['--unsetdefault']:
+             isdefault = 0
+             updatetagname = parseresult['--unsetdefault']
+         if updatetagname is not None and isdefault is not None:
+             api.iov_updatedefault(connection,updatetagname,defaultval=isdefault)
       else:
           exit("%r is not a briltag command. See 'briltag --help'."%args['<command>']) 
     except docopt.DocoptExit:
