@@ -235,12 +235,12 @@ iovdict_typecodes_ = ['FLOAT32','UINT32','INT32','UINT64','INT64','UINT16','INT1
 def iov_parsepayloaddatadict(datadictStr):
     """
     input:
-        datadictstr: (key-value):len:alias,value:len:alias,...
+        datadictstr: (key-value):len:alias value:len:alias ...
     output:
         [{'key':keytablename, 'val':valtablename, 'alias':alias, 'maxnpos':maxnpos }]
     """
     result = []
-    fields = datadictStr.split(',')
+    fields = datadictStr.split(' ')
     r = [(f.split(':')+[None]*99)[:3] for f in fields]
     for [keyval,maxnpos,alias] in r:
         [key,val] = (keyval.split('-')+[None]*99)[:2]

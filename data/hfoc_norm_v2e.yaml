@@ -1,6 +1,6 @@
 tagname: hfoc_norm_v2e
 
-datadict: "str16:1:amodetag,uint32:1:egev,uint32:1:minbias,str64:1:func,float32:1:a0,float32:1:a1,float32:1:a2,float32:1:c1,float32:1:drift,str256:1:afterglow"
+datadict: "str16:1:amodetag uint32:1:egev uint32:1:minbias str64:1:func float32:5:params str256:1:afterglow"
 
 maxnitems: 1
 
@@ -20,8 +20,8 @@ comment: "HFV2c plus 2013 pa,ap,pp calib v2"
     - PROTPHYS
     - 3500
     - 68000
-    - fPoly
-    - 6.37
+    - "fPoly:a0"
+    - [6.37]
   comment: "2010"
   
 134721:
@@ -30,8 +30,8 @@ comment: "HFV2c plus 2013 pa,ap,pp calib v2"
     - PROTPHYS
     - 3500
     - 68000
-    - fPoly
-    - 16.5
+    - "fPoly:a0"
+    - [16.5]
   comment: "2010"
   
 135055:
@@ -40,8 +40,8 @@ comment: "HFV2c plus 2013 pa,ap,pp calib v2"
     - PROTPHYS
     - 3500
     - 68000
-    - fPoly
-    - 6.37
+    - "fPoly:a0"
+    - [6.37]
   comment: "2010"
   
 136290:
@@ -50,8 +50,8 @@ comment: "HFV2c plus 2013 pa,ap,pp calib v2"
     - PROTPHYS
     - 450
     - 68000
-    - fPoly
-    - 16.5
+    - "fPoly:a0"
+    - [16.5]
   comment: "2010"
   
 137027:
@@ -60,8 +60,8 @@ comment: "HFV2c plus 2013 pa,ap,pp calib v2"
     - PROTPHYS
     - 3500
     - 68000
-    - fPoly
-    - 6.37
+    - "fPoly:a0"
+    - [6.37]
   comment: "2010"
   
 150431:
@@ -70,8 +70,8 @@ comment: "HFV2c plus 2013 pa,ap,pp calib v2"
     - IONPHYS
     - 3500
     - 68000
-    - fPoly
-    - 2.45e-03
+    - "fPoly:a0"
+    - [2.45e-03]
   comment: "2010"
   
 160403:
@@ -80,12 +80,8 @@ comment: "HFV2c plus 2013 pa,ap,pp calib v2"
     - PROTPHYS
     - 3500
     - 68000
-    - fPoly
-    - 7.268
-    - 0.063
-    - -0.0037
-    - 6.37
-    - 0.01258
+    - "fPoly:a0,a1,a2,c1,drift"
+    - [7.268,0.063,-0.0037,6.37,0.01258]
   comment: "2011"
   
 161345:
@@ -94,8 +90,8 @@ comment: "HFV2c plus 2013 pa,ap,pp calib v2"
     - PROTPHYS
     - 1380
     - 68000
-    - fPoly
-    - 10.20
+    - "fPoly:a0"
+    - [10.20]
   comment: "2011"
   
 162518:
@@ -104,12 +100,8 @@ comment: "HFV2c plus 2013 pa,ap,pp calib v2"
     - PROTPHYS
     - 3500
     - 68000
-    - fPoly
-    - 7.268
-    - 0.063
-    - -0.0037
-    - 6.37
-    - 0.01258
+    - "fPoly:a0,a1,a2,c1,drift"
+    - [7.268,0.063,-0.0037,6.37,0.01258]
   comment: "2011"
   
 176697:
@@ -118,12 +110,8 @@ comment: "HFV2c plus 2013 pa,ap,pp calib v2"
     - PROTPHYS
     - 3500
     - 68000
-    - fPoly
-    - 7.268
-    - 0.063
-    - -0.0037
-    - 6.37
-    - 0.01258
+    - "fPoly:a0,a1,a2,c1,drift"
+    - [7.268,0.063,-0.0037,6.37,0.01258]
     - "[(213,0.992),(321,0.99),(423,0.988),(597,0.985),(700,0.984),(873,0.981),(1041,0.979),(1179,0.977),(1317,0.975)]"
   comment: "2011"
   
@@ -133,8 +121,8 @@ comment: "HFV2c plus 2013 pa,ap,pp calib v2"
     - IONPHYS
     - 3500
     - 2100000
-    - fPoly
-    - 2.45e-03
+    - "fPoly:a0"
+    - [2.45e-03]
   comment: "2011"
 
 189924:
@@ -143,12 +131,8 @@ comment: "HFV2c plus 2013 pa,ap,pp calib v2"
     - PROTPHYS
     - 4000
     - 69300
-    - fPoly
-    - 6.36
-    - 0.063
-    - -0.0037
-    - 5.57
-    - 1.
+    - "fPoly:a0,a1,a2,c1,drift"
+    - [6.36,0.063,-0.0037,5.57,1.]
     - "[(213,0.992), (321,0.99), (423,0.988), (597,0.985), (700,0.984), (873,0.981), (1041,0.979), (1179,0.977), (1317,0.975)]"
   comment: "2012"
   
@@ -158,8 +142,8 @@ comment: "HFV2c plus 2013 pa,ap,pp calib v2"
     - PROTION
     - 4000
     - 2100000
-    - fPoly
-    - 0.0549
+    - "fPoly:a0"
+    - [0.0549]
   comment: "2012 HFV2a_pp/115.8(CMS AN-2012/396)"
 
 202796:
@@ -168,12 +152,8 @@ comment: "HFV2c plus 2013 pa,ap,pp calib v2"
     - PROTPHYS
     - 4000
     - 69300
-    - fPoly
-    - 6.36
-    - 0.063
-    - -0.0037
-    - 5.57
-    - 
+    - "fPoly:a0,a1,a2,c1,drift"
+    - [6.36,0.063,-0.0037,5.57,1.]
     - "[(213,0.992), (321,0.99), (423,0.988), (597,0.985), (700,0.984), (873,0.981), (1041,0.979), (1179,0.977), (1317,0.975)]"
   comment: "2012"
 
@@ -183,8 +163,8 @@ comment: "HFV2c plus 2013 pa,ap,pp calib v2"
     - PROTION
     - 4000
     - 69300
-    - fPoly
-    - 0.06270
+    - "fPoly:a0"
+    - [0.06270]
   comment: "2013 (HFV2c*1.142 CMS AN-13-270)"
   
 211313:
@@ -193,8 +173,8 @@ comment: "HFV2c plus 2013 pa,ap,pp calib v2"
     - IONPROT
     - 4000
     - 2100000
-    - fPoly
-    - 0.06248
+    - "fPoly:a0"
+    - [0.06248]
   comment: "2013 (HFV2c*1.138 CMS AN-13-270)"
   
 211678:
@@ -203,6 +183,6 @@ comment: "HFV2c plus 2013 pa,ap,pp calib v2"
     - PROTPHYS
     - 1380
     - 69300
-    - fPoly
-    - 10.3938
+    - "fPoly:a0"
+    - [10.3938]
   comment: "2013 (HFV2c*1.019 CMS AN-13-270)"
