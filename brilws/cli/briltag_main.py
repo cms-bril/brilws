@@ -73,15 +73,15 @@ def briltag_main():
              payloadcomments = [tags[tagid][since]['payloadcomment'] or '' for since in sinces]
              payloaddict = api.iov_parsepayloaddatadict(tags[tagid]['datadict'])
              fieldalias = [field['alias']or'v_'+str(field_idx) for field_idx,field in enumerate(payloaddict)]
-             datahead = ' '.join(fieldalias)
+             datahead = fieldalias
              maxnitems = tags[tagid]['maxnitems']
-             header = ['since', 'comment',datahead]
+             header = ['since', 'comment']+datahead
              ofile = parseresult['-o']             
              results = []
              for payloadidx,payloadid in enumerate(payloadids):
                  tagdetails = api.iov_getpayload(connection,payloadid,payloaddict,maxnitems=maxnitems)
-                 results.append([sinces[payloadidx],payloadcomments[payloadidx],tagdetails])
 
+                 results.append([sinces[payloadidx],payloadcomments[payloadidx],tagdetails])
              if parseresult['-o'] or parseresult['--output-style']=='csv':
                  with api.smart_open(ofile) as fh:
                      print >> fh, '#'+','.join(header)
@@ -92,21 +92,24 @@ def briltag_main():
                  ptable = prettytable.PrettyTable(header)                 
                  ptable.align = 'l'
                  ptable.header_style = 'cap'
-                 ptable.max_width['params']=60
+                 ptable.max_width['params']=80
                  for [s,c,d] in results:
                      dataitems = []
+
                      for item in d:
-                         fieldstr = []
+                         #fieldstr = []
                          for field in item:
+                            if field is None: val = ''
+                            val = str(field)
                             if isinstance(field,list):
                                 val = ','.join([str(f) for f in field])
-                            if len(field) >1:
-                                val = '['+val+']'
+                                if len(field) >1:
+                                    val = '['+val+']'
                             else:
                                 val = str(field)
-                         fieldstr.append(val)
-                     dataitems.append( ' '.join(fieldstr) )
-                     ptable.add_row([s,c,'\n'.join(dataitems)])
+                         #fieldstr.append(val)
+                            dataitems.append( val )
+                     ptable.add_row([s,c]+dataitems)
                  if parseresult['--output-style']=='tab':
                      print(ptable)
                  elif parseresult['--output-style']=='html' :

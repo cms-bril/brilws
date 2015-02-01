@@ -475,6 +475,7 @@ def iov_getpayload(connection,payloadid,payloaddatadict,maxnitems=1):
                 ifield = r['IFIELD']
                 ipos = r['IPOS']                
                 val = r['VAL']
+
                 if payload[iitem] is None:
                     payload[iitem] = [None]*nfields
                 if payload[iitem][ifield] is None:
@@ -543,6 +544,7 @@ def iov_createtag(connection,iovdata):
         insert into IOVTAGDATA(TAGID,SINCE,PAYLOADID,COMMENT) VALUES(:tagid, :since, :payloadid, :comment)
         
     """
+
     tagid = next(nonsequential_key(78))
     #print "creating iovtag %s"%iovdata['tagname']
     sinces = sorted([x for x in iovdata.keys() if isinstance(x, int)])
@@ -560,12 +562,13 @@ def iov_createtag(connection,iovdata):
         
         for since in sinces:
             payloadid = next(nonsequential_key(79))
-            payloaddata = iovdata[since]['payload']
+            payloaddata = iovdata[since]['payload']            
             payloadcomment = ''
             if iovdata[since].has_key('comment'):
                 payloadcomment = iovdata[since]['comment']
             tr = connection.execute(ti, {'tagid':tagid, 'since':since, 'payloadid':payloadid, 'comment':payloadcomment })
             rowcache = _iov_buildpayloadcache( payloadid, payloaddata, payloaddatadict, payloadcomment)
+
             for ptablename, prows in rowcache.items():
                 if len(prows)==0: continue
                 pr = connection.execute(pi%ptablename, prows)
@@ -636,15 +639,23 @@ def _iov_buildpayloadcache(payloadid, payloaddata, payloaddatadict, payloadcomme
             elif isinstance(fielddata,dict):
                 ipos = 0
                 for key, val in fielddata.items():
-                    valtable_name = payloaddatadict[field_index]['val']
+                    valtable_name = payloaddatadict[field_idx]['val']
                     if not valtable_name:
                         raise ValueError('invalid value table name %s'%valtable_name)
                     rowcache.setdefault(valtable_name,[]).append({'payloadid':payloadid,'iitem':item_idx,'ifield':field_idx,'ipos':ipos,'val':val})
-                    keytable_name = payloaddatadict[field_index]['key']
+                    keytable_name = payloaddatadict[field_idx]['key']
                     if not keytable_name:
                         raise ValueError('invalid key table name %s'%keytable_name)
                     rowcache.setdefault(keytable_name,[]).append({'payloadid':payloadid,'iitem':item_idx,'ifield':field_idx,'ipos':ipos,'val':key})
                     ipos += 1
+            else:
+                ipos = 0
+                valtable_name = payloaddatadict[field_idx]['val']
+                if not valtable_name:
+                    raise ValueError('invalid value table name %s'%valtable_name)
+                val = fielddata
+                rowcache.setdefault(valtable_name,[]).append({'payloadid':payloadid,'iitem':item_idx,'ifield':field_idx,'ipos':ipos,'val':val})
+                
     return rowcache
 
 def get_filepath_or_buffer(filepath_or_buffer):
