@@ -235,7 +235,7 @@ iovdict_typecodes_ = ['FLOAT32','UINT32','INT32','UINT64','INT64','UINT16','INT1
 def iov_parsepayloaddatadict(datadictStr):
     """
     input:
-        datadictstr: (key-value):len:alias value:len:alias ...
+        datadictstr: key-value:maxlen:alias value:maxlen:alias ...
     output:
         [{'key':keytablename, 'val':valtablename, 'alias':alias, 'maxnpos':maxnpos }]
     """
@@ -453,38 +453,43 @@ def iov_getpayload(connection,payloadid,payloaddatadict,maxnitems=1):
         payload:          [[[]]] or [[{}]] 
         fieldalias:       [alias] 
     sql:
-        select p.IITEM,p.IFIELD,p.IPOS,p.VAL as %s from %s p where p.PAYLOADID=:payloadid
+        val : select IITEM,IPOS,VAL from %s where PAYLOADID=:payloadid and IFIELD=:ifield
+        key, val : select k.IITEM, k.IPOS, k.VAL, v.VAL from %s as k, %s as v where k.PAYLOADID=v.PAYLOADID and k.IITEM=v.IITEM and k.IFIELD=v.IFIELD and k.IPOS=v.IPOS and k.PAYLOADID=:payloadid and k.IFIELD=:ifield
     """
 
     nfields = len(payloaddatadict)
-    payload = [None]*maxnitems
-    q = """select IITEM, IFIELD, IPOS, VAL from %s where PAYLOADID=:payloadid"""
+    payload = [None]*maxnitems            
+    q = """select IITEM as iitem, IPOS as ipos, VAL as val from %s where PAYLOADID=:payloadid and IFIELD=:ifield"""
+    qq = """select k.IITEM as iitem, k.IPOS as ipos, k.VAL as key, v.VAL as val from %s as k, %s as v where k.PAYLOADID=v.PAYLOADID and k.IITEM=v.IITEM and k.IFIELD=v.IFIELD and k.IPOS=v.IPOS and k.PAYLOADID=:payloadid and k.IFIELD=:ifield"""
+    
     with connection.begin() as trans:
         for field_idx, field_dict in enumerate(payloaddatadict):
-            valtable_name = payloaddatadict[field_idx]['val']            
-            maxnpos = payloaddatadict[field_idx]['maxnpos']
+            valtable_name = field_dict['val']            
+            maxnpos = field_dict['maxnpos']
             if not valtable_name:
                 raise ValueError('invalid value table name %s'%valtable_name)
-            valresult = connection.execute(q%(valtable_name),{'payloadid':payloadid})
-            keyresult = None
-            keytable_name =  payloaddatadict[field_idx]['key']
+            result = None
+            keytable_name = field_dict['key']
             if keytable_name:
-                keyresult = connection.execute(q%(keytable_name),{'payloadid':payloadid,'field_idx':field_idx})
-            for r in valresult:
-                iitem = r['IITEM']
-                ifield = r['IFIELD']
-                ipos = r['IPOS']                
-                val = r['VAL']
-
+                result = connection.execute(qq%(keytable_name,valtable_name),{'payloadid':payloadid,'ifield':field_idx})
+            else:
+                result = connection.execute(q%(valtable_name),{'payloadid':payloadid,'ifield':field_idx})
+            for r in result:
+                iitem = r['iitem']
+                ipos = r['ipos']                
+                val = r['val']
+                key = None
                 if payload[iitem] is None:
                     payload[iitem] = [None]*nfields
-                if payload[iitem][ifield] is None:
-                    payload[iitem][ifield] = [None]*maxnpos
-                if not keytable_name:
-                    payload[iitem][ifield][ipos] = val
+                if payload[iitem][field_idx] is None:
+                    payload[iitem][field_idx] = [None]*maxnpos
+                if not r.has_key('key'):
+                    payload[iitem][field_idx][ipos] = val
                 else:
-                    key = keyresult[iitem][ifield][ipos]['VAL']
-                    payload[iitem][ifield][ipos] = {key:val}
+                    key = r['key']
+                    payload[iitem][field_idx][ipos] = (key,val)
+    payload = [x for x in payload if x is not None]
+    
     return payload
     
 def iov_listtags(connection,tagname=None,datasource=None,applyto=None,isdefault=None):
@@ -568,7 +573,6 @@ def iov_createtag(connection,iovdata):
                 payloadcomment = iovdata[since]['comment']
             tr = connection.execute(ti, {'tagid':tagid, 'since':since, 'payloadid':payloadid, 'comment':payloadcomment })
             rowcache = _iov_buildpayloadcache( payloadid, payloaddata, payloaddatadict, payloadcomment)
-
             for ptablename, prows in rowcache.items():
                 if len(prows)==0: continue
                 pr = connection.execute(pi%ptablename, prows)
@@ -627,6 +631,7 @@ def _iov_buildpayloadcache(payloadid, payloaddata, payloaddatadict, payloadcomme
     output: 
         rowcache: {tablename: [{'payloadid':, 'iitem': 'ifield':, 'ipos':, 'val'},]}
     """
+
     rowcache = {}
     for item_idx, item in enumerate(payloaddata):
         for field_idx, fielddata in enumerate(item):
@@ -655,7 +660,6 @@ def _iov_buildpayloadcache(payloadid, payloaddata, payloaddatadict, payloadcomme
                     raise ValueError('invalid value table name %s'%valtable_name)
                 val = fielddata
                 rowcache.setdefault(valtable_name,[]).append({'payloadid':payloadid,'iitem':item_idx,'ifield':field_idx,'ipos':ipos,'val':val})
-                
     return rowcache
 
 def get_filepath_or_buffer(filepath_or_buffer):

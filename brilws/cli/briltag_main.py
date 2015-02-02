@@ -80,13 +80,12 @@ def briltag_main():
              results = []
              for payloadidx,payloadid in enumerate(payloadids):
                  tagdetails = api.iov_getpayload(connection,payloadid,payloaddict,maxnitems=maxnitems)
-
                  results.append([sinces[payloadidx],payloadcomments[payloadidx],tagdetails])
              if parseresult['-o'] or parseresult['--output-style']=='csv':
                  with api.smart_open(ofile) as fh:
                      print >> fh, '#'+','.join(header)
                      csvwriter = csv.writer(fh)
-                     for row in results:
+                     for row in results:                         
                          csvwriter.writerow(row)
              else:
                  ptable = prettytable.PrettyTable(header)                 
@@ -95,19 +94,14 @@ def briltag_main():
                  ptable.max_width['params']=80
                  for [s,c,d] in results:
                      dataitems = []
-
                      for item in d:
-                         #fieldstr = []
                          for field in item:
                             if field is None: val = ''
-                            val = str(field)
                             if isinstance(field,list):
-                                val = ','.join([str(f) for f in field])
-                                if len(field) >1:
-                                    val = '['+val+']'
-                            else:
-                                val = str(field)
-                         #fieldstr.append(val)
+                                if len(field)==1:
+                                    val = str(field[0])
+                                else:
+                                    val = '['+','.join([str(f) for f in field if f is not None])+']'
                             dataitems.append( val )
                      ptable.add_row([s,c]+dataitems)
                  if parseresult['--output-style']=='tab':
