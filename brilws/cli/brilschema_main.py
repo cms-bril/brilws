@@ -15,8 +15,8 @@ ch.setFormatter(logformatter)
 log.addHandler(ch)
 #log.addHandler(fh)
 
-g_condregtablename = 'CONDTAGREGISTRY'
-g_condnextidtablename = 'CONDTAGNEXTID'
+#g_condregtablename = 'CONDTAGREGISTRY'
+#g_condnextidtablename = 'CONDTAGNEXTID'
 
 def brilschema_main():
     docstr='''

@@ -1,18 +1,18 @@
-BEAMSTATUSMAP:
+BEAMSTATUSMAP: #static map
    columns:
-    - beamstatusid: long long
+    - beamstatusid: unsigned short
     - beamstatus: string
    pk: [beamstatusid]
    
 TRGBITMAP:
-   columns:
+   columns:    #static map
     - trgbitid: long long
     - trgbitname: string #name used in l1seed expression
     - trgbitrawname: string #name used in hardware
    pk: [trgbitid]
 
 
-HLTPATHMAP:
+HLTPATHMAP:    #static map
    columns:
     - hltpathid: long long
     - hltpathname: string
@@ -20,137 +20,16 @@ HLTPATHMAP:
    notnull: [hltpathname]
 
 
-DATATABLEREGISTRY:
+DATATABLEREGISTRY: #static map , data table registry
    columns:
-    - datatablename: string
-    - dataidcolumnsname: string
-   pk: [datatablename]
+    - basetablename: string
+    - tablesuffix: string
+    - datasourceid: unsigned short
+    - datasourcename: string      #bcm1flumi,hfoclumi,hfetlumi,pltlumi,pixellumi,bhmbkg
+   pk: [datasourceid]
 
-DATATAGS:
-   columns:
-    - datatagid: long long
-    - datatagname: string
-    - creationutc: string
-    - datatagtable: string
-    - comment: string
-   pk: [datatagid]
-   unique: [datatagname]
 
-LUMIDATATAGS:
-   columns:
-    - datatagid: long long
-    - timeindexid: long long
-    - hfoclumiid: long long
-    - hfetlumiid: long long
-    - bcm1flumiid: long long
-    - pltlumiid: long long
-    - pixellumiid: long long
-    - hltid: long long
-    - deadtimeid: long long
-    - trgid: long long
-    - beaminfoid: long long
-   pk: [datatagid,timeindex]
-  
-
-TIMEINDEX:
-  columns:
-    - timeindexid: long long
-    - fillnum: unsigned int
-    - runnum: unsigned int
-    - lsnum: unsigned int
-    - cmslsnum: unsigned int
-    - timestamp: long long
-    - timestampstr: string #just for display. do not query
-    - weekofyear: unsigned char
-    - dayofyear: unsigned short
-    - year: unsigned short
-    - month: unsigned short
-    - runinfoid: long long
-    - fillinfoid: long long
-  pk: [timeindexid]
-  
-FILLINFO:
-   columns:
-    - fillinfoid: long long
-    - fillnum: unsigned int
-    - amodetag: string
-    - egev: unsigned int
-    - fillscheme: string
-    - ncollidingbx: unsigned short
-    - beamconfig: blob
-   pk: [fillinfoid]
-
-RUNINFO:
-   columns:
-    - runinfoid: long long
-    - runnum: unsigned int
-    - hltconfigid: unsigned int
-    - hltkey: string
-    - l1seedexpression: string
-    - gt_rs_key: string
-   pk: [runinfoid]
-
-BEAMINFO:
-   columns:
-    - beaminfoid: long long
-    - beamstatusid: unsigned char
-   pk: [beaminfoid]
-
-BEAMINTENSITY_&suffix:
-   columns:
-    - beamintensityid: long long
-    - bxidx: unsigned short
-    - beam1intensity: unsigned int
-    - beam2intensity: unsigned int
-   pk: [beamintensityid]
-
-HFLUMIOC_&suffix:
-   columns:
-    - dataid: long long
-    - bxidx: unsigned short
-    - instlumi: float
-   pk: [dataid,bxidx]
-
-HFLUMIET_&suffix:
-   columns:
-    - dataid: long long
-    - bxidx: unsigned short
-    - instlumi: float
-   pk: [dataid,bxidx]
-
-BCM1FLUMI_&suffix:
-   columns:
-    - dataid: long long
-    - bxidx: unsigned short
-    - instlumi: float
-   pk: [dataid,bxidx]
-
-PLTLUMI_&suffix:
-   columns:
-    - dataid: long long
-    - bxidx: unsigned short
-    - instlumi: float
-   pk: [dataid,bxidx]
-
-PIXELLUMI_&suffix:
-   columns:
-    - dataid: long long
-    - bxidx: unsigned short
-    - instlumi: float
-   pk: [dataid,bxidx]
-
-TRG_&suffix:
-   columns:
-    - trgid: long long
-    - trgbitid: unsigned short
-    - prescidx: unsigned short
-    - prescval: unsigned int  
-    - bitmask: unsigned char
-    - counts: unsigned int
-    - physicsdeclared: unsigned short
-   pk: [trgid,trgbitid]
- 
-HLTSTREAMDATASET:
+HLTSTREAMDATASET:  #static map , hlt stream, dataset, path map           
    columns:
     - hltpathid: unsigned short
     - streamid: unsigned short
@@ -158,22 +37,162 @@ HLTSTREAMDATASET:
     - datasetid: unsigned short
     - datasetlabel: string
    pk: [hltpathid,streamid,datasetid]
-  
-HLT_&suffix:  #per lshltpath
+
+##### Data tables #####
+
+DATATAGS:          
    columns:
-    - hltid: long long
+    - datatagid: long long
+    - datatagname: string
+    - creationutc: string
+    - comment: string
+   pk: [datatagid]
+   unique: [datatagname]
+
+DATATAGCONTENT: #per ls , per data type
+   columns:
+    - datatagid: long long
+    - timeindexid: long long
+    - datasourceid: unsigned short      #trg,hlt,beamintensity,bcm1flumi,hfoclumi,hfetlumi,pltlumi,pixellumi,bhmbkg
+    - dataid: long long
+    - deadtimeid: long long
+    - beamstatusinfoid: long long
+    - runinfoid: long long
+    - fillinfoid: long long
+   pk: [datatagid,timeindexid,datasourceid]
+  
+
+TIMEINDEX:      #per ls
+   columns:
+    - timeindexid: long long
+    - fillnum: unsigned int
+    - runnum: unsigned int
+    - lsnum: unsigned int
+    - cmslsnum: unsigned int
+    - timestamp: long long
+    - timestampstr: string       #just for display. do not query
+    - weekofyear: unsigned short
+    - dayofyear: unsigned short
+    - year: unsigned short
+    - monthofyear: unsigned short    
+   pk: [timeindexid]
+  
+FILLINFO:        #per fill
+   columns:
+    - dataid: long long
+    - fillnum: unsigned int
+    - amodetag: string
+    - egev: unsigned int
+    - fillscheme: string
+    - ncollidingbx: unsigned short
+    - beamconfig: blob
+   pk: [dataid]
+
+RUNINFO:          #per run
+   columns:       
+    - dataid: long long
+    - runnum: unsigned int
+    - hltconfigid: unsigned int
+    - hltkey: string
+    - l1seedexpression: string
+    - gt_rs_key: string
+   pk: [dataid]
+
+BEAMSTATUSINFO:         #per ls
+   columns:
+    - dataid: long long
+    - runnum: unsigned int
+    - lsnum: unsigned int
+    - beamstatusid: unsigned short
+   pk: [dataid]
+
+BEAMINTENSITY_&suffix:  #per ls, per bx
+   columns:
+    - dataid: long long
+    - runnum: unsigned int
+    - lsnum: unsigned int
+    - bxidx: unsigned short
+    - beam1intensity: unsigned int
+    - beam2intensity: unsigned int
+   pk: [dataid,bxidx]
+
+HFOCLUMI_&suffix:       #per ls, per bx
+   columns:
+    - dataid: long long
+    - runnum: unsigned int
+    - lsnum: unsigned int
+    - bxidx: unsigned short
+    - instlumi: float
+   pk: [dataid,bxidx]
+
+HFETLUMI_&suffix:       #per ls, per bx
+   columns:
+    - dataid: long long
+    - runnum: unsigned int
+    - lsnum: unsigned int
+    - bxidx: unsigned short
+    - instlumi: float
+   pk: [dataid,bxidx]
+
+BCM1FLUMI_&suffix:       #per ls, per bx
+   columns:
+    - dataid: long long
+    - runnum: unsigned int
+    - lsnum: unsigned int
+    - bxidx: unsigned short
+    - instlumi: float
+   pk: [dataid,bxidx]
+
+PLTLUMI_&suffix:          #per ls, per bx
+   columns:
+    - dataid: long long
+    - runnum: unsigned int
+    - lsnum: unsigned int
+    - bxidx: unsigned short
+    - instlumi: float
+   pk: [dataid,bxidx]
+
+PIXELLUMI_&suffix:        #per ls, per bx
+   columns:
+    - dataid: long long
+    - runnum: unsigned int
+    - cmslsnum: unsigned int
+    - bxidx: unsigned short
+    - instlumi: float
+   pk: [dataid,bxidx]
+
+TRG_&suffix:               #per ls, per trg bit
+   columns:
+    - dataid: long long
+    - runnum: unsigned int
+    - cmslsnum: unsigned int
+    - trgbitid: unsigned short
+    - prescidx: unsigned short
+    - prescval: unsigned int  
+    - bitmask: unsigned char
+    - counts: unsigned int
+    - physicsdeclared: unsigned short
+   pk: [dataid,trgbitid]
+
+HLT_&suffix:  #per ls, per hltpath
+   columns:
+    - dataid: long long
     - hltpathid: unsigned short
+    - runnum: unsigned int
+    - cmslsnum: unsigned int
     - prescidx: unsigned short
     - prescval: unsigned int
     - l1pass: unsigned int
     - hltaccept: unsigned int
-   pk: [hltid,hltpathid]
+   pk: [dataid,hltpathid]
      
 DEADTIME:       #per ls
    columns:
-    - deadtimeid: long long
+    - dataid: long long
+    - runnum: unsigned int
+    - lsnum: unsigned int
     - deadtimefrac: float
-   pk: [deadtimeid] 
+   pk: [dataid] 
 
 
 

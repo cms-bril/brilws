@@ -209,6 +209,8 @@ def create_tables_sql(schema_name,schema_def,suffix=None,dbflavor='sqlite',write
     resultStr='\n'.join(results)
     if suffix:
         resultStr=resultStr.replace('&suffix',suffix)
+    else:
+        resultStr=resultStr.replace('&suffix','1')
     resultStr=resultStr.upper()  
     with open(outfilename,'w') as sqlfile: 
         sqlfile.write('/* tablelist: %s */\n'%(','.join([t.upper() for t in tables])))
