@@ -28,96 +28,106 @@ IOVP_FLOAT32:
     - ifield: unsigned int
     - iitem: unsigned int
     - ipos: unsigned int
+    - iskey: unsigned short
     - val: float
-  pk: [payloadid,ifield,iitem,ipos]
-  notnull: [payloadid,iitem,ifield,ipos]
+  pk: [payloadid,iitem,ifield,ipos,iskey]
+  notnull: [payloadid,iitem,ifield,ipos,iskey]
 
 IOVP_UINT32:
   columns:
     - payloadid: long long
-    - ifield: unsigned int
-    - iitem: unsigned int
-    - ipos: unsigned int
-    - val: unsigned int 
-  pk: [payloadid,ifield,iitem,ipos]
-  notnull: [payloadid,iitem,ifield,ipos]
+    - ifield: unsigned short
+    - iitem: unsigned short
+    - ipos: unsigned short
+    - iskey: unsigned short
+    - val: unsigned int
+  pk: [payloadid,iitem,ifield,ipos,iskey]
+  notnull: [payloadid,iitem,ifield,ipos,iskey]
 
 IOVP_INT32:
   columns:
     - payloadid: long long
-    - ifield: unsigned int
-    - iitem: unsigned int
-    - ipos: unsigned int
-    - val: int 
-  pk: [payloadid,ifield,iitem,ipos]
-  notnull: [payloadid,iitem,ifield,ipos]
+    - ifield: unsigned short
+    - iitem: unsigned short
+    - ipos: unsigned short
+    - iskey: unsigned short
+    - val: int
+  pk: [payloadid,iitem,ifield,ipos,iskey]
+  notnull: [payloadid,iitem,ifield,ipos,iskey]
 
 IOVP_UINT16:
   columns:
     - payloadid: long long
-    - ifield: unsigned int
-    - iitem: unsigned int
-    - ipos: unsigned int
-    - val: unsigned short 
-  pk: [payloadid,ifield,iitem,ipos]
-  notnull: [payloadid,iitem,ifield,ipos]
+    - ifield: unsigned short
+    - iitem: unsigned short
+    - ipos: unsigned short
+    - iskey: unsigned short
+    - val: unsigned short
+  pk: [payloadid,iitem,ifield,ipos,iskey]
+  notnull: [payloadid,iitem,ifield,ipos,iskey]
 
 IOVP_INT16:
   columns:
     - payloadid: long long
-    - ifield: unsigned int
-    - iitem: unsigned int
-    - ipos: unsigned int
-    - val: short 
-  pk: [payloadid,ifield,iitem,ipos]
-  notnull: [payloadid,iitem,ifield,ipos]
+    - ifield: unsigned short
+    - iitem: unsigned short
+    - ipos: unsigned short
+    - iskey: unsigned short
+    - val: short
+  pk: [payloadid,iitem,ifield,ipos,iskey]
+  notnull: [payloadid,iitem,ifield,ipos,iskey]
 
 IOVP_UINT64:
   columns:
     - payloadid: long long
-    - ifield: unsigned int
-    - iitem: unsigned int
-    - ipos: unsigned int
-    - val: unsigned long long 
-  pk: [payloadid,ifield,iitem,ipos]
-  notnull: [payloadid,iitem,ifield,ipos]
+    - ifield: unsigned short
+    - iitem: unsigned short
+    - ipos: unsigned short
+    - iskey: unsigned short
+    - val: unsigned long long
+  pk: [payloadid,iitem,ifield,ipos,iskey]
+  notnull: [payloadid,iitem,ifield,ipos,iskey]
 
 IOVP_INT64:
   columns:
     - payloadid: long long
-    - ifield: unsigned int
-    - iitem: unsigned int
-    - ipos: unsigned int
-    - val: long long 
-  pk: [payloadid,ifield,iitem,ipos]
-  notnull: [payloadid,iitem,ifield,ipos]
+    - ifield: unsigned short
+    - iitem: unsigned short
+    - ipos: unsigned short
+    - iskey: unsigned short
+    - val: long long
+  pk: [payloadid,iitem,ifield,ipos,iskey]
+  notnull: [payloadid,iitem,ifield,ipos,iskey]
 
 IOVP_STRING:
   columns:
     - payloadid: long long
-    - ifield: unsigned int
-    - iitem: unsigned int
-    - ipos: unsigned int
+    - ifield: unsigned short
+    - iitem: unsigned short
+    - ipos: unsigned short
+    - iskey: unsigned short
     - val: string
-  pk: [payloadid,ifield,iitem,ipos]
-  notnull: [payloadid,iitem,ifield,ipos]
+  pk: [payloadid,iitem,ifield,ipos,iskey]
+  notnull: [payloadid,iitem,ifield,ipos,iskey]
 
 IOVP_UINT8:
   columns:
     - payloadid: long long
-    - ifield: unsigned int
-    - iitem: unsigned int
-    - ipos: unsigned int
+    - ifield: unsigned short
+    - iitem: unsigned short
+    - ipos: unsigned short
+    - iskey: unsigned short
     - val: unsigned char
-  pk: [payloadid,ifield,iitem,ipos]
-  notnull: [payloadid,iitem,ifield,ipos]
+  pk: [payloadid,iitem,ifield,ipos,iskey]
+  notnull: [payloadid,iitem,ifield,ipos,iskey]
 
 IOVP_INT8:
   columns:
     - payloadid: long long
-    - ifield: unsigned int
-    - iitem: unsigned int
-    - ipos: unsigned int
+    - ifield: unsigned short
+    - iitem: unsigned short
+    - ipos: unsigned short
+    - iskey: unsigned short
     - val: char
-  pk: [payloadid,ifield,iitem,ipos]
-  notnull: [payloadid,iitem,ifield,ipos]
+  pk: [payloadid,iitem,ifield,ipos,iskey]
+  notnull: [payloadid,iitem,ifield,ipos,iskey]

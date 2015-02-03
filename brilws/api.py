@@ -69,15 +69,6 @@ def create_table_stmt(tablename):
     result='CREATE TABLE %s'%(tablename)
     return result
 
-#def create_sequencetable_stmt(tablename,dbflavor='sqlite'):
-#    result=''
-#    if dbflavor=='sqlite':
-#        result='CREATE TABLE %s(NEXTID ULONGLONG, CONSTRAINT %s_PK PRIMARY KEY (NEXTID) );\n'%(tablename,tablename)
-#    else:
-#        result='CREATE TABLE %s(NEXTID NUMBER(20), CONSTRAINT %s_PK PRIMARY KEY (NEXTID) );\n'%(tablename,tablename)
-#    result = result + 'INSERT INTO %s(NEXTID) VALUES(1);'%(tablename)
-#    return result
-
 def drop_table_stmt(tablename, dbflavor='sqlite'):
     if dbflavor=='oracle':
         result='DROP TABLE %s CASCADE CONSTRAINTS;'%(tablename)
@@ -160,9 +151,10 @@ def drop_tables_sql(schema_name,schema_def,suffix=None,dbflavor='sqlite'):
     resultStr='\n'.join(results)
     if suffix:
        resultStr=resultStr.replace('&suffix',suffix)+';'
-    resultStr=resultStr.upper() 
+    resultStr=resultStr.upper()
+
     with open(outfilename,'w') as sqlfile:
-        sqlfile.write('/* tablelist: %s */\n'%(','.join([t.replace('&suffix',suffix).upper() for t in tables])))
+        sqlfile.write('/* tablelist: %s */\n'%(','.join([t.upper() for t in tables])))
         sqlfile.write(resultStr)
     
 def create_tables_sql(schema_name,schema_def,suffix=None,dbflavor='sqlite',writeraccount=''):
@@ -219,7 +211,7 @@ def create_tables_sql(schema_name,schema_def,suffix=None,dbflavor='sqlite',write
         resultStr=resultStr.replace('&suffix',suffix)
     resultStr=resultStr.upper()  
     with open(outfilename,'w') as sqlfile: 
-        sqlfile.write('/* tablelist: %s */\n'%(','.join([t.replace('&suffix',suffix).upper() for t in tables])))
+        sqlfile.write('/* tablelist: %s */\n'%(','.join([t.upper() for t in tables])))
         sqlfile.write(resultStr)
         if fkresults:
             fkresultStr=';\n'.join([t.replace('&suffix',suffix).upper() for t in fkresults])
@@ -261,114 +253,6 @@ def iov_parsepayloaddatadict(datadictStr):
             valtablename = payloadtableprefix_+'_'+val.upper()
         result.append({'key':keytablename,'val':valtablename,'alias':alias,'maxnpos':int(maxnpos)})
     return result
-
-#def iov_getPtablename(typecode):
-#    if typecode.find('STRING')<0:
-#        return '_'.join([payloadtableprefix_,typecode])
-#    else: # ignore STR length info in case any
-#        return '_'.join([payloadtableprefix_,'STRING'])
-
-#def iov_getPtablenames():
-#    result = []
-#    for t in typecodes_:
-#        result.append(getPtablename(t))
-#    return result
-
-#def db_connect_protocol(connectstr):
-#    result = connectstr.split(':',1)
-#    protocol = ''
-#    if len(result)>1:
-#       protocol = result[0]    
-#       if protocol not in ['oracle','sqlite_file']:
-#          raise 'unsupported technology %s'%(protocol)
-#       return protocol
-#    else:
-#       raise 'unsupported db connection %s'%(connectstr)
-
-#def db_getnextid(schema,tablename):
-#    tablename = tablename.upper()
-#    result = 0
-#    try:
-#       query = schema.tableHandle(tablename).newQuery()
-#       query.addToOutputList('NEXTID')
-#       query.setForUpdate()
-#       cursor = query.execute()
-#       while cursor.next():
-#         result = cursor.currentRow()['NEXTID'].data()
-#       dataEditor = schema.tableHandle(tablename).dataEditor()
-#       inputData = coral.AttributeList()
-#       dataEditor.updateRows('NEXTID = NEXTID+1','',inputData)
-#       del query
-#       return result
-#    except Exception, e:
-#       raise Exception, str(e)      
-
-
-#def db_singleInsert(schema,tablename,rowdef,rowinputdict):
-#    '''
-#    input: 
-#       tablename, string
-#       rowdef,    [(colname:coltype)]
-#       rowinputdict,  {colname:colval}
-#    '''
-#    tablename = tablename.upper()
-#    try: 
-#       dataEditor = schema.tableHandle(tablename).dataEditor()
-#       insertdata = coral.AttributeList()
-#       for (colname,coltype) in rowdef:          
-#           insertdata.extend(colname,coltype)
-#           if rowinputdict.has_key(colname):
-#               insertdata[colname].setData(rowinputdict[colname])
-#           else:
-#               insertdata[colname].setData(None)
-#       dataEditor.insertRow(insertdata)
-#    except Exception, e:
-#       raise Exception, 'api.db_singleInsert: '+str(e)
-
-
-
-#def db_query_generator(qHandle,qTablelist,qOutputRowDef={},qConditionStr=None,qConditionVal=None):
-#    '''
-#    Inputs:
-#      qHandle, handle of coral Query
-#      qTablelist, [(table name,table alias)]
-#      qOutputRowDef, {columnname: (columctype,columnalias)}
-#      qConditionStr, query condition string
-#      qConditionVal, coral::AttributeList of condition bind variables
-#    Output:
-#      yield result row dict {colname:colval}
-#        
-#    '''
-#    resultrow = {}
-#    try:
-#      for t,tt in qTablelist:
-#          qHandle.addToTableList(t,tt)
-#      if qOutputRowDef:
-#          qResult = coral.AttributeList()
-#          for colname in qOutputRowDef.keys():        
-#              coltype,colalias = qOutputRowDef[colname]
-#              varname = colalias or colname
-#              qHandle.addToOutputList(colname,colalias)
-#              qResult.extend(varname,coltype) #c++ type here 
-#          qHandle.defineOutput(qResult)
-#      if qConditionStr:
-#          qHandle.setCondition(qConditionStr,qConditionVal)
-#    
-#      cursor = qHandle.execute()
-#      while cursor.next():
-#          dbrow = cursor.currentRow()
-#          if not dbrow: break
-#          resultrow = {}
-#          for icol in xrange(dbrow.size()):
-#            varname = dbrow[icol].specification().name()
-#            varval = dbrow[icol].data()
-#            if type(varval) == float: 
-#               varval=decimalcontext.create_decimal(varval)
-#            resultrow[varname] = varval
-#          yield resultrow
-#    except Exception, e:
-#      print 'Database Error: ',e
-#      raise StopIteration
 
 def nonsequential_key(generator_id):
     '''
@@ -453,14 +337,14 @@ def iov_getpayload(connection,payloadid,payloaddatadict,maxnitems=1):
         payload:          [[[]]] or [[{}]] 
         fieldalias:       [alias] 
     sql:
-        val : select IITEM,IPOS,VAL from %s where PAYLOADID=:payloadid and IFIELD=:ifield
-        key, val : select k.IITEM, k.IPOS, k.VAL, v.VAL from %s as k, %s as v where k.PAYLOADID=v.PAYLOADID and k.IITEM=v.IITEM and k.IFIELD=v.IFIELD and k.IPOS=v.IPOS and k.PAYLOADID=:payloadid and k.IFIELD=:ifield
+        val : select IITEM,IPOS,VAL from %s where PAYLOADID=:payloadid and IFIELD=:ifield and ISKEY=0;
+        key : select k.IITEM, k.IPOS, k.VAL, v.VAL from %s as k, %s as v where k.PAYLOADID=v.PAYLOADID and k.IITEM=v.IITEM and k.IFIELD=v.IFIELD and k.IPOS=v.IPOS and k.PAYLOADID=:payloadid and k.IFIELD=:ifield and k.ISKEY=1 and v.ISKEY=0;
     """
 
     nfields = len(payloaddatadict)
     payload = [None]*maxnitems            
-    q = """select IITEM as iitem, IPOS as ipos, VAL as val from %s where PAYLOADID=:payloadid and IFIELD=:ifield"""
-    qq = """select k.IITEM as iitem, k.IPOS as ipos, k.VAL as key, v.VAL as val from %s as k, %s as v where k.PAYLOADID=v.PAYLOADID and k.IITEM=v.IITEM and k.IFIELD=v.IFIELD and k.IPOS=v.IPOS and k.PAYLOADID=:payloadid and k.IFIELD=:ifield"""
+    q = """select IITEM as iitem, IPOS as ipos, VAL as val from %s where ISKEY=0 and PAYLOADID=:payloadid and IFIELD=:ifield"""
+    qq = """select k.IITEM as iitem, k.IPOS as ipos, k.VAL as key, v.VAL as val from %s as k, %s as v where k.ISKEY=1 and v.ISKEY=0 and k.PAYLOADID=v.PAYLOADID and k.IITEM=v.IITEM and k.IFIELD=v.IFIELD and k.IPOS=v.IPOS and k.PAYLOADID=:payloadid and k.IFIELD=:ifield"""
     
     with connection.begin() as trans:
         for field_idx, field_dict in enumerate(payloaddatadict):
@@ -547,7 +431,7 @@ def iov_createtag(connection,iovdata):
     sql:
         insert into IOVTAGS(TAGID,TAGNAME,CREATIONUTC,DATADICT,MAXNITEMS,DATASOURCE,APPLYTO,ISDEFAULT,COMMENT) VALUES(:tagid, :tagname, :creationutc, :datadict, :maxnitems, :datasource, :applyto, :isdefault, :comment)
         insert into IOVTAGDATA(TAGID,SINCE,PAYLOADID,COMMENT) VALUES(:tagid, :since, :payloadid, :comment)
-        
+        insert into %s(PAYLOADID,IITEM,IFIELD,IPOS,ISKEY,VAL) VALUES(:payloadid, :iitem, :ifield, :ipos, :iskey, :val)
     """
 
     tagid = next(nonsequential_key(78))
@@ -560,8 +444,7 @@ def iov_createtag(connection,iovdata):
     
     i = """insert into IOVTAGS(TAGID,TAGNAME,CREATIONUTC,DATADICT,MAXNITEMS,DATASOURCE,APPLYTO,ISDEFAULT,COMMENT) VALUES(:tagid, :tagname, :creationutc, :datadict, :maxnitems, :datasource, :applyto, :isdefault, :comment)"""
     ti = """insert into IOVTAGDATA(TAGID,SINCE,PAYLOADID,COMMENT) VALUES(:tagid, :since, :payloadid, :comment)"""
-    pi = """insert into %s(PAYLOADID,IITEM,IFIELD,IPOS,VAL) VALUES(:payloadid, :iitem, :ifield, :ipos, :val) """
-    
+    pi = """insert into %s(PAYLOADID,IITEM,IFIELD,IPOS,ISKEY,VAL) VALUES(:payloadid, :iitem, :ifield, :ipos, :iskey, :val)"""
     with connection.begin() as trans:
         r = connection.execute(i,{'tagid':tagid, 'tagname':iovdata['tagname'], 'creationutc':nowstr, 'datadict':datadict, 'maxnitems':maxnitems, 'datasource':iovdata['datasource'], 'applyto':iovdata['applyto'], 'isdefault':iovdata['isdefault'], 'comment':iovdata['comment'] })
         
@@ -575,7 +458,10 @@ def iov_createtag(connection,iovdata):
             rowcache = _iov_buildpayloadcache( payloadid, payloaddata, payloaddatadict, payloadcomment)
             for ptablename, prows in rowcache.items():
                 if len(prows)==0: continue
-                pr = connection.execute(pi%ptablename, prows)
+                try:
+                    pr = connection.execute(pi%ptablename, prows)
+                except exc.SQLAlchemyError, e:
+                    raise
     return tagid
     
 def iov_appendtotag(connection,tagid,since,payloaddata,datadict,payloadcomment):
@@ -594,7 +480,7 @@ def iov_appendtotag(connection,tagid,since,payloaddata,datadict,payloadcomment):
     payloaddatadict = iov_parsepayloaddatadict(datadict)
     payloadid = next(nonsequential_key(79))
     ti = """insert into IOVTAGDATA(TAGID,SINCE,PAYLOADID,COMMENT) VALUES(:tagid, :since, :payloadid, :comment)"""
-    pi = """insert into %s(PAYLOADID,IITEM,IFIELD,IPOS,VAL) VALUES(:payloadid, :iitem, :ifield, :ipos, :val) """
+    pi = """insert into %s(PAYLOADID,IITEM,IFIELD,IPOS,ISKEY,VAL) VALUES(:payloadid, :iitem, :ifield, :ipos, :iskey, :val) """
     
     with connection.begin() as trans:
         tr = connection.execute(ti, {'tagid':tagid, 'since':since, 'payloadid':payloadid, 'comment':payloadcomment })
@@ -627,9 +513,9 @@ def _iov_buildpayloadcache(payloadid, payloaddata, payloaddatadict, payloadcomme
     input:
         payloadid: 
         payloaddata: [[list/dict,]]
-        payloaddatadict: [{'val':tablename, 'key':tablename,'alias':aliasname, 'maxnpos':maxnpos } ]
+        payloaddatadict: [{'val':tablename, 'key':tablename,'alias':alias, 'maxnpos':maxnpos } ]
     output: 
-        rowcache: {tablename: [{'payloadid':, 'iitem': 'ifield':, 'ipos':, 'val'},]}
+        rowcache: {tablename: [{'payloadid':, 'iitem': 'ifield':, 'ipos':, 'key':, 'val': },]}
     """
 
     rowcache = {}
@@ -640,18 +526,19 @@ def _iov_buildpayloadcache(payloadid, payloaddata, payloaddatadict, payloadcomme
                 if not valtable_name:
                     raise ValueError('invalid value table name %s'%valtable_name)
                 for ipos, val in enumerate(fielddata):
-                    rowcache.setdefault(valtable_name,[]).append({'payloadid':payloadid,'iitem':item_idx,'ifield':field_idx,'ipos':ipos,'val':val})
+                    rowcache.setdefault(valtable_name,[]).append({'payloadid':payloadid,'iitem':item_idx,'ifield':field_idx,'ipos':ipos,'iskey':0,'val':val})
             elif isinstance(fielddata,dict):
                 ipos = 0
-                for key, val in fielddata.items():
+                for key in sorted(fielddata):
+                    val = fielddata[key]
                     valtable_name = payloaddatadict[field_idx]['val']
                     if not valtable_name:
-                        raise ValueError('invalid value table name %s'%valtable_name)
-                    rowcache.setdefault(valtable_name,[]).append({'payloadid':payloadid,'iitem':item_idx,'ifield':field_idx,'ipos':ipos,'val':val})
+                        raise ValueError('invalid value table name %s'%valtable_name)                    
                     keytable_name = payloaddatadict[field_idx]['key']
                     if not keytable_name:
                         raise ValueError('invalid key table name %s'%keytable_name)
-                    rowcache.setdefault(keytable_name,[]).append({'payloadid':payloadid,'iitem':item_idx,'ifield':field_idx,'ipos':ipos,'val':key})
+                    rowcache.setdefault(valtable_name,[]).append({'payloadid':payloadid,'iitem':item_idx,'ifield':field_idx,'ipos':ipos,'iskey':0,'val':val})
+                    rowcache.setdefault(keytable_name,[]).append({'payloadid':payloadid,'iitem':item_idx,'ifield':field_idx,'ipos':ipos,'iskey':1, 'val':key})
                     ipos += 1
             else:
                 ipos = 0
@@ -659,7 +546,7 @@ def _iov_buildpayloadcache(payloadid, payloaddata, payloaddatadict, payloadcomme
                 if not valtable_name:
                     raise ValueError('invalid value table name %s'%valtable_name)
                 val = fielddata
-                rowcache.setdefault(valtable_name,[]).append({'payloadid':payloadid,'iitem':item_idx,'ifield':field_idx,'ipos':ipos,'val':val})
+                rowcache.setdefault(valtable_name,[]).append({'payloadid':payloadid,'iitem':item_idx,'ifield':field_idx,'ipos':ipos,'iskey':0,'val':val})
     return rowcache
 
 def get_filepath_or_buffer(filepath_or_buffer):

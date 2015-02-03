@@ -7,6 +7,7 @@ Options:
   -i INPUTFILE     Input schema definition file
   -f DBFLAVOR      Database flavor [default: sqlite]
   -w WRITERACCOUNT Writer oracle account name
+  --suffix SUFFIX  Table suffix
 """
 
 dbflavors=['oracle','sqlite']
@@ -21,6 +22,7 @@ def validate(optdict):
      '-i': Use(open, error='-i INPUTFILE should be readable'),
      '-f': Or(None,And(str,lambda s: s.lower() in dbflavors), error='-f must be in '+str(dbflavors) ),
      '-w': Or(None,str),
+     '--suffix': Or(None,str),
      str:object # catch all
     })
     result=schema.validate(optdict)

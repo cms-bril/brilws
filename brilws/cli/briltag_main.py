@@ -67,6 +67,7 @@ def briltag_main():
          tags = api.iov_listtags(connection,tagname=parseresult['--name'],datasource=parseresult['--datasource'],applyto=parseresult['--applyto'],isdefault=parseresult['--default-only'])
          ofile = '-'
          if parseresult['--name']:
+             if not tags: return
              tagid = tags.keys()[0]
              sinces = sorted([x for x in tags[tagid].keys() if isinstance(x,int)])
              payloadids = [tags[tagid][since]['payloadid'] for since in sinces]
@@ -118,7 +119,11 @@ def briltag_main():
                      print >> fh, '#'+','.join(header)
                      csvwriter = csv.writer(fh)
                      for tagid,tag in tags.items():
-                         sinceStr = str([x for x in sorted(tag.keys()) if isinstance(x,int)])
+                         sinces = [x for x in sorted(tag.keys()) if isinstance(x,int)]
+                         firstsincestr = str(sinces[0])
+                         sinceStr = firstsincestr+',...'
+                         if len(sinces)>1:
+                             sinceStr += ','+str(sinces[-1])
                          csvwriter.writerow([tag['tagname'],tag['creationutc'],tag['isdefault'],tag['datasource'],tag['applyto'],tag['datadict'],tag['maxnitems'],sinceStr,tag['tagcomment']])                     
              else:
                  ptable = prettytable.PrettyTable(header)
@@ -127,8 +132,13 @@ def briltag_main():
                  ptable.header_style = 'cap'
                  ptable.max_width['params']=60
                  for tagid,tag in tags.items():
-                     sinceStr = '\n'.join([str(x) for x in sorted(tag.keys()) if isinstance(x,int)])
-                     ptable.add_row([tag['tagname'],tag['creationutc'],tag['isdefault'],tag['datasource'],tag['applyto'],tag['datadict'],tag['maxnitems'],sinceStr,tag['tagcomment'] or ''])
+                     #sinceStr = '\n'.join([str(x) for x in sorted(tag.keys()) if isinstance(x,int)])
+                     sinces = [x for x in sorted(tag.keys()) if isinstance(x,int)]
+                     firstsincestr = str(sinces[0])
+                     sinceStr = firstsincestr+',...'
+                     if len(sinces)>1:
+                         sinceStr += ','+str(sinces[-1])
+                     ptable.add_row([tag['tagname'],tag['creationutc'],tag['isdefault'],tag['datasource'],tag['applyto'],tag['datadict'].replace(' ','\n'),tag['maxnitems'],sinceStr,tag['tagcomment'] or ''])
                  if parseresult['--output-style']=='tab':
                      print(ptable)
                  elif parseresult['--output-style']=='html' :
@@ -146,12 +156,12 @@ def briltag_main():
          iovfile = parseresult['-i']
          if iovfile:
              iovdata = api.read_yaml(parseresult['-i'])
-             try:
+             tagname = iovdata['tagname']
+             mytag = api.iov_listtags(connection,tagname=tagname)
+             if not mytag:
                  tagid = api.iov_createtag(connection,iovdata)
-             except exc.IntegrityError:
-                 tagname = iovdata['tagname']
+             else:    
                  log.warn('tag %s exists, switch to append mode'%tagname)
-                 mytag = api.iov_listtags(connection,tagname=tagname)
                  mytagid = mytag.keys()[0]
                  oldsinces = [k for k in mytag[mytagid].keys() if isinstance(k,int) ]
                  newsinces = [k for k in iovdata.keys() if isinstance(k,int) ]
