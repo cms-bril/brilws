@@ -65,8 +65,17 @@ def smart_open(filename=None):
 def seqdiff(original,exclude):
     return list(set(original)-set(exclude))
 
-def create_table_stmt(tablename):
-    result='CREATE TABLE %s'%(tablename)
+def create_table_stmt(tablename,ifnotexists=True):
+    """
+    create table statement
+    input:
+       tablename
+       ifnotexists: if true, add IF NOT EXISTS
+    """
+    if ifnotexists:
+        result='CREATE TABLE IF NOT EXISTS %s '%(tablename)
+    else:
+        result='CREATE TABLE %s'%(tablename)
     return result
 
 def drop_table_stmt(tablename, dbflavor='sqlite'):

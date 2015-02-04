@@ -6,32 +6,35 @@ BEAMSTATUSMAP: #static map
    
 TRGBITMAP:
    columns:    #static map
-    - trgbitid: long long
-    - trgbitname: string #name used in l1seed expression
-    - trgbitrawname: string #name used in hardware
-   pk: [trgbitid]
+    - bitnameid: unsigned short
+    - bitid: unsigned short
+    - bitname: string              #name used in l1seed expression
+    - isalgo: unsigned short
+   pk: [bitnameid]
 
 
 HLTPATHMAP:    #static map
    columns:
-    - hltpathid: long long
+    - hltpathid: unsigned int
     - hltpathname: string
    pk: [hltpathid]
    notnull: [hltpathname]
 
 
-DATATABLEREGISTRY: #static map , data table registry
+DATATABLEMAP: #static map , data table registry
    columns:
+    - datasourceid: unsigned short
     - basetablename: string
     - tablesuffix: string
-    - datasourceid: unsigned short
-    - datasourcename: string      #bcm1flumi,hfoclumi,hfetlumi,pltlumi,pixellumi,bhmbkg
+    - datasourcename: string      #trg,hlt,beamintensity,bcm1flumi,hfoclumi,hfetlumi,pltlumi,pixellumi,bhmbkg,hfoclumiresult,pixellumiresult
+    - minrun: unsigned int
+    - maxrun: unsigned int
    pk: [datasourceid]
 
 
 HLTSTREAMDATASET:  #static map , hlt stream, dataset, path map           
    columns:
-    - hltpathid: unsigned short
+    - hltpathid: unsigned int
     - streamid: unsigned short
     - streamlabel: string
     - datasetid: unsigned short
@@ -52,19 +55,19 @@ DATATAGS:
 DATATAGCONTENT: #per ls , per data type
    columns:
     - datatagid: long long
-    - timeindexid: long long
+    - runnum: unsigned int
+    - lsnum: unsigned int
     - datasourceid: unsigned short      #trg,hlt,beamintensity,bcm1flumi,hfoclumi,hfetlumi,pltlumi,pixellumi,bhmbkg
     - dataid: long long
     - deadtimeid: long long
     - beamstatusinfoid: long long
     - runinfoid: long long
     - fillinfoid: long long
-   pk: [datatagid,timeindexid,datasourceid]
+   pk: [runnum,lsnum,datatagid,datasourceid]
   
 
 TIMEINDEX:      #per ls
    columns:
-    - timeindexid: long long
     - fillnum: unsigned int
     - runnum: unsigned int
     - lsnum: unsigned int
@@ -75,7 +78,7 @@ TIMEINDEX:      #per ls
     - dayofyear: unsigned short
     - year: unsigned short
     - monthofyear: unsigned short    
-   pk: [timeindexid]
+   pk: [runnum,lsnum]
   
 FILLINFO:        #per fill
    columns:
@@ -167,17 +170,18 @@ TRG_&suffix:               #per ls, per trg bit
     - runnum: unsigned int
     - cmslsnum: unsigned int
     - trgbitid: unsigned short
+    - trgbitnameid: unsigned short
     - prescidx: unsigned short
     - prescval: unsigned int  
     - bitmask: unsigned char
     - counts: unsigned int
     - physicsdeclared: unsigned short
-   pk: [dataid,trgbitid]
+   pk: [dataid,trgbitnameid]
 
 HLT_&suffix:  #per ls, per hltpath
    columns:
     - dataid: long long
-    - hltpathid: unsigned short
+    - hltpathid: unsigned int
     - runnum: unsigned int
     - cmslsnum: unsigned int
     - prescidx: unsigned short
