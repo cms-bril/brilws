@@ -1,3 +1,9 @@
+#RESULT_LASTUPDATE:
+#   columns:
+#     - lastupdate: long long 
+#     - tablename: string
+#   pk: [ lastupdate, tablename ]
+     
 HFOCLUMI_RESULT_&suffix:
    columns:
      - runnum: unsigned int

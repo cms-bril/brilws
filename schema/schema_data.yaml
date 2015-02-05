@@ -1,3 +1,13 @@
+DATATABLEMAP: #static map , data table registry
+   columns:
+    - datasourceid: unsigned short
+    - basetablename: string
+    - tablesuffix: string
+    - datasourcename: string      #trg,hlt,beamintensity,bcm1flumi,hfoclumi,hfetlumi,pltlumi,pixellumi,bhmbkg,hfoclumiresult,pixellumiresult
+    - minrun: unsigned int
+    - maxrun: unsigned int
+   pk: [datasourceid]
+
 BEAMSTATUSMAP: #static map
    columns:
     - beamstatusid: unsigned short
@@ -18,27 +28,19 @@ HLTPATHMAP:    #static map
     - hltpathid: unsigned int
     - hltpathname: string
    pk: [hltpathid]
-   notnull: [hltpathname]
 
-
-DATATABLEMAP: #static map , data table registry
+DATASETMAP:   #static map
    columns:
-    - datasourceid: unsigned short
-    - basetablename: string
-    - tablesuffix: string
-    - datasourcename: string      #trg,hlt,beamintensity,bcm1flumi,hfoclumi,hfetlumi,pltlumi,pixellumi,bhmbkg,hfoclumiresult,pixellumiresult
-    - minrun: unsigned int
-    - maxrun: unsigned int
-   pk: [datasourceid]
-
-
+    - datasetid: unsigned int
+    - datasetname: string
+   pk: [datasetid]
+   
 HLTSTREAMDATASET:  #static map , hlt stream, dataset, path map           
    columns:
     - hltpathid: unsigned int
-    - streamid: unsigned short
+    - streamid: unsigned int
     - streamlabel: string
-    - datasetid: unsigned short
-    - datasetlabel: string
+    - datasetid: unsigned int
    pk: [hltpathid,streamid,datasetid]
 
 ##### Data tables #####
