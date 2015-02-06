@@ -21,7 +21,7 @@ def validate(optdict):
     schema = Schema({ 
      '-i': Use(open, error='-i INPUTFILE should be readable'),
      '-f': And(str,lambda s: s.lower() in dbflavors, error='-f must be in '+str(dbflavors)),
-     '--schema': USE(str.upper),
+     '--schema': Use(str.upper),
      '--suffix': Use(str.upper),
      str:object # catch all
     })

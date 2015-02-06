@@ -5,3 +5,7 @@
 5,PIXELLUMI,RUN1,pixellumi,132000,212300
 6,HFOCLUMI_RESULT,RUN1,hfoclumi_result,132000,212300
 7,PIXELLUMI_RESULT,RUN1,pixellumi_result,132000,212300
+8,DEADTIME,,deadtime,0,
+9,BEAMSTATUSINFO,,beamstatusinfo,0,
+10,RUNINFO,,runinfo,0,
+11,FILLINFO,,fillinfo,0,

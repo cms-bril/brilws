@@ -1,8 +1,13 @@
-#RESULT_LASTUPDATE:
-#   columns:
-#     - lastupdate: long long 
-#     - tablename: string
-#   pk: [ lastupdate, tablename ]
+#
+# Schema for results 
+#
+
+RESULT_LASTUPDATE:
+   columns:
+     - lastupdate: long long
+     - lastupdateutc: string
+     - tablename: string
+   pk: [ lastupdate, tablename ]
      
 HFOCLUMI_RESULT_&suffix:
    columns:
@@ -24,8 +29,8 @@ HFOCLUMIBX_RESULT_&suffix:
      - recorded: float
      - specific: float
    pk: [ runnum,lsnum,bxidx ]
-
-PIXELLUMI_RESULT_&suffix:
+   
+HFOCLUMI_ONLINE_&suffix:
    columns:
      - runnum: unsigned int
      - lsnum: unsigned int
@@ -36,6 +41,27 @@ PIXELLUMI_RESULT_&suffix:
      - normtagname: string
    pk: [ runnum,lsnum ]  
      
+HFOCLUMIBX_ONLINE_&suffix:
+   columns:
+     - runnum: unsigned int
+     - lsnum: unsigned int
+     - bxidx: unsigned short
+     - delivered: float
+     - recorded: float
+     - specific: float
+   pk: [ runnum,lsnum,bxidx ]
+   
+PIXELLUMI_RESULT_&suffix:
+   columns:
+     - runnum: unsigned int
+     - lsnum: unsigned int
+     - delivered: float
+     - recorded: float
+     - avgpu: float
+     - datatagname: string
+     - normtagname: string
+   pk: [ runnum,lsnum ]  
+
 PIXELLUMIBX_RESULT_&suffix:
    columns:
      - runnum: unsigned int

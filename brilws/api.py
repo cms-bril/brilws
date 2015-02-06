@@ -33,21 +33,38 @@ oracletypemap={
 'timestamp':'timestamp'
 }
 
+#sqlitetypemap={
+#'unsigned char':'unsignedchar',
+#'unsigned short':'unsignedshort',
+#'unsigned int':'unsignedint',
+#'unsigned long long':'ulonglong',
+#'char':'char',
+#'short':'short',
+#'int':'int',
+#'long long':'slonglong',
+#'float':'float',
+#'double':'double',
+#'string':'text',
+#'blob':'blob',
+#'bool':'boolean',
+#'timestamp':'timestamp'
+#}
+
 sqlitetypemap={
-'unsigned char':'unsignedchar',
-'unsigned short':'unsignedshort',
-'unsigned int':'unsignedint',
-'unsigned long long':'ulonglong',
-'char':'char',
-'short':'short',
-'int':'int',
-'long long':'slonglong',
-'float':'float',
-'double':'double',
-'string':'text',
-'blob':'blob',
-'bool':'boolean',
-'timestamp':'timestamp'
+'unsigned char':'INTEGER',
+'unsigned short':'INTEGER',
+'unsigned int':'INTEGER',
+'unsigned long long':'INTEGER',
+'char':'INTEGER',
+'short':'INTEGER',
+'int':'INTEGER',
+'long long':'INTEGER',
+'float':'REAL',
+'double':'REAL',
+'string':'TEXT',
+'blob':'BLOB',
+'bool':'INTEGER',
+'timestamp':'DATETIME'
 }
 
 @contextlib.contextmanager

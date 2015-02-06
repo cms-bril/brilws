@@ -1,9 +1,13 @@
+#
+# Schema for IOV data
+#
+
 DATATABLEMAP: #static map , data table registry
    columns:
     - datasourceid: unsigned short
     - basetablename: string
     - tablesuffix: string
-    - datasourcename: string      #trg,hlt,beamintensity,bcm1flumi,hfoclumi,hfetlumi,pltlumi,pixellumi,bhmbkg,hfoclumiresult,pixellumiresult
+    - datasourcename: string      #deadtime,beamstatus,runinfo,fillinfo,trg,hlt,beamintensity,bcm1flumi,hfoclumi,hfetlumi,pltlumi,pixellumi,bhmbkg,hfoclumiresult,pixellumiresult
     - minrun: unsigned int
     - maxrun: unsigned int
    pk: [datasourceid]
@@ -19,7 +23,7 @@ TRGBITMAP:
     - bitnameid: unsigned short
     - bitid: unsigned short
     - bitname: string              #name used in l1seed expression
-    - isalgo: unsigned short
+    - isalgo: bool
    pk: [bitnameid]
 
 
@@ -59,18 +63,13 @@ DATATAGCONTENT: #per ls , per data type
     - datatagid: long long
     - runnum: unsigned int
     - lsnum: unsigned int
-    - datasourceid: unsigned short      #trg,hlt,beamintensity,bcm1flumi,hfoclumi,hfetlumi,pltlumi,pixellumi,bhmbkg
+    - datasourceid: unsigned short      #deadtime,beamstatusinfo,runinfo,fillinfo,trg,hlt,beamintensity,bcm1flumi,hfoclumi,hfetlumi,pltlumi,pixellumi,bhmbkg
     - dataid: long long
-    - deadtimeid: long long
-    - beamstatusinfoid: long long
-    - runinfoid: long long
-    - fillinfoid: long long
    pk: [runnum,lsnum,datatagid,datasourceid]
   
 
 TIMEINDEX:      #per ls
    columns:
-    - fillnum: unsigned int
     - runnum: unsigned int
     - lsnum: unsigned int
     - cmslsnum: unsigned int
