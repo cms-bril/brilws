@@ -16,6 +16,8 @@ import logging
 decimalcontext = decimal.getcontext().copy()
 decimalcontext.prec = 3
 
+log = logging.getLogger('brilws.api')
+
 oracletypemap={
 'unsigned char':'number(3)',
 'unsigned short':'number(5)',
@@ -32,23 +34,6 @@ oracletypemap={
 'bool':'number(1)',
 'timestamp':'timestamp'
 }
-
-#sqlitetypemap={
-#'unsigned char':'unsignedchar',
-#'unsigned short':'unsignedshort',
-#'unsigned int':'unsignedint',
-#'unsigned long long':'ulonglong',
-#'char':'char',
-#'short':'short',
-#'int':'int',
-#'long long':'slonglong',
-#'float':'float',
-#'double':'double',
-#'string':'text',
-#'blob':'blob',
-#'bool':'boolean',
-#'timestamp':'timestamp'
-#}
 
 sqlitetypemap={
 'unsigned char':'INTEGER',
@@ -527,10 +512,9 @@ def iov_updatedefault(connection,tagname,defaultval=1):
     sql:
         update IOVTAGS set ISDEFAULT=:defaultval
     """
-    log = logging.getLogger('brilws')
     if not defaultval in [0,1]:
         raise ValueError('ISDEFAULT value must be 0 or 1')
-    if log: log.debug('api.iov_updatedefault %s isdefault %d'%(tagname,defaultval))
+    log.debug('api.iov_updatedefault %s isdefault %d'%(tagname,defaultval))
     ui = """update IOVTAGS set ISDEFAULT=:isdefault where TAGNAME=:tagname"""
     with connection.begin() as trans:
         log.debug('api.iov_updatedefault query %s %d'%(tagname,defaultval))
@@ -612,6 +596,158 @@ def read_yaml(path_or_buf):
         obj = filepath_or_buffer
     return obj
 
+class BrilDataSource(object):
+    def __init__(self):
+        self._columns = None
+        self._name = type(self).__name__
+    #readonly members
+    @property
+    def name(self):
+        return self._name
+    @property
+    def columns(self):
+        return self._columns    
+
+class BeamStatusMap(BrilDataSource):
+    def __init__(self):
+        super(BeamStatusMap,self).__init__()
+        self._columns = ['BEAMSTATUSID','BEAMSTATUS']
+    def to_brildb(self):
+        pass
+    def to_csv(self):
+        pass
+    def from_csv(self):
+        pass
+    def from_brildb(self):
+        pass
+    
+class HLTPathMap(BrilDataSource):
+    def __init__(self):
+        super(HLTPathMap,self).__init__()
+        self._columns = ['HLTPATHID','HLTPATHNAME']
+    def to_brildb(self):
+        pass
+    def to_csv(self):
+        pass
+    def from_csv(self):
+        pass
+    def from_hltdb(self):
+        pass
+    def from_brildb(self):
+        pass
+    
+class DatasetMap(BrilDataSource):
+    def __init__(self):
+        super(DatasetMap,self).__init__()
+        self._columns = ['DATASETID','DATASETNAME']
+    def to_brildb(self):
+        pass
+    def to_csv(self):
+        pass
+    def from_csv(self):
+        pass
+    def from_hltdb(self):
+        pass
+    def from_brildb(self):
+        pass
+    
+class HLTStreamDatasetMap(BrilDataSource):
+    def __init__(self):
+        super(StreamDatasetHLTPathMap,self).__init__()
+        self._columns = ['HLTPATHID','STREAMID','STREAMNAME','DATASETID']
+    def to_brildb(self):
+        pass
+    def to_csv(self):
+        pass
+    def from_csv(self):
+        pass
+    def from_hltdb(self):
+        pass
+    def from_brildb(self):
+        pass
+    
+class DatatableMap(BrilDataSource):
+    def __init__(self):
+        super(DatatableMap,self).__init__()
+        self._columns = ['DATASOURCEID','DATASOURCE','SUFFIX','MINRUN','MAXRUN']
+        
+    def to_brildb(self,engine,data,schema='',if_exists='replace'):
+        log.info('%s.to_brildb'%self.name)
+        desttab = self.name.upper()
+        if schema: desttab = '.'.join([schema.upper(),desttab])
+        log.info('to %s, %s'%(engine.url,desttab))
+        data.to_sql(desttab,engine,if_exists=if_exists)
+        
+    def to_csv(self,filepath_or_buffer,data):
+        log.info('%s.to_csv'%self.name)
+        log.info('to %s '%(filepath_or_buffer))
+        data.to_csv(filepath_or_buffer,header=True)
+        
+    def from_csv(self,filepath_or_buffer):
+        log.info('%s.from_csv'%self.name)
+        data = pd.read_csv(filepath_or_buffer)
+        return data
+
+    def from_brildb(self,engine,schema=''):
+        log.info('%s.from_brildb'%self.name)
+        tab = self.name.upper()
+        if schema: tab = '.'.join([schema.upper(),tab])
+        log.info('from %s, %s'%(engine.url,tab))
+        result = pd.read_sql_table(engine)
+        result.column = self._columns
+        return result
+    
+class TrgBitMap(BrilDataSource):
+    def __init__(self):
+        super(TrgBitMap,self).__init__()
+        self._columns = ['BITNAMEID','BITID','BITNAME','ISALGO']
+
+    def from_brildb(self):
+        pass
+                
+    def from_trgdb(self,engine):
+        log.info('%s.from_trgdb'%self.name)
+        qAlgo = """select distinct ALGO_INDEX as BITID,ALIAS as BITNAME from CMS_GT.GT_RUN_ALGO_VIEW order by ALGO_INDEX"""
+        qTech = """select distinct TECHTRIG_INDEX as BITID,NAME as BITNAME from CMS_GT.GT_RUN_TECH_VIEW order by TECHTRIG_INDEX"""
+        log.info(qAlgo)
+        log.info(qTech)
+        dfalgo = pd.read_sql_query(qAlgo,engine)
+        if dfalgo.empty:
+            log.info('no result from qAlgo')
+            return dfalgo
+        dfalgo['ISALGO'] = [1]*len(dfalgo)
+        dfalgo.columns = self._columns[1:]
+        dftech = pd.read_sql_query(qTech,engine)
+        if not dftech.empty:
+            dftech['ISALGO'] = [0]*len(dftech)
+            dftech.columns = self._columns[1:]
+            result = dfalgo.append(dftech)
+        else:
+            log.info('no result from qTech')
+            result = dfalgo
+        result.index=range(len(result))
+        return result
+    
+    def to_brildb(self,engine,data,schema='',if_exists='append',chunksize=None):
+        log.info('%s.to_brildb'%self.name)
+        desttab = 'TRGBITMAP'
+        if schema: desttab = '.'.join([schema.upper(),desttab])
+        log.info('to %s, %s'%(engine.url,desttab))
+        data.to_sql(desttab,engine,if_exists=if_exists,index_label='BITNAMEID',chunksize=chunksize)
+        
+    def from_csv(self,filepath_or_buffer):
+        log.info('%s.from_csv'%self.name)
+        data = pd.read_csv(filepath_or_buffer,index_col=False)
+        return data
+
+    def to_csv(self,filepath_or_buffer,data,chunksize=None):
+        log.info('%s.to_csv'%self.name)
+        log.info('to %s '%(filepath_or_buffer))
+        data.to_csv(filepath_or_buffer,header=True,index_label='BITNAMEID',chunksize=chunksize)
+
+#
+# operation on  data sources
+# 
 if __name__=='__main__':
 
     ## test db api , i.e. sqlalchemy sans orm

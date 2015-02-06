@@ -33,9 +33,14 @@ if __name__=='__main__':
     linkresultcolumns = ['HLTPATHID','STREAMID','STREAMLABEL','DATASETID']
     linkresult = pd.read_sql_query(linksq,engine)
     linkresult.columns = linkresultcolumns
-    
-    outfilename = 'streamdatasetpaths.csv'
-    linkresult.to_csv(outfilename,header=True,index=False)
+
+    #by chunk
+    for chunkresult in pd.read_sql_query(linksq,engine,chunksize=1000):
+        chunkresult.columns = linkresultcolumns
+        print chunkresult
+        
+    #outfilename = 'streamdatasetpaths.csv'
+    #linkresult.to_csv(outfilename,header=True,index=False)
     #destdbstr = 'sqlite:///test.db'
     #destengine = create_engine(destdbstr)
     #result.to_sql('HLTPATHMAP',destengine,if_exists='replace',index=False)

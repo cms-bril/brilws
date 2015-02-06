@@ -5,9 +5,9 @@
 DATATABLEMAP: #static map , data table registry
    columns:
     - datasourceid: unsigned short
-    - basetablename: string
-    - tablesuffix: string
-    - datasourcename: string      #deadtime,beamstatus,runinfo,fillinfo,trg,hlt,beamintensity,bcm1flumi,hfoclumi,hfetlumi,pltlumi,pixellumi,bhmbkg,hfoclumiresult,pixellumiresult
+    - datasource: string 
+    - suffix: string
+    - datasourcename: string 
     - minrun: unsigned int
     - maxrun: unsigned int
    pk: [datasourceid]
