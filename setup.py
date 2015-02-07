@@ -15,7 +15,7 @@ kwds = {'scripts':[]}
 kwds['scripts'].append('bin/briltag')
 kwds['scripts'].append('bin/brilcalc')
 kwds['scripts'].append('bin/brilschema')
-
+kwds['scripts'].append('bin/brildb_frommap')
 setup(
     name = "brilws",
     version=versioneer.get_version(),

@@ -606,107 +606,130 @@ class BrilDataSource(object):
         return self._name
     @property
     def columns(self):
-        return self._columns    
+        return self._columns
+    
+    def _from_brildb(self,engine,schema='',index_col=None,columns=None):
+        log.info('%s.from_brildb'%self.name)
+        sourcetab = self.name.upper()
+        log.info('to %s, %s')%(engine.url,sourcetab)
+        result = pd.read_sql_table(sourcetab,engine,schema=schema,index_col=index_col,columns=columns)
+        result.column = self._columns
+        return result
+    
+    def _to_brildb(self,engine,data,schema='',if_exists='replace',index=True,index_label=None,chunksize=None):
+        log.info('%s.to_brildb'%self.name)
+        desttab = self.name.upper()
+        if schema: desttab = '.'.join([schema.upper(),desttab])
+        log.info('to %s, %s'%(engine.url,desttab))
+        data.to_sql(desttab,engine,if_exists=if_exists,index=index,index_label=index_label,chunksize=chunksize)
+        
+    def _to_csv(self,filepath_or_buffer,data,header=True,index=False,index_label=None,chunksize=None):
+        log.info('%s.to_csv'%self.name)
+        log.info('to %s '%(filepath_or_buffer))
+        data.to_csv(filepath_or_buffer,header=True)
+
+    def _from_csv(self,filepath_or_buffer,index_col=0):
+        log.info('%s.from_csv'%self.name)
+        log.info('from %s '%filepath_or_buffer)
+        data = pd.read_csv(filepath_or_buffer,index_col=index_col)
+        return data
 
 class BeamStatusMap(BrilDataSource):
     def __init__(self):
         super(BeamStatusMap,self).__init__()
         self._columns = ['BEAMSTATUSID','BEAMSTATUS']
-    def to_brildb(self):
-        pass
-    def to_csv(self):
-        pass
-    def from_csv(self):
-        pass
-    def from_brildb(self):
-        pass
+    def to_brildb(self,engine,data,schema=''):
+        super(BeamStatusMap,self)._to_brildb(engine,data,schema=schema)
+    def to_csv(self,filepath_or_buffer,data):
+        super(BeamStatusMap,self)._to_csv(filepath_or_buffer,data)
+    def from_csv(self,filepath_or_buffer):
+        return super(BeamStatusMap,self)._from_csv(filepath_or_buffer)
+    def from_brildb(self,engine,schema=''):
+        return super(BeamStatusMap,self)._from_brildb(self,engine,schema=schema)
     
 class HLTPathMap(BrilDataSource):
     def __init__(self):
         super(HLTPathMap,self).__init__()
         self._columns = ['HLTPATHID','HLTPATHNAME']
-    def to_brildb(self):
-        pass
-    def to_csv(self):
-        pass
+    def to_brildb(self,engine,data,schema=''):
+        super(HLTPathMap,self)._to_brildb(engine,data,schema=schema)
+    def to_csv(self,filepath_or_buffer,data):
+        super(HLTPathMap,self)._to_csv(filepath_or_buffer,data)
     def from_csv(self):
-        pass
-    def from_hltdb(self):
-        pass
-    def from_brildb(self):
-        pass
+        return super(HLTPathMap,self)._from_csv(filepath_or_buffer)
+    def from_sourcedb(self,engine):
+        log.info('%s.from_sourcedb'%self.name)
+        q = """select PATHID as HLTPATHID,NAME as HLTPATHNAME from CMS_HLT.PATHS where ISENDPATH=0 and NAME like 'HLT_%'"""
+        log.info(q)
+        result = pd.read_sql_query(q,engine)
+        result.columns = self._columns
+        return result
+    def from_brildb(self,engine,schema=''):
+        return super(HLTPathMap,self)._from_brildb(self,engine,schema=schema)
     
 class DatasetMap(BrilDataSource):
     def __init__(self):
         super(DatasetMap,self).__init__()
         self._columns = ['DATASETID','DATASETNAME']
-    def to_brildb(self):
-        pass
-    def to_csv(self):
-        pass
+    def to_brildb(self,engine,data,schema=''):
+        super(DatasetMap,self)._to_brildb(engine,data,schema=schema)
+    def to_csv(self,filepath_or_buffer,data):
+        super(DatasetMap,self)._to_csv(filepath_or_buffer,data)
     def from_csv(self):
-        pass
-    def from_hltdb(self):
-        pass
-    def from_brildb(self):
-        pass
+        return super(DatasetMap,self)._from_csv(filepath_or_buffer)
+    def from_sourcedb(self,engine):
+        log.info('%s.from_sourcedb'%self.name)
+        q = """select DATASETID as DATASETID, DATASETLABEL as DATASETNAME from CMS_HLT.PRIMARYDATASETS where DATASETLABEL!='Unassigned path'"""
+        log.info(q)
+        result = pd.read_sql_query(q,engine)
+        result.columns = self._columns
+        return result
+    def from_brildb(self,engine,schema=''):
+        return super(DatasetMap,self)._from_brildb(self,engine,schema=schema)
     
 class HLTStreamDatasetMap(BrilDataSource):
     def __init__(self):
         super(StreamDatasetHLTPathMap,self).__init__()
         self._columns = ['HLTPATHID','STREAMID','STREAMNAME','DATASETID']
-    def to_brildb(self):
-        pass
-    def to_csv(self):
-        pass
+    def to_brildb(self,engine,data,schema=''):
+        super(HLTStreamDatasetMap,self)._to_brildb(engine,data,schema=schema)
+    def to_csv(self,filepath_or_buffer,data):
+        super(HLTStreamDatasetMap,self)._to_csv(filepath_or_buffer,data)
     def from_csv(self):
-        pass
-    def from_hltdb(self):
-        pass
-    def from_brildb(self):
-        pass
+        return super(HLTStreamDatasetMap,self)._from_csv(filepath_or_buffer)
+    def from_sourcedb(self,engine):
+        log.info('%s.from_sourcedb'%self.name)
+        streamwhitelist = ["'A'"]
+        selectedstreams = ','.join(streamwhitelist)
+        q = """select p.PATHID as HLTPATHID,s.STREAMID as STREAMID,s.STREAMLABEL as STREAMLABEL,d.DATASETID as DATASETID from CMS_HLT.PATHSTREAMDATASETASSOC link,CMS_HLT.STREAMS s, CMS_HLT.PATHS p, CMS_HLT.PRIMARYDATASETS d where p.PATHID=link.PATHID and link.DATASETID=d.DATASETID and link.STREAMID=s.STREAMID and d.DATASETLABEL!='Unassigned path' and s.FRACTODISK>0 and s.STREAMLABEL in ({0}) and p.ISENDPATH=0 and p.NAME like 'HLT_%'""".format(selectedstreams)
+        log.info(q)
+        result = pd.read_sql_query(q,engine)
+        result.columns = self._columns
+        return result
+    def from_brildb(self,engine,schema=''):
+        return super(HLTStreamDatasetMap,self)._from_brildb(self,engine,schema=schema)
     
 class DatatableMap(BrilDataSource):
     def __init__(self):
         super(DatatableMap,self).__init__()
         self._columns = ['DATASOURCEID','DATASOURCE','SUFFIX','MINRUN','MAXRUN']
-        
-    def to_brildb(self,engine,data,schema='',if_exists='replace'):
-        log.info('%s.to_brildb'%self.name)
-        desttab = self.name.upper()
-        if schema: desttab = '.'.join([schema.upper(),desttab])
-        log.info('to %s, %s'%(engine.url,desttab))
-        data.to_sql(desttab,engine,if_exists=if_exists)
-        
+    def to_brildb(self,engine,data,schema=''):
+        super(DatatableMap,self)._to_brildb(engine,data,schema=schema)
     def to_csv(self,filepath_or_buffer,data):
-        log.info('%s.to_csv'%self.name)
-        log.info('to %s '%(filepath_or_buffer))
-        data.to_csv(filepath_or_buffer,header=True)
-        
+        super(DatatableMap,self)._to_csv(filepath_of_buffer,data)        
     def from_csv(self,filepath_or_buffer):
-        log.info('%s.from_csv'%self.name)
-        data = pd.read_csv(filepath_or_buffer)
-        return data
-
+        return super(DatatableMap,self)._from_csv(filepath_or_buffer)
     def from_brildb(self,engine,schema=''):
-        log.info('%s.from_brildb'%self.name)
-        tab = self.name.upper()
-        if schema: tab = '.'.join([schema.upper(),tab])
-        log.info('from %s, %s'%(engine.url,tab))
-        result = pd.read_sql_table(engine)
-        result.column = self._columns
-        return result
+        return super(DatatableMap,self)._from_brildb(self,engine,schema=schema)
     
 class TrgBitMap(BrilDataSource):
     def __init__(self):
         super(TrgBitMap,self).__init__()
         self._columns = ['BITNAMEID','BITID','BITNAME','ISALGO']
-
-    def from_brildb(self):
-        pass
-                
-    def from_trgdb(self,engine):
-        log.info('%s.from_trgdb'%self.name)
+    def from_brildb(self,engine,schema=''):
+        return super(TrgBitMap,self)._from_brildb(engine,schema=schema,index_col='BITNAMEID')
+    def from_sourcedb(self,engine):
+        log.info('%s.from_sourcedb'%self.name)
         qAlgo = """select distinct ALGO_INDEX as BITID,ALIAS as BITNAME from CMS_GT.GT_RUN_ALGO_VIEW order by ALGO_INDEX"""
         qTech = """select distinct TECHTRIG_INDEX as BITID,NAME as BITNAME from CMS_GT.GT_RUN_TECH_VIEW order by TECHTRIG_INDEX"""
         log.info(qAlgo)
@@ -727,23 +750,12 @@ class TrgBitMap(BrilDataSource):
             result = dfalgo
         result.index=range(len(result))
         return result
-    
-    def to_brildb(self,engine,data,schema='',if_exists='append',chunksize=None):
-        log.info('%s.to_brildb'%self.name)
-        desttab = 'TRGBITMAP'
-        if schema: desttab = '.'.join([schema.upper(),desttab])
-        log.info('to %s, %s'%(engine.url,desttab))
-        data.to_sql(desttab,engine,if_exists=if_exists,index_label='BITNAMEID',chunksize=chunksize)
-        
+    def to_brildb(self,engine,data,schema=''):
+        return super(TrgBitMap,self).to_brildb(engine,data,schema=schema,index_labe='BITNAMEID')
     def from_csv(self,filepath_or_buffer):
-        log.info('%s.from_csv'%self.name)
-        data = pd.read_csv(filepath_or_buffer,index_col=False)
-        return data
-
-    def to_csv(self,filepath_or_buffer,data,chunksize=None):
-        log.info('%s.to_csv'%self.name)
-        log.info('to %s '%(filepath_or_buffer))
-        data.to_csv(filepath_or_buffer,header=True,index_label='BITNAMEID',chunksize=chunksize)
+        return super(TrgBitMap,self)._from_csv(filepath_or_buffer)
+    def to_csv(self,filepath_or_buffer,data):
+        super(TrgBitMap,self)._to_csv(filepath_or_buffer,data,index_label='BITNAMEID')
 
 #
 # operation on  data sources
