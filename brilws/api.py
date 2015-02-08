@@ -928,7 +928,44 @@ class Deadtime(BrilDataSource):
             result = pd.read_sql_query(qLS,engine,params={'dataid':id})
         result.columns = self._columns
         return result
-        
+    
+import struct,array
+def packArraytoBlob(iarray,typecode):
+    '''
+    Inputs:
+    inputarray: a python array
+    '''
+    t = typecode*len(iarray)
+    buffer = struct.pack(t,*iarray)
+    return result
+
+def unpackBlobtoArray(iblob,itemtypecode):
+    '''
+    Inputs:
+    iblob: blob
+    itemtypecode: python array type code 
+    '''
+    if itemtypecode not in ['c','b','B','u','h','H','i','I','l','L','f','d']:
+        raise RuntimeError('unsupported typecode '+itemtypecode)
+    result=array.array(itemtypecode)
+    blobstr=iblob.readline()
+    if not blobstr :
+        return None
+    result.fromstring(blobstr)
+    return result
+
+def packListstrtoCLOB(iListstr,separator=','):
+    '''
+    pack list of string of comma separated large string CLOB
+    '''
+    return separator.join(iListstr)
+
+def unpackCLOBtoListstr(iStr,separator=','):
+    '''
+    unpack a large string to list of string
+    '''
+    return [i.strip() for i in iStr.strip().split(separator)]
+
 #
 # operation on  data sources
 # 
