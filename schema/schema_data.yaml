@@ -26,7 +26,13 @@ TRGBITMAP:
     - isalgo: bool
    pk: [bitnameid]
 
-
+TRGHLTSEEDMAP:
+   columns:
+    - hltpathid: unsigned int
+    - hltconfigid: unsigned int
+    - l1seed: string
+    pk: [hltpathid,hltconfigid]
+ 
 HLTPATHMAP:    #static map
    columns:
     - hltpathid: unsigned int
@@ -77,8 +83,9 @@ TIMEINDEX:      #per ls
     - timestampstr: string       #just for display. do not query
     - weekofyear: unsigned short
     - dayofyear: unsigned short
+    - dayofweek: unsigned short
     - year: unsigned short
-    - monthofyear: unsigned short    
+    - month: unsigned short    
    pk: [runnum,lsnum]
   
 FILLINFO:        #per fill
@@ -96,9 +103,9 @@ RUNINFO:          #per run
    columns:       
     - dataid: long long
     - runnum: unsigned int
+    - fillnum: unsigned int
     - hltconfigid: unsigned int
     - hltkey: string
-    - l1seedexpression: string
     - gt_rs_key: string
    pk: [dataid]
 

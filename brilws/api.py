@@ -595,7 +595,7 @@ def read_yaml(path_or_buf):
     else:
         obj = filepath_or_buffer
     return obj
-
+    
 class BrilDataSource(object):
     def __init__(self):
         self._columns = None
@@ -613,6 +613,14 @@ class BrilDataSource(object):
         sourcetab = self.name.upper()
         log.info('to %s, %s')%(engine.url,sourcetab)
         result = pd.read_sql_table(sourcetab,engine,schema=schema,index_col=index_col,columns=columns)
+        result.column = self._columns
+        return result
+    
+    def _from_brildb_iter(self,engine,schema='',suffix='RUN1',index_col=None,columns=None,chunksize=1):
+        log.info('%s.from_brildb_iter'%self.name)
+        sourcetab = '_'.join([self.name.upper(),suffix])
+        log.info('to %s, %s')%(engine.url,sourcetab)
+        result = pd.read_sql_table(sourcetab,engine,schema=schema,index_col=index_col,columns=columns,cunksize=chunksize)
         result.column = self._columns
         return result
     
@@ -757,6 +765,170 @@ class TrgBitMap(BrilDataSource):
     def to_csv(self,filepath_or_buffer,data):
         super(TrgBitMap,self)._to_csv(filepath_or_buffer,data,index_label='BITNAMEID')
 
+class FillInfo(BrilDataSource):
+    def __init__(self):
+        super(FillInfo,self).__init__()
+        self._columns = ['DATAID','FILLNUM','AMODETAG','EGEV','FILLSCHEME','NCOLLIDINGBX','BEAMCONFIG']
+    def from_lumidb(self,engine,schema='CMS_LUMI_PROD'):
+        log.info('%s.from_lumidb'%self.name)
+        tab = '.'.join([schema,self.name.upper()])
+        q = """select distinct FILLNUM,AMODETAG,EGEV,FILLSCHEME,NCOLLIDINGBUNCHES from %s where AMODETAG not in ('BMSETUP','(undefined)','MDEV') order by FILLNUM"""%(tab)
+        log.info(q)
+        result = pd.read_sql_query(q,engine)
+        return result
+    
+class RunInfo(BrilDataSource):
+    def __init__(self):
+        super(RunInfo,self).__init__()
+        self._columns = ['DATAID','RUNNUM','FILLNUM','HLTCONFIGID','HLTKEY','GT_RS_KEY']
+        
+    def from_lumidb(self,engine,schema='CMS_LUMI_PROD'):
+        log.info('%s.from_lumidb'%self.name)
+        tab = '.'.join([schema,'CMSRUNSUMMARY'])
+        q = """select RUNNUM,FILLNUM,HLTKEY,L1KEY from %s order by RUNNUM"""%(tab)
+        log.info(q)
+        result = pd.read_sql_query(q,engine)
+        return result
+    
+class BeamstatusInfo(BrilDataSource):
+    def __init__(self):
+        super(BeamstatusInfo,self).__init__()
+        self._columns = ['DATAID','RUNNUM','LSNUM','BEAMSTATUSID']
+        
+    def from_lumidb(self,engine,runnum,schema='CMS_LUMI_PROD'):
+        log.info('%s.from_lumidb'%self.name)
+        datatab = '.'.join([schema,'LUMIDATA'])
+        lsdatatab = '.'.join([schema,'LUMISUMMARYV2'])
+        qDatatab = """select max(DATA_ID) from %s where RUNNUM=:runnum"""%(datatab)
+        log.info(qDatatab)        
+        dataids = pd.read_sql_query(qDatatab,engine,params={'runnum':runnum})
+        qLSData = """select BEAMSTATUS,BEAMENERGY from %s where DATA_ID=:dataid"""
+        log.info(qLSData)
+        for id in dataids:
+            result = pd.read_sql_query(qLSData,engine,params={'dataid':id})
+            
+class Beamintensity(BrilDataSource):
+    def __init__(self):
+        super(Beamintensity,self).__init__()
+        self._columns = ['DATAID','RUNNUM','LSNUM','BXIDX','BEAM1INTENSITY','BEAM2INTENSITY']
+    def from_lumidb(self,engine,runnum,schema='CMS_LUMI_PROD'):
+        log.info('%s.from_lumidb'%self.name)
+        datatab = '.'.join([schema,'LUMIDATA'])
+        lsdatatab = '.'.join([schema,'LUMISUMMARYV2'])
+        qDatatab = """select max(DATA_ID) from %s where RUNNUM=:runnum"""%(datatab)
+        log.info(qDatatab)        
+        dataids = pd.read_sql_query(qDatatab,engine,params={'runnum':runnum})
+        qLSData = """select BEAMINTENSITYBLOB_1,BEAMINTENSITYBLOB_2 from %s where DATA_ID=:dataid"""
+        log.info(qLSData)
+        for id in dataids:
+            result = pd.read_sql_query(qLSData,engine,params={'dataid':id})
+            
+class HFOCLumi(BrilDataSource):
+    def __init__(self):
+        super(HFOCLumi,self).__init__()
+        self._columns = ['DATAID','RUNNUM','LSNUM','INSTLUMI']
+    def from_lumidb(self,engine,runnum,schema='CMS_LUMI_PROD'):
+        log.info('%s.from_lumidb'%self.name)
+        datatab = '.'.join([schema,'LUMIDATA'])
+        lsdatatab = '.'.join([schema,'LUMISUMMARYV2'])
+        qDatatab = """select max(DATA_ID) from %s where RUNNUM=:runnum"""%(datatab)
+        log.info(qDatatab)        
+        dataids = pd.read_sql_query(qDatatab,engine,params={'runnum':runnum})
+        qLSData = """select INSTLUMI,BXLUMIVALUE_OCC1 from %s where DATA_ID=:dataid"""
+        log.info(qLSData)
+        for id in dataids:
+            result = pd.read_sql_query(qLSData,engine,params={'dataid':id})
+            
+class PixelLumi(BrilDataSource):
+    def __init__(self):
+        super(PixelLumi,self).__init__()
+        self._columns = ['DATAID','RUNNUM','CMSLSNUM','BXIDX','INSTLUMI']
+    def from_lumidb(self,engine,runnum,schema='CMS_LUMI_PROD'):
+        log.info('%s.from_lumidb'%self.name)
+        datatab = '.'.join([schema,'PIXELLUMIDATA'])
+        lsdatatab = '.'.join([schema,'PIXELLUMISUMMARYV2'])
+        qDatatab = """select max(DATA_ID) from %s where RUNNUM=:runnum"""%(datatab)
+        log.info(qDatatab)
+        dataids = pd.read_sql_query(qDatatab,engine,params={'runnum':runnum})        
+        qLSData = """select INSTLUMI from %s where DATA_ID=:dataid"""
+        for id in dataids:
+            result = pd.read_sql_query(qLSData,engine,params={'dataid':id})
+        return result
+    
+class Trg(BrilDataSource):
+    def __init__(self):
+        super(Trg,self).__init__()
+        self._columns = ['DATAID','RUNNUM','CMSLSNUM','TRGBITID','TRGBITNAMEID','PRESCIDX','PRESCVAL','BITMASK','COUNTS','PHYSICSDECLARED']
+    
+    def from_lumidb(self,engine,runnum,schema='CMS_LUMI_PROD'):
+        log.info('%s.from_lumidb'%self.name)
+        trgdatatab = '.'.join([schema,'TRGDATA'])
+        lstrgtab = '.'.join([schema,'LSTRG'])
+        qTrgid = """select max(DATA_ID) from %s where RUNNUM=:runnum"""%(trgdatatab)
+        log.info(qTrgid)
+        trgids = pd.read_sql_query(qTrgid,engine,params={'runnum':runnum})
+        qTrgRun = """select ALGOMASK_H,ALGOMASK_L,TECHMASK from %s where DATA_ID=:dataid"""%(trgdatatab)
+        qLSTrg = """select RUNNUM, CMSLSNUM, PRESCALEBLOB, TRGCOUNTBLOB from %s where DATA_ID=:dataid"""%(lstrgtab)
+        log.info(qTrgRun)
+        log.info(qLSTrg)
+        for id in trgids:
+            trgrun = pd.read_sql_query(qTrgRun,engine,{'dataid':id})
+            lstrg = pd.read_sql_query(qLSTrg,engine,{'dataid':id})
+        return trgrun,lstrg
+    
+class Hlt(BrilDataSource):
+    def __init__(self):
+        super(Hlt,self).__init__()
+        self._columns = ['DATAID','HLTPATHID','RUNNUM','CMSLSNUM','PRESCIDX','PRESCVAL','L1PASS','HLTACCEPT']
+    def from_lumidb(self,engine,runnum,schema='CMS_LUMI_PROD'):
+        log.info('%s.from_lumidb'%self.name)
+        hltdatatab = 'HLTDATA'
+        tab = '.'.join([schema,hltdatatab])
+        qRun="""select max(DATA_ID) as DATAID from %s where RUNNUM=:runnum"""%(tab)
+        lshlttab = 'LSHLT'
+        tab = '.'.join([schema,lshlttab])
+        qLS="""select DATA_ID as DATAID, RUNNUM as RUNNUM, CMSLSNUM as CMSLSNUM, PRESCALEBLOB as PRESCALEBLOB, HLTACCEPTBLOB as HLTACCEPTBLOB from %s where DATA_ID=:dataid"""%(tab)
+        log.info(qRun)
+        log.info(qLS)
+        dataid = pd.read_sql_query(qRun,engine,params={'runnum':runnum})
+        for id in dataid:
+            result = pd.read_sql_query(qLS,engine,params={'dataid':id})
+            #unpack blobs
+        return result
+    
+class TrgHltSeedMap(BrilDataSource):
+    def __init__(self):
+        super(TrgHltSeedMap,self).__init__()
+        self._columns = ['HLTPATHID','HLTCONFIGID','L1SEED']
+        
+    def from_hltdb(self,engine,hltconfigid):
+        log.info('%s.from_hltdb_iter'%self.name)
+        q = """select p.PATHID as HLTPATHID,c.CONFIGID as HLTCONFIGID, s.VALUE as L1SEED from CMS_HLT.STRINGPARAMVALUES s,CMS_HLT.paths p, CMS_HLT.parameters, CMS_HLT.superidparameterassoc, CMS_HLT.modules, CMS_HLT.moduletemplates, CMS_HLT.pathmoduleassoc, CMS_HLT.configurationpathassoc, CMS_HLT.configurations c where parameters.paramid=s.paramid and superidparameterassoc.paramid=parameters.paramid and modules.superid=superidparameterassoc.superid and moduletemplates.superid=modules.templateid and pathmoduleassoc.moduleid=modules.superid and p.pathid=pathmoduleassoc.pathid and configurationpathassoc.pathid=p.pathid and c.configid=configurationpathassoc.configid and moduletemplates.name='HLTLevel1GTSeed' and parameters.name='L1SeedsLogicalExpression' and p.ISENDPATH=0 and p.NAME like 'HLT_%' and c.configid=:configid"""
+        log.info(q)
+        result = pd.read_sql_query(q,engine,params={'configid':hltconfigid})
+        return result
+    
+class Deadtime(BrilDataSource):
+    def __init__(self):
+        super(Deadtime,self).__init__()
+        self._columns = ['DATAID','RUNNUM','LSNUM','DEADTIMEFRAC']
+    def from_lumidb(self,engine,runnum,schema='CMS_LUMI_PROD'):
+        log.info('%s.from_lumidb'%self.name)
+        trgdatatab = 'TRGDATA'
+        tab = '.'.join([schema,trgdatatab])
+        qRun="""select max(DATA_ID) as DATAID from %s where RUNNUM=:runnum"""%(tab)
+        lstrgtab = 'LSTRG'
+        tab = '.'.join([schema,lstrgtab])
+        qLS="""select DATA_ID as DATAID,RUNNUM as RUNNUM, CMSLSNUM as LSNUM, DEADFRAC as DEADFRAC from %s where DATA_ID=:dataid"""%(tab)
+        
+        log.info(qRun)
+        log.info(qLS)
+        dataid = pd.read_sql_query(qRun,engine,params={'runnum':runnum})
+        for id in dataid:
+            result = pd.read_sql_query(qLS,engine,params={'dataid':id})
+        result.columns = self._columns
+        return result
+        
 #
 # operation on  data sources
 # 

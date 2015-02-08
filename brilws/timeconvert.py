@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta,date
 import time
 
 nbx = 3564
@@ -28,13 +28,18 @@ def SecToDatetime(tssecs,utc=True):
 def SecToDatetimeStr(tssecs,utc=True,fmt='%m/%d/%y %H:%M:%S'):
     return SecToDatetime(tssecs,utc=utc).strftime(fmt)
 
+def WeekOfYear(dt):
+    return date(dt.year,dt.month,dt.day).isocalendar()[1]
+    
 if __name__ == '__main__':
     tsec = DatetimeToSec(datetime.utcnow())
     print tsec
     t = SecToDatetime(tsec)
     print t
+    print WeekOfYear(t)
     tp = t.timetuple()
     print tp.tm_year,tp.tm_mon,tp.tm_wday,tp.tm_yday
     print SecToDatetimeStr(tsec)
     print LSDuration()
     print LSDuration().seconds, LSDuration().microseconds
+    
