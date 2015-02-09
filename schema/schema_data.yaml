@@ -1,6 +1,14 @@
 #
-# Schema for IOV data
+# Schema for data
 #
+
+##### Map tables #####
+
+HLTCONFIGMAP:
+   columns:
+    - hltconfigid: unsigned int
+    - hltkey: string
+   pk: [hltconfigid]
 
 DATATABLEMAP: #static map , data table registry
    columns:
@@ -17,7 +25,7 @@ BEAMSTATUSMAP: #static map
     - beamstatusid: unsigned short
     - beamstatus: string
    pk: [beamstatusid]
-   
+
 TRGBITMAP:
    columns:    #static map
     - bitnameid: unsigned short
@@ -50,7 +58,13 @@ DATASETMAP:   #static map
     - datasetid: unsigned int
     - datasetname: string
    pk: [datasetid]
-   
+
+AMODETAGMAP:
+   columns:
+    - amodetagid: unsigned int
+    - amodetag: string
+   pk: [amodetagid]
+
 HLTSTREAMDATASET:  #static map , hlt stream, dataset, path map           
    columns:
     - hltpathid: unsigned int
@@ -93,7 +107,7 @@ TIMEINDEX:      #per ls
     - year: unsigned short
     - month: unsigned short    
    pk: [runnum,lsnum]
-  
+   
 FILLINFO:        #per fill
    columns:
     - dataid: long long
@@ -102,6 +116,8 @@ FILLINFO:        #per fill
     - egev: unsigned int
     - fillscheme: string
     - ncollidingbx: unsigned short
+    - crossingangle: float
+    - betastar: float    
     - beamconfig: blob
    pk: [dataid]
 
@@ -110,8 +126,7 @@ RUNINFO:          #per run
     - dataid: long long
     - runnum: unsigned int
     - fillnum: unsigned int
-    - hltconfigid: unsigned int
-    - hltkey: string
+    - hltkey: string    
     - gt_rs_key: string
    pk: [dataid]
 

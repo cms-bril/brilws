@@ -18,6 +18,8 @@ decimalcontext.prec = 3
 
 log = logging.getLogger('brilws.api')
 
+_amodetagmap={1:'PROTPHYS',2:'IONPHYS',3:'COSMICS',4:'GAP',21: 'PAPHYS'}
+
 oracletypemap={
 'unsigned char':'number(3)',
 'unsigned short':'number(5)',
@@ -646,7 +648,7 @@ class BrilDataSource(object):
         log.info('from %s '%filepath_or_buffer)
         data = pd.read_csv(filepath_or_buffer,index_col=index_col)
         return data
-
+##### Map ######    
 class BeamStatusMap(BrilDataSource):
     def __init__(self):
         super(BeamStatusMap,self).__init__()
@@ -659,18 +661,27 @@ class BeamStatusMap(BrilDataSource):
         return super(BeamStatusMap,self)._from_csv(filepath_or_buffer)
     def from_brildb(self,engine,schema=''):
         return super(BeamStatusMap,self)._from_brildb(self,engine,schema=schema)
+    def from_sourcedb(self,engine):
+        if os.path.isfile(engine):
+            return self.from_csv(engine)
+        log.info('%s.from_sourcedb'%self.name)
+        if not os.path.isfile(engine):
+            raise IOError('sourcedb must be a csv file')
+        return self.from_csv(engine)
     
 class HLTPathMap(BrilDataSource):
     def __init__(self):
         super(HLTPathMap,self).__init__()
         self._columns = ['HLTPATHID','HLTPATHNAME']
     def to_brildb(self,engine,data,schema=''):
-        super(HLTPathMap,self)._to_brildb(engine,data,schema=schema)
+        super(HLTPathMap,self)._to_brildb(engine,data,schema=schema,index=False)
     def to_csv(self,filepath_or_buffer,data):
-        super(HLTPathMap,self)._to_csv(filepath_or_buffer,data)
-    def from_csv(self):
+        super(HLTPathMap,self)._to_csv(filepath_or_buffer,data,index=False)
+    def from_csv(self,filepath_or_buffer):
         return super(HLTPathMap,self)._from_csv(filepath_or_buffer)
     def from_sourcedb(self,engine):
+        if os.path.isfile(engine):
+            return self.from_csv(engine)
         log.info('%s.from_sourcedb'%self.name)
         q = """select PATHID as HLTPATHID,NAME as HLTPATHNAME from CMS_HLT.PATHS where ISENDPATH=0 and NAME like 'HLT_%'"""
         log.info(q)
@@ -688,9 +699,11 @@ class DatasetMap(BrilDataSource):
         super(DatasetMap,self)._to_brildb(engine,data,schema=schema)
     def to_csv(self,filepath_or_buffer,data):
         super(DatasetMap,self)._to_csv(filepath_or_buffer,data)
-    def from_csv(self):
+    def from_csv(self,filepath_or_buffer):
         return super(DatasetMap,self)._from_csv(filepath_or_buffer)
     def from_sourcedb(self,engine):
+        if os.path.isfile(engine):
+            return self.from_csv(engine)
         log.info('%s.from_sourcedb'%self.name)
         q = """select DATASETID as DATASETID, DATASETLABEL as DATASETNAME from CMS_HLT.PRIMARYDATASETS where DATASETLABEL!='Unassigned path'"""
         log.info(q)
@@ -700,6 +713,48 @@ class DatasetMap(BrilDataSource):
     def from_brildb(self,engine,schema=''):
         return super(DatasetMap,self)._from_brildb(self,engine,schema=schema)
     
+class AmodetagMap(BrilDataSource):
+    def __init__(self):
+        super(AmodetagMap,self).__init__()
+        self._columns = ['AMODETAGID','AMODETAG']
+    def to_brildb(self,engine,data,schema=''):
+        super(AmodetagMap,self)._to_brildb(engine,data,schema=schema)
+    def to_csv(self,filepath_or_buffer,data):
+        super(AmodetagMap,self)._to_csv(filepath_or_buffer,data)
+    def from_csv(self,filepath_or_buffer):
+        return super(AmodetagMap,self)._from_csv(filepath_or_buffer)    
+    def from_brildb(self,engine,schema=''):
+        return super(AmodetagMap,self)._from_brildb(self,engine,schema=schema)
+    def from_sourcedb(self,engine):
+        if os.path.isfile(engine):
+            return self.from_csv(engine)
+        log.info('%s.from_sourcedb'%self.name)
+        if not os.path.isfile(engine):
+            raise IOError('sourcedb must be a csv file')
+        return self.from_csv(engine)
+    
+class HltConfigMap(BrilDataSource):
+    def __init__(self):
+        super(HltConfigMap,self).__init__()
+        self._columns = ['HLTCONFIGID','HLTKEY']
+    def to_brildb(self,engine,data,schema=''):
+        super(HltConfigMap,self)._to_brildb(engine,data,schema=schema)
+    def to_csv(self,filepath_or_buffer,data):
+        super(HltConfigMap,self)._to_csv(filepath_or_buffer,data)
+    def from_csv(self,filepath_or_buffer):
+        return super(HltConfigMap,self)._from_csv(filepath_or_buffer)    
+    def from_brildb(self,engine,schema=''):
+        return super(HltConfigMap,self)._from_brildb(self,engine,schema=schema)
+    def from_sourcedb(self,engine):
+        if os.path.isfile(engine):
+            return self.from_csv(engine)
+        log.info('%s.from_sourcedb'%self.name)
+        q = """select CONFIGID as HLTCONFIGID, CONFIGDESCRIPTOR as HLTKEY from CMS_HLT.CONFIGURATIONS where PROCESSNAME='HLT' and  CONFIGDESCRIPTOR like '/cdaq/physics%'"""
+        log.info(q)
+        result =  pd.read_sql_query(q,engine)
+        result.columns = self._columns
+        return result
+    
 class HLTStreamDatasetMap(BrilDataSource):
     def __init__(self):
         super(StreamDatasetHLTPathMap,self).__init__()
@@ -708,9 +763,11 @@ class HLTStreamDatasetMap(BrilDataSource):
         super(HLTStreamDatasetMap,self)._to_brildb(engine,data,schema=schema)
     def to_csv(self,filepath_or_buffer,data):
         super(HLTStreamDatasetMap,self)._to_csv(filepath_or_buffer,data)
-    def from_csv(self):
+    def from_csv(self,filepath_or_buffer):
         return super(HLTStreamDatasetMap,self)._from_csv(filepath_or_buffer)
     def from_sourcedb(self,engine):
+        if os.path.isfile(engine):
+            return self.from_csv(engine)
         log.info('%s.from_sourcedb'%self.name)
         streamwhitelist = ["'A'"]
         selectedstreams = ','.join(streamwhitelist)
@@ -734,6 +791,11 @@ class DatatableMap(BrilDataSource):
         return super(DatatableMap,self)._from_csv(filepath_or_buffer)
     def from_brildb(self,engine,schema=''):
         return super(DatatableMap,self)._from_brildb(self,engine,schema=schema)
+    def from_sourcedb(self,engine):
+        log.info('%s.from_sourcedb'%self.name)
+        if not os.path.isfile(engine):
+            raise IOError('sourcedb must be a csv file')
+        return self.from_csv(engine)
     
 class TrgBitMap(BrilDataSource):
     def __init__(self):
@@ -742,6 +804,8 @@ class TrgBitMap(BrilDataSource):
     def from_brildb(self,engine,schema=''):
         return super(TrgBitMap,self)._from_brildb(engine,schema=schema,index_col='BITNAMEID')
     def from_sourcedb(self,engine):
+        if os.path.isfile(engine):
+            return self.from_csv(engine)
         log.info('%s.from_sourcedb'%self.name)
         qAlgo = """select distinct ALGO_INDEX as BITID,ALIAS as BITNAME from CMS_GT.GT_RUN_ALGO_VIEW order by ALGO_INDEX"""
         qTech = """select distinct TECHTRIG_INDEX as BITID,NAME as BITNAME from CMS_GT.GT_RUN_TECH_VIEW order by TECHTRIG_INDEX"""
@@ -770,31 +834,73 @@ class TrgBitMap(BrilDataSource):
     def to_csv(self,filepath_or_buffer,data):
         super(TrgBitMap,self)._to_csv(filepath_or_buffer,data,index_label='BITNAMEID')
 
+class L1SeedMap(BrilDataSource):
+    def __init__(self):
+        super(L1SeedMap,self).__init__()
+        self._columns = ['L1SEEDID','L1SEED']
+    def from_sourecdb(self,engine):
+        if os.path.isfile(engine):
+            return self.from_csv(engine)
+        log.info('%s.from_sourcedb'%self.name)
+        q = """select PARAMID as L1SEEDID,VALUE as L1SEED from CMS_HLT.STRINGPARAMVALUES"""
+        log.info(q)
+        result = pd.read_sql_query(q,engine)
+        result.columns = self._columns
+        return result
+    def to_brildb(self,engine,data,schema=''):
+        super(L1SeedMap,self)._to_brildb(engine,data,schema=schema,index=False)
+    def to_csv(self,filepath_or_buffer,data):
+        super(L1SeedMap,self)._to_csv(filepath_or_buffer,data)
+    def from_csv(self,filepath_or_buffer):
+        return super(L1SeedMap,self)._from_csv(filepath_or_buffer)
+##### Data ######    
 class FillInfo(BrilDataSource):
     def __init__(self):
         super(FillInfo,self).__init__()
-        self._columns = ['DATAID','FILLNUM','AMODETAG','EGEV','FILLSCHEME','NCOLLIDINGBX','BEAMCONFIG']
-    def from_lumidb(self,engine,schema='CMS_LUMI_PROD'):
+        self._columns = ['DATAID','FILLNUM','AMODETAG','EGEV','FILLSCHEME','NCOLLIDINGBX','CROSSINGANGLE','BETASTAR','BEAMCONFIG']
+        
+    def from_lumidb(self,engine,fillnum,schema='CMS_LUMI_PROD'):
         log.info('%s.from_lumidb'%self.name)
-        tab = '.'.join([schema,self.name.upper()])
-        q = """select distinct FILLNUM,AMODETAG,EGEV,FILLSCHEME,NCOLLIDINGBUNCHES from %s where AMODETAG not in ('BMSETUP','(undefined)','MDEV') order by FILLNUM"""%(tab)
+        tab = '.'.join([schema,'CMSRUNSUMMARY'])
+        q = """select distinct FILLNUM,AMODETAG,EGEV,FILLSCHEME,NCOLLIDINGBUNCHES as NCOLLIDINGBX from %s where AMODETAG not in ('BMSETUP','(undefined)','MDEV') and FILLNUM=:fillnum"""%(tab)
         log.info(q)
-        result = pd.read_sql_query(q,engine)
+        result = pd.read_sql_query(q,engine,params={'fillnum':fillnum})
+        return result
+    
+    def from_sourcedb(self,engine,fillnum,schema='CMS_RUNTIME_LOGGER'):
+        log.info('%s.from_sourcedb'%self.name)
+        tab = '.'.join([schema,'RUNTIME_SUMMARY'])
+        q = """select RUNTIME_TYPE_ID, LHCFILL,ENERGY,NCOLLIDINGBUNCHES,CROSSINGANGLE,BETASTAR from %s where LHCFILL=:fillnum"""%(tab)
+        log.info(q)
+        result = pd.read_sql_query(q,engine,params={'fillnum':fillnum})
         return result
     
 class RunInfo(BrilDataSource):
     def __init__(self):
         super(RunInfo,self).__init__()
-        self._columns = ['DATAID','RUNNUM','FILLNUM','HLTCONFIGID','HLTKEY','GT_RS_KEY']
+        self._columns = ['DATAID','RUNNUM','FILLNUM','HLTKEY','GT_RS_KEY']
         
-    def from_lumidb(self,engine,schema='CMS_LUMI_PROD'):
+    def from_lumidb(self,engine,runnum,schema='CMS_LUMI_PROD'):
         log.info('%s.from_lumidb'%self.name)
         tab = '.'.join([schema,'CMSRUNSUMMARY'])
-        q = """select RUNNUM,FILLNUM,HLTKEY,L1KEY from %s order by RUNNUM"""%(tab)
+        q = """select RUNNUM as RUNNUM,FILLNUM as FILLNUM,HLTKEY as HLTKEY,L1KEY as GT_RS_KEY from %s where RUNNUM=:runnum"""%(tab)
         log.info(q)
-        result = pd.read_sql_query(q,engine)
+        result = pd.read_sql_query(q,engine,params={'runnum':runnum})
         return result
     
+    def from_sourcedb(self,engine,runnum):
+        log.info('%s.from_sourcedb'%self.name)
+        tab = '.'.join(['CMS_RUNINFO','RUNSESSION_PARAMETER'])
+        qFillnum = """select STRING_VALUE as FILLNUM from %s where RUNNUMBER=:runnum and NAME='CMS.SCAL:FILLN order by time'"""%(tab)# take the first one
+        qHltkey = """select STRING_VALUE as HLTKEY from %s where RUNNUMBER=:runnum and NAME='CMS.LVL0:HLT_KEY_DESCRIPTION'"""%(tab)
+        qTrgkey = """select STRING_VALUE as GT_RS_KEY from %s where RUNNUMBER=:runnum and NAME='CMS.TRG:TSC_KEY'"""%(tab)
+        log.info(qHltkey)
+        log.info(qTrgkey)
+        hltkeyResult = pd.read_sql_query(qHltkey,engine,params={'runnum':runnum})
+        trgkeyResult = pd.read_sql_query(qTrgkey,engine,params={'runnum':runnum})
+        print hltkeyResult
+        print trgkeyResult
+        
 class BeamstatusInfo(BrilDataSource):
     def __init__(self):
         super(BeamstatusInfo,self).__init__()
@@ -901,32 +1007,14 @@ class Hlt(BrilDataSource):
             #unpack blobs
         return result
     
-class L1SeedMap(BrilDataSource):
-    def __init__(self):
-        super(L1SeedMap,self).__init__()
-        self._columns = ['L1SEEDID','L1SEED']
-    def from_sourecdb(self,engine):
-        log.info('%s.from_sourcedb'%self.name)
-        q = """select PARAMID as L1SEEDID,VALUE as L1SEED from CMS_HLT.STRINGPARAMVALUES"""
-        log.info(q)
-        result = pd.read_sql_query(q,engine)
-        result.columns = self._columns
-        return result
-    def to_brildb(self,engine,data,schema=''):
-        super(L1SeedMap,self)._to_brildb(engine,data,schema=schema,index=False)
-    def to_csv(self,filepath_or_buffer,data):
-        super(L1SeedMap,self)._to_csv(filepath_or_buffer,data)
-    def from_csv(self):
-        return super(L1SeedMap,self)._from_csv(filepath_or_buffer)
-    
 class TrgHltSeedMap(BrilDataSource):
     def __init__(self):
         super(TrgHltSeedMap,self).__init__()
         self._columns = ['HLTPATHID','HLTCONFIGID','L1SEEDID']
     def to_brildb(self,engine,data,schema='',chunksize=None):
         super(TrgHltSeedMap,self)._to_brildb(engine,data,schema=schema,index=False)
-    def from_hltdb(self,engine,hltconfigid):
-        log.info('%s.from_hltdb_iter'%self.name)
+    def from_sourcedb(self,engine,hltconfigid):
+        log.info('%s.from_sourcedb'%self.name)
         q = """select p.PATHID as HLTPATHID,c.CONFIGID as HLTCONFIGID, s.PARAMID as L1SEEDID from CMS_HLT.STRINGPARAMVALUES s,CMS_HLT.paths p, CMS_HLT.parameters, CMS_HLT.superidparameterassoc, CMS_HLT.modules, CMS_HLT.moduletemplates, CMS_HLT.pathmoduleassoc, CMS_HLT.configurationpathassoc, CMS_HLT.configurations c where parameters.paramid=s.paramid and superidparameterassoc.paramid=parameters.paramid and modules.superid=superidparameterassoc.superid and moduletemplates.superid=modules.templateid and pathmoduleassoc.moduleid=modules.superid and p.pathid=pathmoduleassoc.pathid and configurationpathassoc.pathid=p.pathid and c.configid=configurationpathassoc.configid and moduletemplates.name='HLTLevel1GTSeed' and parameters.name='L1SeedsLogicalExpression' and p.ISENDPATH=0 and p.NAME like 'HLT_%' and c.configid=:configid"""
         log.info(q)
         result = pd.read_sql_query(q,engine,params={'configid':hltconfigid})
