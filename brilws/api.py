@@ -624,13 +624,18 @@ class BrilDataSource(object):
         result.column = self._columns
         return result
     
-    def _to_brildb(self,engine,data,schema='',if_exists='replace',index=True,index_label=None,chunksize=None):
+    def _to_brildb(self,engine,data,schema='',if_exists='append',index=True,index_label=None,chunksize=None):
         log.info('%s.to_brildb'%self.name)
         desttab = self.name.upper()
         if schema: desttab = '.'.join([schema.upper(),desttab])
         log.info('to %s, %s'%(engine.url,desttab))
-        data.to_sql(desttab,engine,if_exists=if_exists,index=index,index_label=index_label,chunksize=chunksize)
-        
+        try:
+            data.to_sql(desttab,engine,if_exists=if_exists,index=index,index_label=index_label,chunksize=chunksize)
+        except exc.IntegrityError as e:
+            reason = e.message
+            log.warn(reason)
+            pass
+    
     def _to_csv(self,filepath_or_buffer,data,header=True,index=False,index_label=None,chunksize=None):
         log.info('%s.to_csv'%self.name)
         log.info('to %s '%(filepath_or_buffer))
@@ -896,18 +901,38 @@ class Hlt(BrilDataSource):
             #unpack blobs
         return result
     
+class L1SeedMap(BrilDataSource):
+    def __init__(self):
+        super(L1SeedMap,self).__init__()
+        self._columns = ['L1SEEDID','L1SEED']
+    def from_sourecdb(self,engine):
+        log.info('%s.from_sourcedb'%self.name)
+        q = """select PARAMID as L1SEEDID,VALUE as L1SEED from CMS_HLT.STRINGPARAMVALUES"""
+        log.info(q)
+        result = pd.read_sql_query(q,engine)
+        result.columns = self._columns
+        return result
+    def to_brildb(self,engine,data,schema=''):
+        super(L1SeedMap,self)._to_brildb(engine,data,schema=schema,index=False)
+    def to_csv(self,filepath_or_buffer,data):
+        super(L1SeedMap,self)._to_csv(filepath_or_buffer,data)
+    def from_csv(self):
+        return super(L1SeedMap,self)._from_csv(filepath_or_buffer)
+    
 class TrgHltSeedMap(BrilDataSource):
     def __init__(self):
         super(TrgHltSeedMap,self).__init__()
-        self._columns = ['HLTPATHID','HLTCONFIGID','L1SEED']
-        
+        self._columns = ['HLTPATHID','HLTCONFIGID','L1SEEDID']
+    def to_brildb(self,engine,data,schema='',chunksize=None):
+        super(TrgHltSeedMap,self)._to_brildb(engine,data,schema=schema,index=False)
     def from_hltdb(self,engine,hltconfigid):
         log.info('%s.from_hltdb_iter'%self.name)
-        q = """select p.PATHID as HLTPATHID,c.CONFIGID as HLTCONFIGID, s.VALUE as L1SEED from CMS_HLT.STRINGPARAMVALUES s,CMS_HLT.paths p, CMS_HLT.parameters, CMS_HLT.superidparameterassoc, CMS_HLT.modules, CMS_HLT.moduletemplates, CMS_HLT.pathmoduleassoc, CMS_HLT.configurationpathassoc, CMS_HLT.configurations c where parameters.paramid=s.paramid and superidparameterassoc.paramid=parameters.paramid and modules.superid=superidparameterassoc.superid and moduletemplates.superid=modules.templateid and pathmoduleassoc.moduleid=modules.superid and p.pathid=pathmoduleassoc.pathid and configurationpathassoc.pathid=p.pathid and c.configid=configurationpathassoc.configid and moduletemplates.name='HLTLevel1GTSeed' and parameters.name='L1SeedsLogicalExpression' and p.ISENDPATH=0 and p.NAME like 'HLT_%' and c.configid=:configid"""
+        q = """select p.PATHID as HLTPATHID,c.CONFIGID as HLTCONFIGID, s.PARAMID as L1SEEDID from CMS_HLT.STRINGPARAMVALUES s,CMS_HLT.paths p, CMS_HLT.parameters, CMS_HLT.superidparameterassoc, CMS_HLT.modules, CMS_HLT.moduletemplates, CMS_HLT.pathmoduleassoc, CMS_HLT.configurationpathassoc, CMS_HLT.configurations c where parameters.paramid=s.paramid and superidparameterassoc.paramid=parameters.paramid and modules.superid=superidparameterassoc.superid and moduletemplates.superid=modules.templateid and pathmoduleassoc.moduleid=modules.superid and p.pathid=pathmoduleassoc.pathid and configurationpathassoc.pathid=p.pathid and c.configid=configurationpathassoc.configid and moduletemplates.name='HLTLevel1GTSeed' and parameters.name='L1SeedsLogicalExpression' and p.ISENDPATH=0 and p.NAME like 'HLT_%' and c.configid=:configid"""
         log.info(q)
         result = pd.read_sql_query(q,engine,params={'configid':hltconfigid})
+        result.columns = self._columns
         return result
-    
+        
 class Deadtime(BrilDataSource):
     def __init__(self):
         super(Deadtime,self).__init__()

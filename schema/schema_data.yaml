@@ -30,9 +30,15 @@ TRGHLTSEEDMAP:
    columns:
     - hltpathid: unsigned int
     - hltconfigid: unsigned int
+    - l1seedid: unsigned int
+   pk: [hltpathid,hltconfigid,l1seedid]
+
+L1SEEDMAP:
+   columns:
+    - l1seedid: unsigned int
     - l1seed: string
-    pk: [hltpathid,hltconfigid]
- 
+   pk: [l1seedid]
+    
 HLTPATHMAP:    #static map
    columns:
     - hltpathid: unsigned int
