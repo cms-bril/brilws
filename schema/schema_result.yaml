@@ -37,7 +37,6 @@ HFOCLUMI_ONLINE_&suffix:
      - delivered: float
      - recorded: float
      - avgpu: float
-     - datatagname: string
      - normtagname: string
    pk: [ runnum,lsnum ]  
      

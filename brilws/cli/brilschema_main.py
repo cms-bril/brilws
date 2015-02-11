@@ -15,8 +15,6 @@ ch.setFormatter(logformatter)
 log.addHandler(ch)
 #log.addHandler(fh)
 
-#g_condregtablename = 'CONDTAGREGISTRY'
-#g_condnextidtablename = 'CONDTAGNEXTID'
 
 def brilschema_main():
     docstr='''
@@ -31,6 +29,8 @@ def brilschema_main():
     commands:
       create      generate table creat/drop sql
       loadmap     load map data  
+      loaddata    load data
+      loadresult  load result
 
     See 'brilschema <command> --help' for more information on a specific command.
 
@@ -127,6 +127,34 @@ def brilschema_main():
                  desturl = outengine[:idx]+':'+destpasswd.decode('base64')+outengine[idx:]             
              outengine = create_engine(desturl)
              d.to_brildb(outengine,result)
+      elif args['<command>'] == 'loaddata':
+         import brilschema_loaddata
+         import os
+         from sqlalchemy import *
+         from ConfigParser import SafeConfigParser
+         parseresult = docopt.docopt(brilschema_loadmap.__doc__,argv=cmmdargv)
+         parseresult = brilschema_loaddata.validate(parseresult)
+         incsv = os.path.expanduser(parseresult['-i'])
+         c = api.get_filepath_or_buffer(incsv)
+         if os.path.isfile(c):
+             pass
+         else:
+             pass
+         outengine = os.path.expanduser(parseresult['-o'])
+         iniparser = SafeConfigParser()
+         if parseresult['--name'] == 'fillinfo':
+             d = api.FillInfo()
+             if parseresult['--lumidb']:
+                 d.from_lumidb(lumidbengine,fillnum)
+                 print d
+      elif args['<command>'] == 'loadresult':
+         import brilschema_loadresult
+         import os
+         from sqlalchemy import *
+         from ConfigParser import SafeConfigParser
+         parseresult = docopt.docopt(brilschema_loadmap.__doc__,argv=cmmdargv)
+         parseresult = brilschema_loadresult.validate(parseresult)
+         
       else:
          exit("%r is not a brilschema command. See 'brilschema --help'."%args['<command>'])
     except docopt.DocoptExit:

@@ -87,11 +87,9 @@ DATATAGS:
 DATATAGCONTENT: #per ls , per data type
    columns:
     - datatagid: long long
-    - runnum: unsigned int
-    - lsnum: unsigned int
-    - datasourceid: unsigned short      #deadtime,beamstatusinfo,runinfo,fillinfo,trg,hlt,beamintensity,bcm1flumi,hfoclumi,hfetlumi,pltlumi,pixellumi,bhmbkg
-    - dataid: long long
-   pk: [runnum,lsnum,datatagid,datasourceid]
+    - dataid: long long 
+    - datasourceid: unsigned short      
+   pk: [datatagid,dataid,datasourceid]
   
 
 TIMEINDEX:      #per ls
@@ -130,6 +128,16 @@ RUNINFO:          #per run
     - gt_rs_key: string
    pk: [dataid]
 
+TRGCONFIG:
+   columns:
+    - dataid: long long
+    - runnum: unsigned int
+    - gt_rs_key: string
+    - algomask_high: unsigned long long
+    - algomask_low: unsigned long long
+    - techmask: unsigned long long
+   pk: [dataid,runnum]
+   
 BEAMSTATUSINFO:         #per ls
    columns:
     - dataid: long long
@@ -193,6 +201,7 @@ PIXELLUMI_&suffix:        #per ls, per bx
     - instlumi: float
    pk: [dataid,bxidx]
 
+   
 TRG_&suffix:               #per ls, per trg bit
    columns:
     - dataid: long long
@@ -200,11 +209,10 @@ TRG_&suffix:               #per ls, per trg bit
     - cmslsnum: unsigned int
     - trgbitid: unsigned short
     - trgbitnameid: unsigned short
+    - isalgo: bool
     - prescidx: unsigned short
     - prescval: unsigned int  
-    - bitmask: unsigned char
     - counts: unsigned int
-    - physicsdeclared: unsigned short
    pk: [dataid,trgbitnameid]
 
 HLT_&suffix:  #per ls, per hltpath

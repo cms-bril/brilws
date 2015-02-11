@@ -11,6 +11,7 @@ import yaml
 import re
 import contextlib
 import sys
+import ast
 import logging
 
 decimalcontext = decimal.getcontext().copy()
@@ -53,6 +54,31 @@ sqlitetypemap={
 'bool':'INTEGER',
 'timestamp':'DATETIME'
 }
+
+def parsecmsselectJSON(filepath_or_buffer,numpy=False):
+    """
+    parse cms selection json format
+    {key: }
+    input: 
+        if file, parse file
+        if string in dict format, eval as dict. Key is not required to be double quoted in this case
+        if single string, convert to [int]
+    output:
+        pd.Series
+    """
+    d = get_filepath_or_buffer(filepath_or_buffer)
+    try:
+        result = pd.Series([int(d)])
+        return result
+    except ValueError:
+        pass
+    if os.path.isfile(d):
+        result = pd.read_json(d,orient='index',convert_axes=False,typ='Series',numpy=numpy)
+    else:
+        d = ast.literal_eval(d)
+        result = pd.Series(d)
+    result.index = [int(i) for i in result.index]
+    return result
 
 @contextlib.contextmanager
 def smart_open(filename=None):
@@ -969,7 +995,7 @@ class PixelLumi(BrilDataSource):
 class Trg(BrilDataSource):
     def __init__(self):
         super(Trg,self).__init__()
-        self._columns = ['DATAID','RUNNUM','CMSLSNUM','TRGBITID','TRGBITNAMEID','PRESCIDX','PRESCVAL','BITMASK','COUNTS','PHYSICSDECLARED']
+        self._columns = ['DATAID','RUNNUM','CMSLSNUM','TRGBITID','TRGBITNAMEID','PRESCIDX','PRESCVAL','COUNTS']
     
     def from_lumidb(self,engine,runnum,schema='CMS_LUMI_PROD'):
         log.info('%s.from_lumidb'%self.name)
@@ -978,14 +1004,49 @@ class Trg(BrilDataSource):
         qTrgid = """select max(DATA_ID) from %s where RUNNUM=:runnum"""%(trgdatatab)
         log.info(qTrgid)
         trgids = pd.read_sql_query(qTrgid,engine,params={'runnum':runnum})
-        qTrgRun = """select ALGOMASK_H,ALGOMASK_L,TECHMASK from %s where DATA_ID=:dataid"""%(trgdatatab)
         qLSTrg = """select RUNNUM, CMSLSNUM, PRESCALEBLOB, TRGCOUNTBLOB from %s where DATA_ID=:dataid"""%(lstrgtab)
-        log.info(qTrgRun)
         log.info(qLSTrg)
-        for id in trgids:
-            trgrun = pd.read_sql_query(qTrgRun,engine,{'dataid':id})
-            lstrg = pd.read_sql_query(qLSTrg,engine,{'dataid':id})
-        return trgrun,lstrg
+        lstrgresult = pd.read_sql_query(qLSTrg,engine,{'dataid':id})
+        return lstrgresult
+    
+    def from_sourcedb(self,engine,runnum,minls=1,nls=1):
+        log.info('%s.from_sourcedb'%self.name)
+        gtschema = 'CMS_GT'
+        gtmonschema = 'CMS_GT_MON'
+        qTech = """select COUNT_BX as COUNTS,LUMI_SECTION as CMSLSNUM,SCALER_INDEX as TRGBITID from CMS_GT_MON.V_SCALERS_FDL_TECH where RUN_NUMBER=:runnum and LUMI_SECTION=:lsnum order by SCALER_INDEX """
+        log.info(qTech)
+        qAlgo = """select COUNT_BX as COUNTS,LUMI_SECTION as CMSLSNUM,SCALER_INDEX as TRGBITID from CMS_GT_MON.V_SCALERS_FDL_ALGO where RUN_NUMBER=:runnum and LUMI_SECTION=:lsnum order by SCALER_INDEX """
+        log.info(qAlgo)
+        qPrescIdx = """select LUMI_SECTION,PRESCALE_INDEX from CMS_GT_MON.LUMI_SECTIONS where RUN_NUMBER=:runnum and LUMI_SECTION=:lsnum """
+        log.info(qPrescIdx)
+        
+class TrgConfig(BrilDataSource):
+    def __init__(self):
+        super(Trg,self).__init__()
+        self._columns = ['DATAID','RUNNUM','ALGOMASK_HIGH','ALGOMASK_LOW','TECHMASK']
+    def from_lumidb(self,engine,runnum,schema='CMS_LUMI_PRO'):
+        log.info('%s.from_lumidb'%self.name)
+        trgdatatab = '.'.join([schema,'TRGDATA'])
+        qTrgid = """select max(DATA_ID) from %s where RUNNUM=:runnum"""%(trgdatatab)
+        log.info(qTrgid)
+        trgid = pd.read_sql_query(qTrgid,engine,params={'runnum':runnum})
+        qTrgRun = """select RUNNUM as RUNNUM, ALGOMASK_H as ALGOMASK_HIGH,ALGOMASK_L as ALGOMASK_LOW,TECHMASK as TECHMASK from %s where DATA_ID=:dataid"""%(trgdatatab)
+        log.info(qTrgRun)
+        trgmaskresult = pd.read_sql_query(qTrgRun,engine,{'dataid':id})
+        trgmaskresult.columns = self._columns[:1]
+        return trgmaskresult
+    
+    def from_sourcedb(self,engine,runnum):
+        """
+        algomask_high, algomask_low
+        127,126,...,63,62,0
+        ttmask
+        63,62,...0
+        """
+        log.info('%s.from_sourcedb'%self.name)
+        qKey = """select GT_RS_KEY,RUN_NUMBER from CMS_GT_MON.GLOBAL_RUNS where RUN_NUMBER=:runnum"""
+        qTechMask = """select %s from CMS_GT.GT_PARTITION_FINOR_TT tt, CMS_GT.GT_RUN_SETTINGS r where tt.ID=r.FINOR_TT_FK and r.ID=:gt_rs_key"""%(ttvars)
+        qAlgoMask = """select %s from CMS_GT.GT_PARTITION_FINOR_ALGO algo, CMS_GT.GT_RUN_SETTINGS r where algo.ID=r.FINOR_ALGO_FK and r.ID=:gt_rs_key"""%(ttvars)
     
 class Hlt(BrilDataSource):
     def __init__(self):
@@ -1006,7 +1067,11 @@ class Hlt(BrilDataSource):
             result = pd.read_sql_query(qLS,engine,params={'dataid':id})
             #unpack blobs
         return result
-    
+    def from_sourcedb(self,engine,runnum,minls=1,mls=1):
+        log.info('%s.from_sourcedb'%self.name)
+        gtschema = 'CMS_GT'
+        gtmonschema = 'CMS_GT_MON'
+        
 class TrgHltSeedMap(BrilDataSource):
     def __init__(self):
         super(TrgHltSeedMap,self).__init__()
@@ -1032,8 +1097,7 @@ class Deadtime(BrilDataSource):
         qRun="""select max(DATA_ID) as DATAID from %s where RUNNUM=:runnum"""%(tab)
         lstrgtab = 'LSTRG'
         tab = '.'.join([schema,lstrgtab])
-        qLS="""select DATA_ID as DATAID,RUNNUM as RUNNUM, CMSLSNUM as LSNUM, DEADFRAC as DEADFRAC from %s where DATA_ID=:dataid"""%(tab)
-        
+        qLS="""select DATA_ID as DATAID,RUNNUM as RUNNUM, CMSLSNUM as LSNUM, DEADFRAC as DEADFRAC from %s where DATA_ID=:dataid"""%(tab)        
         log.info(qRun)
         log.info(qLS)
         dataid = pd.read_sql_query(qRun,engine,params={'runnum':runnum})
@@ -1042,6 +1106,14 @@ class Deadtime(BrilDataSource):
         result.columns = self._columns
         return result
     
+    def from_sourcedb(self,engine,runnum,minls=1,nls=1):
+        log.info('%s.from_sourcedb'%self.name)
+        qDeadFrac = """select FRACTION as DEADTIMEFRAC,LUMI_SECTION as LSNUM from CMS_GT_MON.V_SCALERS_TCS_DEADTIME where RUN_NUMBER=:runnum AND and LUMI_SECTION=:lsnum and SCALER_NAME='DeadtimeBeamActive'"""
+        log.info(qDeadFrac)
+        for lsnum in range(minls,minls+1):
+            lsdeadfrac = pd.read_sql_query(q,engine,params={'runnum':runnum,'lsnum':lsnum})
+            print lsdeadfrac
+        
 import struct,array
 def packArraytoBlob(iarray,typecode):
     '''
