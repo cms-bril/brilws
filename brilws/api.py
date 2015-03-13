@@ -1113,7 +1113,28 @@ class Deadtime(BrilDataSource):
         for lsnum in range(minls,minls+1):
             lsdeadfrac = pd.read_sql_query(q,engine,params={'runnum':runnum,'lsnum':lsnum})
             print lsdeadfrac
-        
+            
+##### Results ######
+class LumiResult(BrilDataSource):
+    def __init__(self):
+        super(LumiResult,self).__init__(datasourcename)
+        self._datasourcename = datasourcename
+        self._columns = ['RUNNUM','LSNUM','CMSLSNUM','FILLNUM','BEAMSTATUS','ISONLINE','DELIVERED','RECORDED','AVGPU','DATATAGID','NORMTAGID']
+    def from_lumidb(self,engine,runnum,schema='CMS_LUMI_PROD'):       
+        log.info('%s.from_lumidb'%self.name)
+        if not os.path.isfile(get_filepath_or_buffer(engine)):
+            if self._datasourcename.lower() != 'hfoclumi':
+                print 'No data in lumidb for %s '%(self._datasourcename)
+                return None
+            q = """select RUNNUM as RUNNUM,LS as LSNUM,CMSLSNUM as CMSLSNUM,FILLNUM as FILLNUM,BEAMSTATUS as BEAMSTATUS ENERGY as EGEV, DELIVERED as DELIVERED, RECORDED as RECORDED , AVG_PU as AVGPU from CMS_LUMI_PROD.HFLUMIRESULT """
+            result = pd.read_sql_query(q,engine)
+            print result
+            
+class PixelLumiResult(BrilDataSource):
+    def __init__(self):
+        super(LumiResult,self).__init__()
+        self._columns = ['RUNNUM','CMSLSNUM','FILLNUM','BEAMSTATUS','ISONLINE','VALUE','AVGPU','DATATAGID','NORMTAGID']
+   
 import struct,array
 def packArraytoBlob(iarray,typecode):
     '''

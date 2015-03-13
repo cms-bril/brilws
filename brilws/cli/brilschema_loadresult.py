@@ -1,14 +1,15 @@
 """
+
 Usage:
-  brilschema loadmap [options] 
+  brilschema loadresult [options] 
 
 Options:
   -h, --help       Show this screen
-  --name NAME      Result: hfoclumi,hfoclumionline,pixellumi
-  -i INSELECT      Input run, ls selection json file or string
-  -o OUTPUT        Output csv file or Database
-  --SOURCE         Source database or csv file
+  -i INSELECT      Input run, ls selection json file or dict string 
+  -o OUTPUT        Output csv file or bril database 
   -p AUTH          Path to authentication.ini 
+  --name NAME      Result: hfoclumi,pixellumi
+  --lumdb LUMIDB   Source lumi database or csv file
 
 """
 
@@ -16,16 +17,16 @@ Options:
 import os,re
 from docopt import docopt
 from schema import Schema, And, Or, Use
-choices_resultdata = ['hfoclumi','hfoclumionline','pixellumi']
+choices_resultdata = ['hfoclumi','pixellumi']
 
 
 def validate(optdict):
     result={}
     schema = Schema({ 
-     '-i': And(str,lambda s: os.path.isfile(os.path.expanduser(s)) or s.find('sqlite:')!=-1 or s.find('oracle:')!=-1 ,error='-i SOURCE should be a csv file or database connect string'),
-     '-o': And(str,lambda s: os.path.isfile(os.path.expanduser(s)) or s.find('sqlite:')!=-1 or s.find('oracle:')!=-1 ,error='-o DEST should be a csv file or database connect string'),     
-     '--name': And(str,lambda s: s.lower() in choices_mapdata, error='--name must be in '+str(choices_mapdata)),
-     '--source': 
+     '-i': str,
+     '-o': Or(None,And(str,lambda s: os.path.isfile(os.path.expanduser(s)) or s.find('sqlite:')!=-1 or s.find('oracle:')!=-1) ,error='-o OUTPUT should be a csv file or database connect string'),     
+     '--name': And(str,lambda s: s.lower() in choices_mapdata, error='NAME must be in '+str(choices_resultdata)),
+     '--lumidb': And(str,lambda s: os.path.isfile(os.path.expanduser(s)) or s.find('sqlite:')!=-1 or s.find('oracle:')!=-1 ,error='-o LUMIDB should be a csv file or database connect string'),  
      '-p': Or(None,And(str,lambda s: os.path.isfile(os.path.join(os.path.expanduser(s),'authentication.ini'))) ,error='-p AUTH should contain authentication.ini'),   
      str:object # catch all
     })

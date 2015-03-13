@@ -2,75 +2,157 @@
 # Schema for results 
 #
 
-RESULT_LASTUPDATE:
-   columns:
-     - lastupdate: long long
-     - lastupdateutc: string
-     - tablename: string
-   pk: [ lastupdate, tablename ]
-     
-HFOCLUMI_RESULT_&suffix:
+ONLINE_BESTLUMI_RESULT_&suffix: #per ls
    columns:
      - runnum: unsigned int
      - lsnum: unsigned int
+     - cmsalive: bool 
+     - fillnum: unsigned int
+     - beamstatusid: unsigned short
      - delivered: float
      - recorded: float
      - avgpu: float
-     - datatagname: string
-     - normtagname: string
-   pk: [ runnum,lsnum ]  
-     
-HFOCLUMIBX_RESULT_&suffix:
-   columns:
-     - runnum: unsigned int
-     - lsnum: unsigned int
-     - bxidx: unsigned short
-     - delivered: float
-     - recorded: float
-     - specific: float
-   pk: [ runnum,lsnum,bxidx ]
+     - datasourceid: unsigned short
+     - normtagid: long long
+   pk: [ runnum,lsnum ]
    
-HFOCLUMI_ONLINE_&suffix:
-   columns:
-     - runnum: unsigned int
-     - lsnum: unsigned int
-     - delivered: float
-     - recorded: float
-     - avgpu: float
-     - normtagname: string
-   pk: [ runnum,lsnum ]  
-     
-HFOCLUMIBX_ONLINE_&suffix:
+ONLINE_BXBESTLUMI_RESULT_&suffix: #per ls, per bx
    columns:
      - runnum: unsigned int
      - lsnum: unsigned int
      - bxidx: unsigned short
      - delivered: float
      - recorded: float
-     - specific: float
-   pk: [ runnum,lsnum,bxidx ]
-   
-PIXELLUMI_RESULT_&suffix:
-   columns:
-     - runnum: unsigned int
-     - lsnum: unsigned int
-     - delivered: float
-     - recorded: float
-     - avgpu: float
-     - datatagname: string
-     - normtagname: string
-   pk: [ runnum,lsnum ]  
-
-PIXELLUMIBX_RESULT_&suffix:
-   columns:
-     - runnum: unsigned int
-     - lsnum: unsigned int
-     - bxidx: unsigned short
-     - delivered: float
-     - recorded: float
-     - specific: float
    pk: [ runnum,lsnum,bxidx ]
 
+
+BESTLUMI_RESULT_&suffix:  #per ls
+   columns:
+     - runnum: unsigned int
+     - lsnum: unsigned int
+     - cmsalive: bool 
+     - fillnum: unsigned int
+     - beamstatusid: unsigned short
+     - delivered: float
+     - recorded: float
+     - avgpu: float
+     - datasourceid: unsigned short
+     - datatagid: long long
+     - normtagid: long long
+   pk: [ runnum,lsnum ]
+
+BXBESTLUMI_RESULT_&suffix: #per ls, per bx
+   columns:
+     - runnum: unsigned int
+     - lsnum: unsigned int
+     - bxidx: unsigned short
+     - delivered: float
+     - recorded: float
+   pk: [ runnum,lsnum,bxidx ]
+
+ONLINE_HFOCLUMI_RESULT_&suffix: #per ls
+   columns:
+     - runnum: unsigned int
+     - lsnum: unsigned int
+     - cmsalive: bool
+     - fillnum: unsigned int
+     - beamstatusid: unsigned short
+     - delivered: float
+     - recorded: float
+     - avgpu: float    
+     - datatagid: long long
+     - normtagid: long long
+   pk: [ runnum,lsnum ]  
+
+ONLINE_BXHFOCLUMI_RESULT_&suffix:  #per ls, per bx
+   columns:
+     - runnum: unsigned int
+     - lsnum: unsigned int
+     - bxidx: unsigned short
+     - delivered: float
+     - recorded: float
+   pk: [ runnum,lsnum,bxidx ]
+
+HFOCLUMI_RESULT_&suffix: #per ls
+   columns:
+     - runnum: unsigned int
+     - lsnum: unsigned int
+     - cmsalive: bool
+     - fillnum: unsigned int
+     - beamstatusid: unsigned short
+     - delivered: float
+     - recorded: float
+     - avgpu: float    
+     - datatagid: long long
+     - normtagid: long long
+   pk: [ runnum,lsnum ]
+
+BXHFOCLUMI_RESULT_&suffix:  #per ls, per bx
+   columns:
+     - runnum: unsigned int
+     - lsnum: unsigned int
+     - bxidx: unsigned short
+     - delivered: float
+     - recorded: float
+   pk: [ runnum,lsnum,bxidx ]
+
+ONLINE_BCM1FLUMI_RESULT_&suffix: #per ls
+   columns:
+     - runnum: unsigned int
+     - lsnum: unsigned int
+     - cmsalive: bool
+     - fillnum: unsigned int
+     - beamstatusid: unsigned short
+     - delivered: float
+     - recorded: float
+     - avgpu: float    
+     - datatagid: long long
+     - normtagid: long long
+   pk: [ runnum,lsnum ]  
+
+ONLINE_BCM1FLUMI_RESULT_&suffix:  #per ls, per bx
+   columns:
+     - runnum: unsigned int
+     - lsnum: unsigned int
+     - bxidx: unsigned short
+     - delivered: float
+     - recorded: float
+   pk: [ runnum,lsnum,bxidx ]
+
+BCM1FLUMI_RESULT_&suffix: #per ls
+   columns:
+     - runnum: unsigned int
+     - lsnum: unsigned int
+     - cmsalive: bool
+     - fillnum: unsigned int
+     - beamstatusid: unsigned short
+     - delivered: float
+     - recorded: float
+     - avgpu: float    
+     - datatagid: long long
+     - normtagid: long long
+   pk: [ runnum,lsnum ]
+
+BXBCM1FLUMI_RESULT_&suffix:  #per ls, per bx
+   columns:
+     - runnum: unsigned int
+     - lsnum: unsigned int
+     - bxidx: unsigned short
+     - delivered: float
+     - recorded: float
+   pk: [ runnum,lsnum,bxidx ]
+   
+PIXELLUMI_RESULT_&suffix:  #per ls
+   columns:
+     - runnum: unsigned int
+     - cmslsnum: unsigned int
+     - fillnum: unsigned int
+     - beamstatusid: unsigned short
+     - value: float
+     - avgpu: float
+     - datatagid: string
+     - normtagid: string
+   pk: [ runnum,lsnum ]  
 
 
     

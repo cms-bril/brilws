@@ -152,8 +152,27 @@ def brilschema_main():
          import os
          from sqlalchemy import *
          from ConfigParser import SafeConfigParser
-         parseresult = docopt.docopt(brilschema_loadmap.__doc__,argv=cmmdargv)
+         iniparser = SafeConfigParser()
+         parseresult = docopt.docopt(brilschema_loadresult.__doc__,argv=cmmdargv)
          parseresult = brilschema_loadresult.validate(parseresult)
+         incsv = os.path.expanduser(parseresult['-i'])
+         runlsselect = api.parsecmsselectJSON(runlsselect)
+         lumidb  = api.get_filepath_or_buffer(parseresult['--lumidb'])
+         if os.path.isfile(lumidb):
+             print lumidb
+         else:
+             lumidburl = lumidb
+             if lumidburl.find('oracle') != -1:
+                 iniparser.read(os.path.join(parseresult['-p'],'authentication.ini'))
+                 lumidbpasswd = parser.get(lumidburl,'pwd')
+                 idx = lumidburl.find('@')
+                 lumidburl = lumidburl[:idx]+':'+lumidbpasswd.decode('base64')+lumidburl[idx:]             
+             lumidbengine = create_engine(lumidburl)
+         datasourcename = parseresult['--name'].lower()
+         d = api.LumiResult(datasourcename)
+         for run,lss in runlsselect:
+             print run,lss
+         #d.from_lumidb(lumidbengine,)
          
       else:
          exit("%r is not a brilschema command. See 'brilschema --help'."%args['<command>'])
