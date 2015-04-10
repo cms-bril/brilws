@@ -2,6 +2,9 @@ import sys,logging
 import docopt
 import schema
 import brilws
+import os,yaml
+from sqlalchemy import *
+from ConfigParser import SafeConfigParser
 from brilws import api
 import pandas as pd
 
@@ -52,19 +55,19 @@ def brilschema_main():
 
     try:
       if args['<command>'] == 'create':
-         import os,yaml
          import brilschema_create
          parseresult = docopt.docopt(brilschema_create.__doc__,argv=cmmdargv)
          parseresult = brilschema_create.validate(parseresult)
          columntypemap={}
          schemadatadef={}
          infile = parseresult['-i']
-         infilenamebase = os.path.basename(infile.name).split('.')[0]
+         infilenamebase = os.path.basename(infile.name).split('.')[0]         
          suffix = parseresult['--suffix']             
          writeraccount = ''
          if parseresult['-f']=='oracle':
               columntypemap = api.oracletypemap
-              writeraccount = parseresult['-w']
+              if parseresult.has_key('--writer'):                  
+                  writeraccount = parseresult['--writer']
          else:
               columntypemap = api.sqlitetypemap
          schemadatadef = yaml.load(parseresult['-i'])
@@ -75,10 +78,7 @@ def brilschema_main():
          print 'Done'
 
       elif args['<command>'] == 'loadmap':
-         import brilschema_loadmap
-         import os
-         from sqlalchemy import *
-         from ConfigParser import SafeConfigParser
+         import brilschema_loadmap         
          parseresult = docopt.docopt(brilschema_loadmap.__doc__,argv=cmmdargv)
          parseresult = brilschema_loadmap.validate(parseresult)
          inengine = os.path.expanduser(parseresult['-i'])
@@ -128,10 +128,7 @@ def brilschema_main():
              outengine = create_engine(desturl)
              d.to_brildb(outengine,result)
       elif args['<command>'] == 'loaddata':
-         import brilschema_loaddata
-         import os
-         from sqlalchemy import *
-         from ConfigParser import SafeConfigParser
+         import brilschema_loaddata         
          parseresult = docopt.docopt(brilschema_loadmap.__doc__,argv=cmmdargv)
          parseresult = brilschema_loaddata.validate(parseresult)
          incsv = os.path.expanduser(parseresult['-i'])
@@ -149,9 +146,6 @@ def brilschema_main():
                  print d
       elif args['<command>'] == 'loadresult':
          import brilschema_loadresult
-         import os
-         from sqlalchemy import *
-         from ConfigParser import SafeConfigParser
          iniparser = SafeConfigParser()
          parseresult = docopt.docopt(brilschema_loadresult.__doc__,argv=cmmdargv)
          parseresult = brilschema_loadresult.validate(parseresult)

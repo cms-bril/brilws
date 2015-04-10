@@ -6,8 +6,8 @@ Options:
   -h, --help       Show this screen
   -i INPUTFILE     Input schema definition file
   -f DBFLAVOR      Database flavor [default: sqlite]
-  --schema SCHEMA  Oracle schema name [default: CMS_LUMI_PROD]
-  --suffix SUFFIX  Table suffix [default: RUN1]
+  --writer WRITER  DB Account with write permission
+  --suffix SUFFIX  Table suffix 
 """
 
 dbflavors=['oracle','sqlite']
@@ -21,8 +21,8 @@ def validate(optdict):
     schema = Schema({ 
      '-i': Use(open, error='-i INPUTFILE should be readable'),
      '-f': And(str,lambda s: s.lower() in dbflavors, error='-f must be in '+str(dbflavors)),
-     '--schema': Use(str.upper),
-     '--suffix': Use(str.upper),
+     '--writer': Or(None,Use(str.upper)),
+     '--suffix': Or(None,Use(str.upper)),
      str:object # catch all
     })
     result=schema.validate(optdict)

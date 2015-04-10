@@ -19,17 +19,15 @@ decimalcontext.prec = 3
 
 log = logging.getLogger('brilws.api')
 
-_amodetagmap={1:'PROTPHYS',2:'IONPHYS',3:'COSMICS',4:'GAP',21: 'PAPHYS'}
-
 oracletypemap={
-'unsigned char':'number(3)',
-'unsigned short':'number(5)',
-'unsigned int':'number(10)',
-'unsigned long long':'number(20)',
-'char':'char(1)',
-'short':'number(5)',
-'int':'number(10)',
-'long long':'number(20)',
+'uint8':'number(3)',
+'uint16':'number(5)',
+'uint32':'number(10)',
+'uint64':'number(20)',
+'int8':'number(3)',
+'int16':'number(5)',
+'int32':'number(10)',
+'int64':'number(20)',
 'float':'binary_float',
 'double':'binary_double',
 'string':'varchar2(4000)',
@@ -39,14 +37,14 @@ oracletypemap={
 }
 
 sqlitetypemap={
-'unsigned char':'INTEGER',
-'unsigned short':'INTEGER',
-'unsigned int':'INTEGER',
-'unsigned long long':'INTEGER',
-'char':'INTEGER',
-'short':'INTEGER',
-'int':'INTEGER',
-'long long':'INTEGER',
+'uint8':'INTEGER',
+'uint16':'INTEGER',
+'uint32':'INTEGER',
+'uint64':'INTEGER',
+'int8':'INTEGER',
+'int16':'INTEGER',
+'int32':'INTEGER',
+'int64':'INTEGER',
 'float':'REAL',
 'double':'REAL',
 'string':'TEXT',
@@ -95,14 +93,14 @@ def smart_open(filename=None):
 def seqdiff(original,exclude):
     return list(set(original)-set(exclude))
 
-def create_table_stmt(tablename,ifnotexists=True):
+def create_table_stmt(tablename,dbflavor='sqlite'):
     """
     create table statement
     input:
        tablename
        ifnotexists: if true, add IF NOT EXISTS
     """
-    if ifnotexists:
+    if dbflavor=='sqlite':
         result='CREATE TABLE IF NOT EXISTS %s '%(tablename)
     else:
         result='CREATE TABLE %s'%(tablename)
@@ -173,41 +171,41 @@ def build_fk_stmt(tablename,fkdict):
     if results: return ';\n'.join(results)
     return ''
 
-def build_sqlfilename(schema_name,operationtype='create',suffix=None,dbflavor='sqlite'):
+def build_sqlfilename(outfilenamebase,operationtype='create',suffix=None,dbflavor='sqlite'):
     result=''
     if suffix:
-       result='%s_%s%s_%s.sql'%(schema_name,dbflavor,operationtype,suffix)
+       result='%s_%s%s_%s.sql'%(outfilenamebase,dbflavor,operationtype,suffix)
     else:
-       result='%s_%s%s.sql'%(schema_name,dbflavor,operationtype)
+       result='%s_%s%s.sql'%(outfilenamebase,dbflavor,operationtype)
     return result
 
-def drop_tables_sql(schema_name,schema_def,suffix=None,dbflavor='sqlite'):
+def drop_tables_sql(outfilebase,schema_def,suffix=None,dbflavor='sqlite'):
     results=[]
     tables=schema_def.keys()
-    outfilename=build_sqlfilename(schema_name,operationtype='drop',suffix=suffix,dbflavor=dbflavor)
+    outfilename=build_sqlfilename(outfilebase,operationtype='drop',suffix=suffix,dbflavor=dbflavor)
     for tname in tables:
         results.append(drop_table_stmt(tname,dbflavor=dbflavor))
     resultStr='\n'.join(results)
     if suffix:
-       resultStr=resultStr.replace('&suffix',suffix)+';'
+       resultStr=resultStr.replace('&suffix',suffix)
     resultStr=resultStr.upper()
 
     with open(outfilename,'w') as sqlfile:
         sqlfile.write('/* tablelist: %s */\n'%(','.join([t.upper() for t in tables])))
         sqlfile.write(resultStr)
     
-def create_tables_sql(schema_name,schema_def,suffix=None,dbflavor='sqlite',writeraccount=''):
+def create_tables_sql(outfilebase,schema_def,suffix=None,dbflavor='sqlite',writeraccount=''):
     '''
     input :
-        schema_name, schema name 
-        schema_def, dictionary of dictionaries
+        outfilebase: output file name base
+        schema_def: dictionary of dictionaries
     '''
     results=[]
     resultStr=''
     fkresults=[]
     ixresults=[]
     tables=schema_def.keys()
-    outfilename=build_sqlfilename(schema_name,operationtype='create',suffix=suffix,dbflavor=dbflavor)
+    outfilename=build_sqlfilename(outfilebase,operationtype='create',suffix=suffix,dbflavor=dbflavor)
     columntypemap={}  
     if dbflavor=='oracle':
         columntypemap = oracletypemap
@@ -218,7 +216,7 @@ def create_tables_sql(schema_name,schema_def,suffix=None,dbflavor='sqlite',write
             stmt=create_sequencetable_stmt(tname,dbflavor)
             results.append(create_sequencetable_stmt(tname,dbflavor))       
             continue      
-        result=create_table_stmt(tname)
+        result=create_table_stmt(tname,dbflavor=dbflavor)
         cs=schema_def[tname]['columns']
         nnus=[]
         if schema_def[tname].has_key('notnull'):
@@ -242,14 +240,15 @@ def create_tables_sql(schema_name,schema_def,suffix=None,dbflavor='sqlite',write
            result=result+','+build_unique_stmt(tname,unqs)
         result=result+');\n'
         if fks: fkresults.append(fk(tname,fks))
-        if dbflavor=='oracle' and writeraccount:
-            result=result+grant_stmt(tname,writeraccount)
+        if dbflavor=='oracle':
+            result=result+grant_stmt(tname,writeraccount=writeraccount)
         results.append(result)
     resultStr='\n'.join(results)
-    if suffix:
-        resultStr=resultStr.replace('&suffix',suffix)
-    else:
-        resultStr=resultStr.replace('&suffix','1')
+    if resultStr.find('&suffix')!=-1:
+        if suffix:
+            resultStr=resultStr.replace('&suffix',suffix)
+        else:
+            raise Exception('--suffix is required but not specified')
     resultStr=resultStr.upper()  
     with open(outfilename,'w') as sqlfile: 
         sqlfile.write('/* tablelist: %s */\n'%(','.join([t.upper() for t in tables])))

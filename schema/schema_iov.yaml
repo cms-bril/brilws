@@ -3,34 +3,34 @@
 #
 IOVTAGS:  #format convention: table names in upper case
   columns:
-    - tagid: long long
+    - tagid: int64
     - tagname: string
     - creationutc: string
     - datadict: string   
-    - maxnitems: unsigned int
+    - maxnitems: uint32
     - iovdataversion: string
     - datasource: string     #hfoc,bhm,plt,pixel
     - applyto: string        #lumi,bkg,daq
     - isdefault: bool
-    - comment: string
+    - comments: string
   pk: [tagid]
   unique: [tagname]
   notnull: [tagname,creationutc,datasource,applyto,isdefault]
 
 IOVTAGDATA:
   columns:
-    - tagid: long long   
-    - since: unsigned int      
-    - payloadid: long long
-    - comment: string
+    - tagid: int64  
+    - since: uint32      
+    - payloadid: int64
+    - comments: string
   pk: [tagid,since]
 
 IOVP_FLOAT32:
   columns:
-    - payloadid: long long
-    - ifield: unsigned int
-    - iitem: unsigned int
-    - ipos: unsigned int
+    - payloadid: int64
+    - ifield: uint32
+    - iitem: uint32
+    - ipos: uint32
     - iskey: bool
     - val: float
   pk: [payloadid,iitem,ifield,ipos,iskey]
@@ -38,76 +38,76 @@ IOVP_FLOAT32:
 
 IOVP_UINT32:
   columns:
-    - payloadid: long long
-    - ifield: unsigned short
-    - iitem: unsigned short
-    - ipos: unsigned short
+    - payloadid: int64
+    - ifield: uint16
+    - iitem: uint16
+    - ipos: uint16
     - iskey: bool
-    - val: unsigned int
+    - val: uint32
   pk: [payloadid,iitem,ifield,ipos,iskey]
   notnull: [payloadid,iitem,ifield,ipos,iskey]
 
 IOVP_INT32:
   columns:
-    - payloadid: long long
-    - ifield: unsigned short
-    - iitem: unsigned short
-    - ipos: unsigned short
+    - payloadid: int64
+    - ifield: uint16
+    - iitem: uint16
+    - ipos: uint16
     - iskey: bool 
-    - val: int
+    - val: int32
   pk: [payloadid,iitem,ifield,ipos,iskey]
   notnull: [payloadid,iitem,ifield,ipos,iskey]
 
 IOVP_UINT16:
   columns:
-    - payloadid: long long
-    - ifield: unsigned short
-    - iitem: unsigned short
-    - ipos: unsigned short
+    - payloadid: int64
+    - ifield: uint16
+    - iitem: uint16
+    - ipos: uint16
     - iskey: bool 
-    - val: unsigned short
+    - val: uint16
   pk: [payloadid,iitem,ifield,ipos,iskey]
   notnull: [payloadid,iitem,ifield,ipos,iskey]
 
 IOVP_INT16:
   columns:
-    - payloadid: long long
-    - ifield: unsigned short
-    - iitem: unsigned short
-    - ipos: unsigned short
+    - payloadid: int64
+    - ifield: uint16
+    - iitem: uint16
+    - ipos: uint16
     - iskey: bool
-    - val: short
+    - val: int16
   pk: [payloadid,iitem,ifield,ipos,iskey]
   notnull: [payloadid,iitem,ifield,ipos,iskey]
 
 IOVP_UINT64:
   columns:
-    - payloadid: long long
-    - ifield: unsigned short
-    - iitem: unsigned short
-    - ipos: unsigned short
+    - payloadid: int64
+    - ifield: uint16
+    - iitem: uint16
+    - ipos: uint16
     - iskey: bool
-    - val: unsigned long long
+    - val: uint64
   pk: [payloadid,iitem,ifield,ipos,iskey]
   notnull: [payloadid,iitem,ifield,ipos,iskey]
 
 IOVP_INT64:
   columns:
-    - payloadid: long long
-    - ifield: unsigned short
-    - iitem: unsigned short
-    - ipos: unsigned short
+    - payloadid: int64
+    - ifield: uint16
+    - iitem: uint16
+    - ipos: uint16
     - iskey: bool
-    - val: long long
+    - val: int64
   pk: [payloadid,iitem,ifield,ipos,iskey]
   notnull: [payloadid,iitem,ifield,ipos,iskey]
 
 IOVP_STRING:
   columns:
-    - payloadid: long long
-    - ifield: unsigned short
-    - iitem: unsigned short
-    - ipos: unsigned short
+    - payloadid: int64
+    - ifield: uint16
+    - iitem: uint16
+    - ipos: uint16
     - iskey: bool
     - val: string
   pk: [payloadid,iitem,ifield,ipos,iskey]
@@ -115,22 +115,22 @@ IOVP_STRING:
 
 IOVP_UINT8:
   columns:
-    - payloadid: long long
-    - ifield: unsigned short
-    - iitem: unsigned short
-    - ipos: unsigned short
+    - payloadid: int64
+    - ifield: uint16
+    - iitem: uint16
+    - ipos: uint16
     - iskey: bool
-    - val: unsigned char
+    - val: uint8
   pk: [payloadid,iitem,ifield,ipos,iskey]
   notnull: [payloadid,iitem,ifield,ipos,iskey]
 
 IOVP_INT8:
   columns:
-    - payloadid: long long
-    - ifield: unsigned short
-    - iitem: unsigned short
-    - ipos: unsigned short
+    - payloadid: int64
+    - ifield: uint16
+    - iitem: uint16
+    - ipos: uint16
     - iskey: bool
-    - val: char
+    - val: int8
   pk: [payloadid,iitem,ifield,ipos,iskey]
   notnull: [payloadid,iitem,ifield,ipos,iskey]

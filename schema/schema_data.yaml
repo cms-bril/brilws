@@ -2,227 +2,240 @@
 # Schema for data
 #
 
-##### Map tables #####
-
-HLTCONFIGMAP:
-   columns:
-    - hltconfigid: unsigned int
-    - hltkey: string
-   pk: [hltconfigid]
-
-DATATABLEMAP: #static map , data table registry
-   columns:
-    - datasourceid: unsigned short
-    - datasource: string 
-    - suffix: string
-    - datasourcename: string 
-    - minrun: unsigned int
-    - maxrun: unsigned int
-   pk: [datasourceid]
-
-TRGBITMAP:
-   columns:    #static map
-    - bitnameid: unsigned short
-    - bitid: unsigned short
-    - bitname: string              #name used in l1seed expression
-    - isalgo: bool
-   pk: [bitnameid]
-
-TRGHLTSEEDMAP:
-   columns:
-    - hltpathid: unsigned int
-    - hltconfigid: unsigned int
-    - l1seedid: unsigned int
-   pk: [hltpathid,hltconfigid,l1seedid]
-
-L1SEEDMAP:
-   columns:
-    - l1seedid: unsigned int
-    - l1seed: string
-   pk: [l1seedid]
-    
-HLTPATHMAP:    #static map
-   columns:
-    - hltpathid: unsigned int
-    - hltpathname: string
-   pk: [hltpathid]
-
-DATASETMAP:   #static map
-   columns:
-    - datasetid: unsigned int
-    - datasetname: string
-   pk: [datasetid]
-   
-BEAMSTATUSMAP: #static map
-   columns:
-    - beamstatusid: unsigned short
-    - beamstatus: string
-   pk: [beamstatusid]
-
-AMODETAGMAP:
-   columns:
-    - amodetagid: unsigned short
-    - amodetag: string
-   pk: [amodetagid]
-
-HLTSTREAMDATASET:  #static map , hlt stream, dataset, path map           
-   columns:
-    - hltpathid: unsigned int
-    - streamid: unsigned int
-    - streamlabel: string
-    - datasetid: unsigned int
-   pk: [hltpathid,streamid,datasetid]
 
 ##### Data tables #####
 
-DATATAGS:          
-   columns:
-    - datatagid: long long 
-    - datatagname: string
-    - creationutc: string
-    - comment: string
-   pk: [datatagid]
-   unique: [datatagname]
-  
 TIMEINDEX:        #per ls
    columns:
-    - fillnum: unsigned int
-    - runnum: unsigned int
-    - lsnum: unsigned int
-    - timestampsec: unsigned int
-    - timestampmsec: unsigned int
+    - fillnum: uint32
+    - runnum: uint32
+    - lsnum: uint32
+    - timestampsec: uint32
+    - timestampmsec: uint32
     - timestampstr: string       #just for display. do not query
-    - weekofyear: unsigned short
-    - dayofyear: unsigned short
-    - dayofweek: unsigned short
-    - year: unsigned short
-    - month: unsigned short    
+    - weekofyear: uint16
+    - dayofyear: uint16
+    - dayofweek: uint16
+    - year: uint16
+    - month: uint16    
    pk: [runnum,lsnum]
 
+DATATAGS:          
+   columns:
+    - datatagnameid: int64 
+    - datatagname: string
+    - creationutc: string
+    - comments: string
+   pk: [datatagnameid]
+   unique: [datatagname]
+
+IDS_DATATAG_&suffix:     #per ls
+   columns:
+    - datatagnameid: int64
+    - datatagid: int64
+    - fillnum: uint32
+    - runnum: uint32
+    - lsnum: uint32
+   pk: [datatagid] 
+   unique: [ [datatagnameid,runnum,lsnum] ]
+   
 RUNINFO:          #per run
    columns:       
-    - datatagid: long long
-    - runnum: unsigned int
+    - datatagid: int64
     - hltkey: string    
     - gt_rs_key: string
-   pk: [datatagid,runnum]
+   pk: [datatagid]
 
 TRGCONFIG:        #per run
    columns:
-    - datatagid: long long
-    - runnum: unsigned int
+    - datatagid: int64
     - gt_rs_key: string
-    - algomask_high: unsigned long long
-    - algomask_low: unsigned long long
-    - techmask: unsigned long long
-   pk: [datatagid,runnum]
+    - algomask_high: uint64
+    - algomask_low: uint64
+    - techmask: uint64
+   pk: [datatagid]
 
-BEAMINFO_&suffix:         #per ls
+BEAM_&suffix:         #per ls
    columns:
-    - datatagid: long long
-    - fillnum: unsigned int
-    - runnum: unsigned int
-    - lsnum: unsigned int
-    - amodetagid: unsigned short
-    - beamstatusid: unsigned short
+    - datatagid: int64    
+    - amodetagid: uint16
+    - beamstatusid: uint16
     - egev: float
-    - targetegev: unsigned short
-    - ncollidingbx: unsigned short
+    - targetegev: uint16
+    - ncollidingbx: uint16
     - intensity1: float
     - intensity2: float
-   pk: [datatagid,runnum,lsnum]
+   pk: [datatagid]
 
-BXBEAMINFO_&suffix:  #per ls, per bx
+BX_BEAM_&suffix:  #per ls, per bx
    columns:
-    - datatagid: long long
-    - runnum: unsigned int
-    - lsnum: unsigned int
-    - bxidx: unsigned short
+    - datatagid: int64
+    - bxidx: uint16
     - bxintensity1: float
     - bxintensity2: float
     - bxconfig1: bool
     - bxconfig2: bool
-   pk: [datatagid,runnum,lsnum,bxidx]
+   pk: [datatagid,bxidx]
 
 TRG_&suffix:               #per ls, per trg bit
    columns:
-    - datatagid: long long
-    - runnum: unsigned int
-    - cmslsnum: unsigned int
-    - trgbitid: unsigned short
-    - trgbitnameid: unsigned short
+    - datatagid: int64
+    - trgbitid: uint16
+    - trgbitnameid: uint16
     - isalgo: bool
-    - prescidx: unsigned short
-    - prescval: unsigned int  
-    - counts: unsigned int
-   pk: [datatagid,runnum,cmslsnum,trgbitnameid]
+    - prescidx: uint16
+    - prescval: uint32  
+    - counts: uint32
+   pk: [datatagid,trgbitnameid]
    
 HLT_&suffix:  #per ls, per hltpath
    columns:
-    - datatagid: long long
-    - hltpathid: unsigned int
-    - runnum: unsigned int
-    - cmslsnum: unsigned int
-    - prescidx: unsigned short
-    - prescval: unsigned int
-    - l1pass: unsigned int
-    - hltaccept: unsigned int
-   pk: [datatagid,runnum,cmslsnum,hltpathid]
+    - datatagid: int64
+    - hltpathid: uint32
+    - prescidx: uint16
+    - prescval: uint32
+    - l1pass: uint32
+    - hltaccept: uint32
+   pk: [datatagid,hltpathid]
 
 TIMESOURCE_&suffix:       #per ls
    columns:
-    - datatagid: long long
-    - runnum: unsigned int
-    - lsnum: unsigned int
+    - datatagid: int64
     - deadtimefrac: float
-    - norbls: unsigned int
-    - cmson: bool 
-   pk: [datatagid,runnum,lsnum] 
+    - norb: uint32
+    - nbperls: uint32
+    - cmson: bool
+    - ncollidingbx: uint32
+   pk: [datatagid] 
 
-HFOCLUMI_&suffix:       #per ls, per bx
+HFOC_&suffix:
    columns:
-    - datatagid: long long
-    - runnum: unsigned int
-    - lsnum: unsigned int
-    - bxidx: unsigned short
-    - instlumi: float
-   pk: [datatagid,runnum,lsnum,bxidx]
-
-HFETLUMI_&suffix:       #per ls, per bx
+    - datatagid: int64
+    - avgrawlumi: float
+    - avglumi: float
+    - recorded: float
+    - avgpu: float
+    - normtagid: int64
+   pk: [ datatagid ]
+   
+BX_HFOC_&suffix:       #per ls, per bx
    columns:
-    - datatagid: long long
-    - runnum: unsigned int
-    - lsnum: unsigned int
-    - bxidx: unsigned short
-    - instlumi: float
-   pk: [datatagid,runnum,lsnum,bxidx]
+    - datatagid: int64
+    - bxidx: uint16
+    - bxrawlumi: float
+    - bxlumi: float
+   pk: [datatagid,bxidx]
 
-BCM1FLUMI_&suffix:       #per ls, per bx
+HFET_&suffix:
    columns:
-    - datatagid: long long
-    - runnum: unsigned int
-    - lsnum: unsigned int
-    - bxidx: unsigned short
-    - instlumi: float
-   pk: [datatagid,runnum,lsnum,bxidx]
+    - datatagid: int64
+    - avgrawlumi: float
+    - avglumi: float
+    - recorded: float
+    - avgpu: float
+    - normtagid: int64
+   pk: [ datatagid ]
 
-PLTLUMI_&suffix:          #per ls, per bx
+BX_HFET_&suffix:       #per ls, per bx
    columns:
-    - datatagid: long long
-    - runnum: unsigned int
-    - lsnum: unsigned int
-    - bxidx: unsigned short
-    - instlumi: float
-   pk: [datatagid,runnum,lsnum,bxidx]
+    - datatagid: int64
+    - bxidx: uint16
+    - bxrawlumi: float
+    - bxlumi: float
+   pk: [datatagid,bxidx]
 
-PIXELLUMI_&suffix:        #per ls, per bx
+BCM1F_&suffix:
    columns:
-    - datatagid: long long
-    - runnum: unsigned int
-    - cmslsnum: unsigned int
-    - bxidx: unsigned short
-    - instlumi: float
-   pk: [datatagid,runnum,cmslsnum,bxidx]
+    - datatagid: int64
+    - avgrawlumi: float
+    - avglumi: float
+    - recorded: float
+    - avgpu: float
+    - bkgplusz: float
+    - bkgminusz: float
+    - normtagid: int64
+   pk: [ datatagid ]
+   
+BX_BCM1F_&suffix:       #per ls, per bx
+   columns:
+    - datatagid: int64
+    - bxidx: uint16
+    - bxrawlumi: float
+    - bxlumi: float
+   pk: [datatagid,bxidx]
 
+PLT_&suffix: #per ls
+   columns:
+    - datatagid: int64
+    - avgrawlumi: float
+    - avglumi: float
+    - recorded: float
+    - avgpu: float    
+    - normtagid: int64
+   pk: [ datatagid ]
+   
+BX_PLT_&suffix:          #per ls, per bx
+   columns:
+    - datatagid: int64
+    - bxidx: uint16
+    - bxrawlumi: float
+    - bxlumi: float
+   pk: [datatagid,bxidx]
 
+PIXEL_&suffix:        #per ls
+   columns:
+    - datatagid: int64
+    - avglumi: float
+    - avgpu: float
+   pk: [datatagid]
 
+##### Result tables #####
+
+ONLINE_LUMI_&suffix:
+   columns:
+    - runnum: uint32
+    - lsnum: uint32
+    - fillnum: uint32
+    - cmson: bool
+    - beamstatus: string
+    - delivered: float
+    - recorded: float
+    - avgpu: float
+    - datasource: string
+    - normtag: string
+    - normtagid: int64
+   pk: [runnum,lsnum]
+
+BX_ONLINE_LUMI_&suffix:
+   columns:
+    - runnum: uint32
+    - lsnum: uint32
+    - bxidx: uint16
+    - delivered: float
+    - recorded: float
+   pk: [runnum,lsnum,bxidx]
+
+OFFLINE_LUMI_&suffix:
+   columns:
+    - runnum: uint32
+    - lsnum: uint32
+    - fillnum: uint32
+    - cmson: bool
+    - beamstatus: string
+    - delivered: float
+    - recorded: float
+    - avgpu: float
+    - datasource: string
+    - datatagid: int64
+    - normtag: string
+    - normtagid: int64
+   pk: [runnum,lsnum]
+   
+BX_OFFLINE_LUMI_&suffix:
+   columns:
+    - runnum: uint32
+    - lsnum: uint32
+    - bxidx: uint16
+    - delivered: float
+    - recorded: float
+   pk: [runnum,lsnum,bxidx]

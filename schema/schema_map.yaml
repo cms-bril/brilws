@@ -1,0 +1,72 @@
+##### Map tables #####
+
+HLTCONFIGMAP:
+   columns:
+    - hltconfigid: uint32
+    - hltkey: string
+   pk: [hltconfigid]
+   
+DATATABLEMAP: #static map , sliced data table registry
+   columns:
+    - tableid: uint32
+    - tablename: string
+    - suffix: string
+    - datasource: string #TAG,TCDS,BEAM,PLT,BCM1F,BHM,BCM,LUMI,HFOC,HFET
+    - tabletype: string  #IDS,DATA,RESULT
+    - minrun: uint32
+    - maxrun: uint32
+   pk: [tableid]
+
+TRGBITMAP:
+   columns:    #static map
+    - bitnameid: uint16
+    - bitid: uint16
+    - bitname: string              #name used in l1seed expression
+    - isalgo: bool
+   pk: [bitnameid]
+
+TRGHLTSEEDMAP:
+   columns:
+    - hltpathid: uint32
+    - hltconfigid: uint32
+    - l1seedid: uint32
+   pk: [hltpathid,hltconfigid,l1seedid]
+
+L1SEEDMAP:
+   columns:
+    - l1seedid: uint32
+    - l1seed: string
+   pk: [l1seedid]
+    
+HLTPATHMAP:    #static map
+   columns:
+    - hltpathid: uint32
+    - hltpathname: string
+   pk: [hltpathid]
+
+DATASETMAP:   #static map
+   columns:
+    - datasetid: uint32
+    - datasetname: string
+   pk: [datasetid]
+   
+BEAMSTATUSMAP: #static map
+   columns:
+    - beamstatusid: uint16
+    - beamstatus: string
+   pk: [beamstatusid]
+
+AMODETAGMAP:
+   columns:
+    - amodetagid: uint16
+    - amodetag: string
+   pk: [amodetagid]
+
+HLTSTREAMDATASET:  #static map , hlt stream, dataset, path map           
+   columns:
+    - hltpathid: uint32
+    - streamid: uint32
+    - streamlabel: string
+    - datasetid: uint32
+   pk: [hltpathid,streamid,datasetid]
+   
