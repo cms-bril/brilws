@@ -18,7 +18,7 @@ ch.setFormatter(logformatter)
 log.addHandler(ch)
 #log.addHandler(fh)
 
-choice_sources = ['bhm','bcm1f','plt','hfoc','pixel']
+choice_sources = ['bhm','bcm1f','plt','hfoc','hfet','pixel']
 choice_applyto = ['lumi','bkg','daq']
 choices_ostyles = ['tab','csv','html']
 

@@ -11,8 +11,8 @@ DATATABLEMAP: #static map , sliced data table registry
     - tableid: uint32
     - tablename: string
     - suffix: string
-    - datasource: string #TAG,TCDS,BEAM,PLT,BCM1F,BHM,BCM,LUMI,HFOC,HFET
-    - tabletype: string  #IDS,DATA,RESULT
+    - datasource: string #TCDS,BEAM,PLT,BCM1F,BHM,BCM,LUMI,HFOC,HFET
+    - tabletype: string  #DATA,RESULT
     - minrun: uint32
     - maxrun: uint32
    pk: [tableid]

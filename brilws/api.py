@@ -1171,6 +1171,45 @@ def unpackCLOBtoListstr(iStr,separator=','):
     '''
     return [i.strip() for i in iStr.strip().split(separator)]
 
+##### Data tag ######    
+def createDataTag(engine,datatagname='online',comments='',schemaname=None):
+    '''
+    create a new data tag, return the datatag name id
+    input:
+        insert into schemaname.DATATAGS(datatagname,datatagnameid,creationutc,comments) values(datatagname,datatagnameid,creationutc,comments)
+    output:
+        datatagnameid  
+    '''
+    datatagnameid = 0
+    return datatagnameid
+
+def getDatatagNameid(engine,datatagname,schemaname=None):
+    '''
+    select datatagnameid from DATATAGS where datatagname=%datatagname    
+    '''
+    datatagnameid = 0
+    if datatagname=='online': return datatagnameid
+    return datatagnameid
+
+def getDatatagNames(engine,schemaname=None):
+    '''
+    select * from DATATAGS
+    '''
+    return None
+
+def insertDataTagEntry(engine,idtablename,datatagnameid,runnum,lsnum,fillnum=0,schemaname=None):
+    '''
+    insert into IDS_DATATAG_&suffix (datatagnameid,datatagid,fillnum,runnum,lsnum) values(datatagnameid,datatagid,fillnum,runnum,lsnum);
+    output:
+       datatagid
+    '''
+    datatagid = 0
+    if datatagnameid!=0:
+        # generate new id
+        pass
+    return datatagid
+
+
 #
 # operation on  data sources
 # 

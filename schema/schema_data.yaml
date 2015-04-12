@@ -29,7 +29,7 @@ DATATAGS:
    pk: [datatagnameid]
    unique: [datatagname]
 
-IDS_DATATAG_&suffix:     #per ls
+IDS_DATATAG:     #per ls
    columns:
     - datatagnameid: int64
     - datatagid: int64
@@ -98,7 +98,7 @@ HLT_&suffix:  #per ls, per hltpath
     - hltaccept: uint32
    pk: [datatagid,hltpathid]
 
-TIMESOURCE_&suffix:       #per ls
+TIMESOURCE:       #per ls
    columns:
     - datatagid: int64
     - deadtimefrac: float
