@@ -6,16 +6,15 @@ HLTCONFIGMAP:
     - hltkey: string
    pk: [hltconfigid]
    
-DATATABLEMAP: #static map , sliced data table registry
+DATATABLEMAP: #static map , data shard registry
    columns:
-    - tableid: uint32
-    - tablename: string
+    - id: uint16
+    - basetables: string
     - suffix: string
-    - datasource: string #TCDS,BEAM,PLT,BCM1F,BHM,BCM,LUMI,HFOC,HFET
     - tabletype: string  #DATA,RESULT
     - minrun: uint32
     - maxrun: uint32
-   pk: [tableid]
+   pk: [id]
 
 TRGBITMAP:
    columns:    #static map

@@ -98,7 +98,7 @@ HLT_&suffix:  #per ls, per hltpath
     - hltaccept: uint32
    pk: [datatagid,hltpathid]
 
-TIMESOURCE:       #per ls
+TIMESOURCE_&suffix:       #per ls
    columns:
     - datatagid: int64
     - deadtimefrac: float

@@ -1,0 +1,38 @@
+#the most recent tagname,tagnameid
+#expected result: offline_v2,1201
+select datatagname, max(datatagnameid) as ID from DATATAGS; 
+
+#get the datatagnameid by tagname
+#expected result: offline_v1,1200
+select datatagname,datatagnameid from DATATAGS where datatagname="offline_v1"; 
+
+#We know that ls=1 data are the same as online, so we should always get datatagid=3456 from id queries
+select max(DATATAGID) from IDS_DATATAG where RUNNUM=239567 and LSNUM=1 and DATATAGNAMEID<=1201;
+select max(DATATAGID) from IDS_DATATAG where RUNNUM=239567 and LSNUM=1 and DATATAGNAMEID<=1200;
+select max(DATATAGID) from IDS_DATATAG where RUNNUM=239567 and LSNUM=1 and DATATAGNAMEID<=0;
+
+#find the datatagids for run-ls or run-ls range of the given tagname offline_v1, id=1200
+#We know that ls=1 is not changed with offline_v1, so we should still see 3456
+select max(DATATAGID) from IDS_DATATAG where RUNNUM=239567 and LSNUM=1 and DATATAGNAMEID<=1201;
+#We know that ls=2 and ls=4 data are changed with offline_v1, so we should see
+#ls=1 3456; ls=2 3478; ls=3 3458; ls=4 3479; ls=5 3460
+select RUNNUM,LSNUM,max(DATATAGID) from IDS_DATATAG where RUNNUM=239567 and LSNUM>=1 and LSNUM<=5 and DATATAGNAMEID<=1200 group by RUNNUM,LSNUM;
+
+#find the datatagids for run-ls or run-ls range of the given tagname offline_v2, id=1201
+#We know that ls=2 changed again, ls=4 data changed with offline_v1, so we should see
+#ls=1 3456; ls=2 3481; ls=3 3458; ls=4 3479; ls=5 3460
+select RUNNUM,LSNUM,max(DATATAGID) from IDS_DATATAG where RUNNUM=239567 and LSNUM>=1 and LSNUM<=5 and DATATAGNAMEID<=1201 group by RUNNUM,LSNUM;
+
+#optional decide which data shard to query
+select SUFFIX from DATATABLEMAP where MINRUN<239567 and MAXRUN>239567 and TABLETYPE="DATA";
+
+#select beam data or bx_beam by datatagid. We should not use table joins here because bx beam data can change independently from beam data 
+select ncollidingbx,intensity1,intensity2 from BEAM_RUN2 where DATATAGID=3456;
+select bxidx,bxintensity1,bxintensity2 from BX_BEAM_RUN2 where DATATAGID=3456;
+
+#Conclusion: there are 4 essential types of query
+#select SUFFIX from DATATABLEMAP where MINRUN<:run and MAXRUN>:run and TABLETYPE="DATA"; (once per process)
+#select DATATAGNAMEID, max(DATATAGNAMEID) as ID from DATATAGS; (once per process)
+#select RUNNUM,LSNUM,max(DATATAGID) from IDS_DATATAG where RUNNUM=:run and LSNUM>=:lsmin and LSNUM<=:lsmax and DATATAGNAMEID<=:datatagnameid group by RUNNUM,LSNUM; (once per ls region)
+#select * from <datatable_suffix> where DATATAGID=:datatagid; (recurrent)
+
