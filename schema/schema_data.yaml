@@ -36,6 +36,9 @@ IDS_DATATAG:     #per ls
     - fillnum: uint32
     - runnum: uint32
     - lsnum: uint32
+    - targetegev: uint16
+    - beamstatus: string
+    - amodetag: string
    pk: [datatagid] 
    unique: [ [datatagnameid,runnum,lsnum] ]
    
@@ -58,10 +61,7 @@ TRGCONFIG:        #per run
 BEAM_&suffix:         #per ls
    columns:
     - datatagid: int64    
-    - amodetagid: uint16
-    - beamstatusid: uint16
     - egev: float
-    - targetegev: uint16
     - ncollidingbx: uint16
     - intensity1: float
     - intensity2: float
