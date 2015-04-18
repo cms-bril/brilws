@@ -1,0 +1,4 @@
+select c.configid,p.pathid,stringparamvalues.value from cms_hlt.stringparamvalues stringparamvalues,cms_hlt.paths p,cms_hlt.parameters,cms_hlt.superidparameterassoc,cms_hlt.modules,cms_hlt.moduletemplates,cms_hlt.pathmoduleassoc,cms_hlt.configurationpathassoc,cms_hlt.configurations c where parameters.paramid=stringparamvalues.paramid and  superidparameterassoc.paramid=parameters.paramid and modules.superid=superidparameterassoc.superid and moduletemplates.superid=modules.templateid and pathmoduleassoc.moduleid=modules.superid and p.pathid=pathmoduleassoc.pathid and configurationpathassoc.pathid=p.pathid and c.configid=configurationpathassoc.configid and moduletemplates.name='HLTLevel1GTSeed' and parameters.name='L1SeedsLogicalExpression' where configid=:configid;
+#and configurations.configid=1905;
+
+select max(created) from cms_hlt.configurations;
