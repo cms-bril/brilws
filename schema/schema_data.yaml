@@ -47,6 +47,7 @@ RUNINFO:          #per run
     - datatagid: int64
     - hltkey: string    
     - gt_rs_key: string
+    - fillscheme: string
    pk: [datatagid]
 
 TRGCONFIG:        #per run
