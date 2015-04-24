@@ -23,7 +23,9 @@ if __name__=='__main__':
     # dups = [item for item,count in Counter(result['runnum']).iteritems() if count>1]
     #print result.loc[result['runnum'].isin(dups)]
     r=result.groupby('runnum',group_keys=False).apply(lambda x: x.ix[x.tagid.idxmax()])
-    print 'checking'
-    print r.loc[r['runnum'].isin([205620,205526])]
-    print 'to csv'
-    r.to_csv('run1tags.csv')
+    #print r.columns
+    #print 'checking'
+    #print r.loc[r['runnum'].isin([205620,205526])]
+    print r
+    #print 'to csv'
+    r.to_csv('run1tags.csv',index=False)
