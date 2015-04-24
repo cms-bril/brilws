@@ -7,7 +7,7 @@ import collections
 import numpy as np
 from collections import Counter
 from datetime import datetime
-
+from brilws import api
 import time
 
 dbtimefm = 'MM/DD/YY HH24:MI:SS.ff6'
@@ -38,9 +38,42 @@ def transfertimeinfo(connection,destconnection,runnum):
             irow['year'] = starttime.date().year
             irow['month'] = starttime.date().month
             allrows.append(irow)
-    print allrows
     with destconnection.begin() as trans:
         r = destconnection.execute(i,allrows)
+
+import collections
+
+        
+def transfer_ids_datatag(connection,destconnection,runnum,lumidataid):
+    '''
+    '''
+    qrunsummary = """select r.fillnum as fillnum,r.egev as targetegev, r.amodetag as amodetag, s.lumilsnum as lsnum,s.beamstatus as beamstatus from CMS_LUMI_PROD.CMSRUNSUMMARY r, CMS_LUMI_PROD.lumisummaryv2 s where r.runnum=s.runnum and r.runnum=:runnum and s.data_id=:lumidataid"""
+    datatagnameid = 0    
+    allrows = []
+    datatagnameid = 0
+    allkeys = []
+    with connection.begin() as trans:
+        result = connection.execute(qrunsummary,{'runnum':runnum,'lumidataid':lumidataid})
+        for r in result:
+            #irow = {'datatagnameid':datatagnameid, 'datatagid':next(api.nonsequential_key(7)), 'fillnum':0,'runnum':runnum,'lsnum':0,'targetegev':0,'beamstatus':'','amodetag':''}
+            k = next(api.nonsequential_key(3))
+            allkeys.append(k)
+            #irow = {'datatagnameid':datatagnameid, 'datatagid':0, 'fillnum':0,'runnum':runnum,'lsnum':0,'targetegev':0,'beamstatus':'','amodetag':''}
+            #irow['fillnum'] = r['fillnum']
+            #irow['lsnum'] = r['lsnum']
+            #irow['datatagid'] = irow['lsnum']
+            #irow['targetegev'] = r['targetegev']
+            #irow['beamstatus'] = r['beamstatus']
+            #irow['amodetag'] = r['amodetag']
+            #allrows.append(irow)
+            #print datatagnameid,runnum,irow['lsnum']
+    #print allrows
+    print allkeys
+    print [x for x, y in collections.Counter(allkeys).items() if y > 1]
+    #i = """insert into IDS_DATATAG(DATATAGNAMEID,DATATAGID,FILLNUM,RUNNUM,LSNUM,TARGETEGEV,BEAMSTATUS,AMODETAG) values(:datatagnameid, :datatagid, :fillnum, :runnum, :lsnum, :targetegev, :beamstatus, :amodetag)"""
+        
+    #with destconnection.begin() as trans:
+    #    r = destconnection.execute(i,allrows)
         
 if __name__=='__main__':
     logging.basicConfig(level=logging.INFO,format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
@@ -57,5 +90,5 @@ if __name__=='__main__':
     destengine = create_engine(desturl)
     destconnection = destengine.connect()
     
-    #querytimeinfo(connection,162713)
-    transfertimeinfo(connection,destconnection,193091)
+    #transfertimeinfo(connection,destconnection,193091)
+    transfer_ids_datatag(connection,destconnection,193091,1649)
