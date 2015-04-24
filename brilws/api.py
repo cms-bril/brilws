@@ -53,6 +53,21 @@ sqlitetypemap={
 'timestamp':'DATETIME'
 }
 
+def unpackBlobtoArray(iblob,itemtypecode):
+    '''
+    Inputs:
+    iblob: 
+    itemtypecode: python array type code 
+    '''
+    if itemtypecode not in ['c','b','B','u','h','H','i','I','l','L','f','d']:
+        raise RuntimeError('unsupported typecode '+itemtypecode)
+    result=array.array(itemtypecode)
+    blobstr=iblob.readline()
+    if not blobstr :
+        return None
+    result.fromstring(blobstr)
+    return result 
+
 def parsecmsselectJSON(filepath_or_buffer,numpy=False):
     """
     parse cms selection json format
