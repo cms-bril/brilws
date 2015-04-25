@@ -312,13 +312,21 @@ def iov_parsepayloaddatadict(datadictStr):
 def nonsequential_key(generator_id):
     '''
     http://ericmittelhammer.com/generating-nonsequential-primary-keys/
+    generator_id [1,256]
     '''
-    now = int(time.time()*1000)
-    rmin = 1
-    rmax = 2**8 - 1
+    now = int(time.time()*1000) #41 bits
+    rmin = 1  
+    rmax = 2**15 - 1
     rdm = random.randint(1, rmax)
     yield ((now << 22) + (generator_id << 14) + rdm )
 
+def generate_key(n):
+    '''
+    generate id based on a unique number
+    '''
+    now = int(time.time()*1000) #41 bits
+    yield ((now <<22) + n )
+     
 #String Folding
 #The rows of result data returned by SQLAlchemy contain many repeated strings
 #each one is a different Unicode object
