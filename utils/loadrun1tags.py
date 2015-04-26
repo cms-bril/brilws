@@ -51,9 +51,8 @@ def querytrgdata(engine,dataid,runnum,dirname):
                    continue
             except ValueError:
                prescblob = unpackblobstr(row['prescaleblob'],'I')
-               hltcountblob = unpackblobstr(row['hltcountblob'],'I')
-               hltacceptblob = unpackblobstr(row['hltacceptblob'],'I')
-               if not prescblob or not hltcountblob or not hltacceptblob:
+               trgcountblob = unpackblobstr(row['trgcountblob'],'I')
+               if not prescblob or not trgcountblob:
                    continue
         else:
             prescblob = unpackblobstr(row['prescaleblob'],'I')
