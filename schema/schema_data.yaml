@@ -82,12 +82,12 @@ TRG_&suffix:               #per ls, per trg bit
    columns:
     - datatagid: int64
     - trgbitid: uint16
-    - trgbitnameid: uint16
+    - trgbitnameid: uint16 #tech bit alias id is 65535
     - isalgo: bool
     - prescidx: uint16
     - prescval: uint32  
     - counts: uint32
-   pk: [datatagid,trgbitnameid]
+   pk: [datatagid,trgbitid]
    
 HLT_&suffix:  #per ls, per hltpath
    columns:

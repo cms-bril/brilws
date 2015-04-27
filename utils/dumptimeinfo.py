@@ -183,18 +183,29 @@ def transfer_trgdata(connection,destconnection,runnum,trgdataid,destdatatagidmap
     prerequisite : ids_datatag has already entries for this run
     '''
     bitnamemap = pd.DataFrame.from_csv('trgbits.csv',index_col='BITNAMEID')
-    qbits = '''select bitnameclob as bitnameclob from CMS_LUMI_PROD.trgdata where data_id=:trgdataid'''
+    qalgobits = '''select ALGO_INDEX as bitid, ALIAS as bitname from CMS_GT.GT_RUN_ALGO_VIEW where RUNNUMBER=:runnum order by bitid'''
+    qtechbits = '''select TECHTRIG_INDEX as bitid , to_char(TECHTRIG_INDEX) as bitname from CMS_GT.GT_RUN_TECH_VIEW where RUNNUMBER=:runnum order by bitid'''
     qpresc = '''select cmslsnum as lsnum, prescaleblob as prescaleblob, trgcountblob as trgcountblob from CMS_LUMI_PROD.lstrg where data_id=:trgdataid'''
     i = '''insert into TRG_RUN1(DATATAGID,TRGBITID,TRGBITNAMEID,ISALGO,PRESCVAL,COUNTS) values(:datatagid, :trgbitid, :trgbitnameid, :prescval, :counts)'''
 
-    
     allrows = []
-    allbitalias = []
-    bitmap = {}     #{pos:[trgbitnameid,bitalias,bitid,bitname]}
+    algobitalias = 128*['False']
+    techbitalias = 64*['False']
+    algobitaliasmap = {}    #{bitalias: trgbitnameid}
+    techbitaliasmap = {}    #
+    bitaliasmap = {}
     with connection.begin() as trans:
-        result = connection.execute(qbits,{'trgdataid':trgdataid})
-        for row in result:
-            allbitalias = row['bitnameclob']
+        algoresult = connection.execute(qalgobits,{'runnum':runnum})
+        techresult = connection.execute(qtechbits,{'runnum':runnum})
+        algopos = 0
+        for algo in algoresult:
+            algobitalias[algopos] = algo['bitname']
+            algopos = algopos+1
+        techpos = 0    
+        for tech in techresult:
+            techbitalias[techpos] = tech['bitname']
+            techpos = techpos+1
+
     for trgbitnameid, bitparams in bitnamemap.iterrows():
         bitname = bitparams['BITNAME']
         bitid = bitparams['BITID']
@@ -202,11 +213,10 @@ def transfer_trgdata(connection,destconnection,runnum,trgdataid,destdatatagidmap
         bitalias = bitname
         if not isalgo:
             bitalias = str(bitid)
-        #print bitid,bitalias,bitname        
-        pos = allbitalias.find(bitalias)
-        if pos!=-1:
-            bitmap[pos] = [trgbitnameid,bitalias,bitid,bitname]
-    
+        bitaliasmap[bitalias] = trgbitnameid
+    ##print techbitmap
+    ##print algobitmap
+
     with connection.begin() as trans:
         result = connection.execute(qpresc,{'trgdataid':trgdataid})        
         for row in result:
@@ -229,15 +239,17 @@ def transfer_trgdata(connection,destconnection,runnum,trgdataid,destdatatagidmap
                     continue
             prescalevalues = pd.Series(prescblob)
             trgcountvalues = pd.Series(trgcountblob)
-            print bitmap.keys()
             for idx, prescval in prescalevalues.iteritems():
-                print idx
-                print bitmap[idx] 
-                #[trgbitbanameid,trgbitalias,trgbitid,trgbitname] = bitmap[idx] 
-                #allrows.append({'datatagid':destdatatagidmap[lsnum],'trgbitid':trgbitid,'trgbitnameid':trgbitnameid,'prescval':prescval})
-            #print prescalevalues            
-            #print trgcountvalues
-        print allrows
+                if idx>127:
+                    bitpos = idx-128
+                    bitalias = str(bitpos)
+                    print 'tech bitid %d bitalias %s trgbitnameid %d prescval %d '%(bitpos,bitalias,65535,prescval)
+                else:
+                    bitpos = idx
+                    bitalias = algobitalias[bitpos]
+                    if bitalias=='False': continue
+                    print 'algo bitid %d bitalias %s trgbitnameid %d prescval %d '%(bitpos,bitalias,bitaliasmap[bitalias],prescval)
+                  
 if __name__=='__main__':
     logging.basicConfig(level=logging.INFO,format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
     
