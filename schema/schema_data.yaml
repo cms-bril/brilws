@@ -87,7 +87,7 @@ TRG_&suffix:               #per ls, per trg bit
     - prescidx: uint16
     - prescval: uint32  
     - counts: uint32
-   pk: [datatagid,trgbitid]
+   pk: [datatagid,trgbitid,isalgo]
    
 HLT_&suffix:  #per ls, per hltpath
    columns:

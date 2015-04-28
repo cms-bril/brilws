@@ -186,13 +186,11 @@ def transfer_trgdata(connection,destconnection,runnum,trgdataid,destdatatagidmap
     qalgobits = '''select ALGO_INDEX as bitid, ALIAS as bitname from CMS_GT.GT_RUN_ALGO_VIEW where RUNNUMBER=:runnum order by bitid'''
     qtechbits = '''select TECHTRIG_INDEX as bitid , to_char(TECHTRIG_INDEX) as bitname from CMS_GT.GT_RUN_TECH_VIEW where RUNNUMBER=:runnum order by bitid'''
     qpresc = '''select cmslsnum as lsnum, prescaleblob as prescaleblob, trgcountblob as trgcountblob from CMS_LUMI_PROD.lstrg where data_id=:trgdataid'''
-    i = '''insert into TRG_RUN1(DATATAGID,TRGBITID,TRGBITNAMEID,ISALGO,PRESCVAL,COUNTS) values(:datatagid, :trgbitid, :trgbitnameid, :prescval, :counts)'''
+    i = '''insert into TRG_RUN1(DATATAGID,TRGBITID,TRGBITNAMEID,ISALGO,PRESCVAL,COUNTS) values(:datatagid, :trgbitid, :trgbitnameid, :isalgo, :prescval, :counts)'''
 
     allrows = []
     algobitalias = 128*['False']
     techbitalias = 64*['False']
-    algobitaliasmap = {}    #{bitalias: trgbitnameid}
-    techbitaliasmap = {}    #
     bitaliasmap = {}
     with connection.begin() as trans:
         algoresult = connection.execute(qalgobits,{'runnum':runnum})
@@ -214,8 +212,6 @@ def transfer_trgdata(connection,destconnection,runnum,trgdataid,destdatatagidmap
         if not isalgo:
             bitalias = str(bitid)
         bitaliasmap[bitalias] = trgbitnameid
-    ##print techbitmap
-    ##print algobitmap
 
     with connection.begin() as trans:
         result = connection.execute(qpresc,{'trgdataid':trgdataid})        
@@ -239,17 +235,32 @@ def transfer_trgdata(connection,destconnection,runnum,trgdataid,destdatatagidmap
                     continue
             prescalevalues = pd.Series(prescblob)
             trgcountvalues = pd.Series(trgcountblob)
+
+            isalgo = False
             for idx, prescval in prescalevalues.iteritems():
                 if idx>127:
                     bitpos = idx-128
                     bitalias = str(bitpos)
-                    print 'tech bitid %d bitalias %s trgbitnameid %d prescval %d '%(bitpos,bitalias,65535,prescval)
+                    bitnameid = 65535
+                    #print 'tech bitid %d bitalias %s trgbitnameid %d prescval %d '%(bitpos,bitalias,65535,prescval)
+                    isalgo = False
                 else:
                     bitpos = idx
-                    bitalias = algobitalias[bitpos]
+                    bitalias = algobitalias[bitpos]                    
                     if bitalias=='False': continue
-                    print 'algo bitid %d bitalias %s trgbitnameid %d prescval %d '%(bitpos,bitalias,bitaliasmap[bitalias],prescval)
-                  
+                    bitnameid = bitaliasmap[bitalias]
+                    #print 'algo bitid %d bitalias %s trgbitnameid %d prescval %d '%(bitpos,bitalias,bitnameid,prescval)
+                    isalgo = True
+                counts = 0
+                try:
+                    counts = trgcountvalues[idx]
+                except IndexError:
+                    pass
+                allrows.append({'datatagid':destdatatagidmap[lsnum], 'trgbitid':bitpos, 'trgbitnameid':bitnameid, 'isalgo':isalgo, 'prescval':prescval, 'counts':counts})
+                
+    with destconnection.begin() as trans:
+        r = destconnection.execute(i,allrows)
+        
 if __name__=='__main__':
     logging.basicConfig(level=logging.INFO,format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
     
@@ -265,8 +276,8 @@ if __name__=='__main__':
     destengine = create_engine(desturl)
     destconnection = destengine.connect()
     
-    #transfertimeinfo(connection,destconnection,193091)
-    #transfer_ids_datatag(connection,destconnection,193091,1649)
+    transfertimeinfo(connection,destconnection,193091)
+    transfer_ids_datatag(connection,destconnection,193091,1649)
     #destdatatagid = datatagid_of_run(destconnection,193091,datatagnameid=0)
     destdatatagid_map = datatagid_of_ls(destconnection,193091,datatagnameid=0)
     #print destdatatagid_map
