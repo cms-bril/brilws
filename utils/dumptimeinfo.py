@@ -185,19 +185,27 @@ def transfer_trgdata(connection,destconnection,runnum,trgdataid,destdatatagidmap
     bitnamemap = pd.DataFrame.from_csv('trgbits.csv',index_col='BITNAMEID')
     qalgobits = '''select ALGO_INDEX as bitid, ALIAS as bitname from CMS_GT.GT_RUN_ALGO_VIEW where RUNNUMBER=:runnum order by bitid'''
     #qtechbits = '''select TECHTRIG_INDEX as bitid , to_char(TECHTRIG_INDEX) as bitname from CMS_GT.GT_RUN_TECH_VIEW where RUNNUMBER=:runnum order by bitid'''
+    qprescidx = 'select lumi_section as lsnum, prescale_index as prescidx from CMS_GT_MON.LUMI_SECTIONS where run_number=:runnum and prescale_index!=0'
+    
     qpresc = '''select cmslsnum as lsnum, prescaleblob as prescaleblob, trgcountblob as trgcountblob from CMS_LUMI_PROD.lstrg where data_id=:trgdataid'''
-    i = '''insert into TRG_RUN1(DATATAGID,TRGBITID,TRGBITNAMEID,ISALGO,PRESCVAL,COUNTS) values(:datatagid, :trgbitid, :trgbitnameid, :isalgo, :prescval, :counts)'''
+    i = '''insert into TRG_RUN1(DATATAGID,TRGBITID,TRGBITNAMEID,ISALGO,PRESCIDX,PRESCVAL,COUNTS) values(:datatagid, :trgbitid, :trgbitnameid, :isalgo, :prescidx, :prescval, :counts)'''
 
     allrows = []
     algobitalias = 128*['False']
     bitaliasmap = {}
+    prescidxmap = {}
     with connection.begin() as trans:
         algoresult = connection.execute(qalgobits,{'runnum':runnum})
         algopos = 0
         for algo in algoresult:
             algobitalias[algopos] = algo['bitname']
             algopos = algopos+1
-
+        prescidxresult = connection.execute(qprescidx,{'runnum':runnum})
+        for prescidxr in prescidxresult:
+            lsnum = prescidxr['lsnum']
+            prescidx = prescidxr['prescidx']
+            prescidxmap[lsnum] = prescidx
+    print prescidxmap
     for trgbitnameid, bitparams in bitnamemap.iterrows():
         bitname = bitparams['BITNAME']
         bitid = bitparams['BITID']
@@ -244,11 +252,16 @@ def transfer_trgdata(connection,destconnection,runnum,trgdataid,destdatatagidmap
                     bitnameid = bitaliasmap[bitalias]
                     isalgo = True
                 counts = 0
+                prescidx = 1
                 try:
                     counts = trgcountvalues[idx]
                 except IndexError:
                     pass
-                allrows.append({'datatagid':destdatatagidmap[lsnum], 'trgbitid':bitpos, 'trgbitnameid':bitnameid, 'isalgo':isalgo, 'prescval':prescval, 'counts':counts})
+                try:
+                    prescidx = prescidxmap[lsnum]
+                except KeyError:
+                    pass
+                allrows.append({'datatagid':destdatatagidmap[lsnum], 'trgbitid':bitpos, 'trgbitnameid':bitnameid, 'isalgo':isalgo, 'prescidx':prescidx ,'prescval':prescval, 'counts':counts})
                 
     with destconnection.begin() as trans:
         r = destconnection.execute(i,allrows)
