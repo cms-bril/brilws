@@ -184,25 +184,19 @@ def transfer_trgdata(connection,destconnection,runnum,trgdataid,destdatatagidmap
     '''
     bitnamemap = pd.DataFrame.from_csv('trgbits.csv',index_col='BITNAMEID')
     qalgobits = '''select ALGO_INDEX as bitid, ALIAS as bitname from CMS_GT.GT_RUN_ALGO_VIEW where RUNNUMBER=:runnum order by bitid'''
-    qtechbits = '''select TECHTRIG_INDEX as bitid , to_char(TECHTRIG_INDEX) as bitname from CMS_GT.GT_RUN_TECH_VIEW where RUNNUMBER=:runnum order by bitid'''
+    #qtechbits = '''select TECHTRIG_INDEX as bitid , to_char(TECHTRIG_INDEX) as bitname from CMS_GT.GT_RUN_TECH_VIEW where RUNNUMBER=:runnum order by bitid'''
     qpresc = '''select cmslsnum as lsnum, prescaleblob as prescaleblob, trgcountblob as trgcountblob from CMS_LUMI_PROD.lstrg where data_id=:trgdataid'''
     i = '''insert into TRG_RUN1(DATATAGID,TRGBITID,TRGBITNAMEID,ISALGO,PRESCVAL,COUNTS) values(:datatagid, :trgbitid, :trgbitnameid, :isalgo, :prescval, :counts)'''
 
     allrows = []
     algobitalias = 128*['False']
-    techbitalias = 64*['False']
     bitaliasmap = {}
     with connection.begin() as trans:
         algoresult = connection.execute(qalgobits,{'runnum':runnum})
-        techresult = connection.execute(qtechbits,{'runnum':runnum})
         algopos = 0
         for algo in algoresult:
             algobitalias[algopos] = algo['bitname']
             algopos = algopos+1
-        techpos = 0    
-        for tech in techresult:
-            techbitalias[techpos] = tech['bitname']
-            techpos = techpos+1
 
     for trgbitnameid, bitparams in bitnamemap.iterrows():
         bitname = bitparams['BITNAME']
@@ -242,14 +236,12 @@ def transfer_trgdata(connection,destconnection,runnum,trgdataid,destdatatagidmap
                     bitpos = idx-128
                     bitalias = str(bitpos)
                     bitnameid = 65535
-                    #print 'tech bitid %d bitalias %s trgbitnameid %d prescval %d '%(bitpos,bitalias,65535,prescval)
                     isalgo = False
                 else:
                     bitpos = idx
                     bitalias = algobitalias[bitpos]                    
                     if bitalias=='False': continue
                     bitnameid = bitaliasmap[bitalias]
-                    #print 'algo bitid %d bitalias %s trgbitnameid %d prescval %d '%(bitpos,bitalias,bitnameid,prescval)
                     isalgo = True
                 counts = 0
                 try:
