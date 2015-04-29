@@ -10,7 +10,7 @@ from datetime import datetime
 from brilws import api
 import time
 import array
-
+import re
 dbtimefm = 'MM/DD/YY HH24:MI:SS.ff6'
 pydatetimefm = '%m/%d/%y %H:%M:%S.%f'
 
@@ -96,7 +96,7 @@ def transfer_ids_datatag(connection,destconnection,runnum,lumidataid):
             irow['amodetag'] = r['amodetag']
             allrows.append(irow)
             #print datatagnameid,runnum,irow['lsnum']
-    #print allrows
+
     i = """insert into IDS_DATATAG(DATATAGNAMEID,DATATAGID,FILLNUM,RUNNUM,LSNUM,TARGETEGEV,BEAMSTATUS,AMODETAG) values(:datatagnameid, :datatagid, :fillnum, :runnum, :lsnum, :targetegev, :beamstatus, :amodetag)"""
         
     with destconnection.begin() as trans:
@@ -184,7 +184,6 @@ def transfer_trgdata(connection,destconnection,runnum,trgdataid,destdatatagidmap
     '''
     bitnamemap = pd.DataFrame.from_csv('trgbits.csv',index_col='BITNAMEID')
     qalgobits = '''select ALGO_INDEX as bitid, ALIAS as bitname from CMS_GT.GT_RUN_ALGO_VIEW where RUNNUMBER=:runnum order by bitid'''
-    #qtechbits = '''select TECHTRIG_INDEX as bitid , to_char(TECHTRIG_INDEX) as bitname from CMS_GT.GT_RUN_TECH_VIEW where RUNNUMBER=:runnum order by bitid'''
     qprescidx = 'select lumi_section as lsnum, prescale_index as prescidx from CMS_GT_MON.LUMI_SECTIONS where run_number=:runnum and prescale_index!=0'
     
     qpresc = '''select cmslsnum as lsnum, prescaleblob as prescaleblob, trgcountblob as trgcountblob from CMS_LUMI_PROD.lstrg where data_id=:trgdataid'''
@@ -205,7 +204,7 @@ def transfer_trgdata(connection,destconnection,runnum,trgdataid,destdatatagidmap
             lsnum = prescidxr['lsnum']
             prescidx = prescidxr['prescidx']
             prescidxmap[lsnum] = prescidx
-    print prescidxmap
+    #print prescidxmap
     for trgbitnameid, bitparams in bitnamemap.iterrows():
         bitname = bitparams['BITNAME']
         bitid = bitparams['BITID']
@@ -252,7 +251,7 @@ def transfer_trgdata(connection,destconnection,runnum,trgdataid,destdatatagidmap
                     bitnameid = bitaliasmap[bitalias]
                     isalgo = True
                 counts = 0
-                prescidx = 1
+                prescidx = 0
                 try:
                     counts = trgcountvalues[idx]
                 except IndexError:
@@ -263,6 +262,115 @@ def transfer_trgdata(connection,destconnection,runnum,trgdataid,destdatatagidmap
                     pass
                 allrows.append({'datatagid':destdatatagidmap[lsnum], 'trgbitid':bitpos, 'trgbitnameid':bitnameid, 'isalgo':isalgo, 'prescidx':prescidx ,'prescval':prescval, 'counts':counts})
                 
+    with destconnection.begin() as trans:
+        r = destconnection.execute(i,allrows)
+
+def transfer_hltdata(connection,destconnection,runnum,hltdataid,destdatatagidmap):
+    '''
+    prerequisite : ids_datatag has already entries for this run
+    '''
+    p = re.compile('^HLT_+',re.IGNORECASE)
+    pathnamedf = pd.DataFrame.from_csv('hltpaths.csv',index_col=False)
+    pathnamemap = {}
+    for i,row in pathnamedf.iterrows():
+        n =row['HLTPATHNAME']
+        if p.match(n) is None:
+            continue
+        d = row['HLTPATHID']
+        pathnamemap.setdefault(n,[]).append( int(d) )
+    #print pathnamemap
+    #print pathnamemap.keys()
+        
+    qprescidx = '''select lumi_section as lsnum, prescale_index as prescidx from CMS_GT_MON.LUMI_SECTIONS where run_number=:runnum and prescale_index!=0'''
+
+    qpathname = '''select pathnameclob from CMS_LUMI_PROD.HLTDATA where data_id=:hltdataid'''
+    
+    qhlt = '''select cmslsnum as lsnum, prescaleblob as prescaleblob, hltcountblob as hltcountblob, hltacceptblob as hltacceptblob from CMS_LUMI_PROD.LSHLT where data_id=:hltdataid'''    
+
+    qpathid = '''select lsnumber as lsnum, pathid as hltpathid from cms_runinfo.hlt_supervisor_triggerpaths where runnumber=:runnum'''
+    
+    i = '''insert into HLT_RUN1(DATATAGID,HLTPATHID,PRESCIDX,PRESCVAL,L1PASS,HLTACCEPT) values(:datatagid, :hltpathid, :prescidx, :prescval, :l1pass, :hltaccept)'''
+    
+    allrows = []
+    
+    prescidxmap = {}
+    
+    lspathids = {}
+    
+    with connection.begin() as trans:
+        prescidxresult = connection.execute(qprescidx,{'runnum':runnum})
+        for prescidxr in prescidxresult:
+            lsnum = prescidxr['lsnum']
+            prescidx = prescidxr['prescidx']
+            prescidxmap[lsnum] = prescidx
+
+    with connection.begin() as trans:
+        lspathidresult = connection.execute(qpathid,{'runnum':runnum})
+        for lspathr in lspathidresult:
+            lspathids.setdefault(lspathr['lsnum'],[]).append(lspathr['hltpathid'])
+    
+    with connection.begin() as trans:
+        pathnameresult = connection.execute(qpathname,{'hltdataid':hltdataid})        
+        for row in pathnameresult:
+            pathnameclob = row['pathnameclob']
+            pathnames = pathnameclob.split(',')
+
+        hltresult = connection.execute(qhlt,{'hltdataid':hltdataid})
+        for row in hltresult:
+            lsnum = row['lsnum']
+            if runnum<150008:
+                try:
+                    prescblob = unpackblobstr(row['prescaleblob'],'l')
+                    hltcountblob = unpackblobstr(row['hltcountblob'],'l')
+                    hltacceptblob = unpackblobstr(row['hltacceptblob'],'l')
+                    if not prescblob or not hltcountblob or not hltacceptblob:
+                        continue
+                except ValueError:
+                    prescblob = unpackblobstr(row['prescaleblob'],'I')
+                    hltcountblob = unpackblobstr(row['hltcountblob'],'I')
+                    hltacceptblob = unpackblobstr(row['hltacceptblob'],'I')
+                    if not prescblob or not hltcountblob or not hltacceptblob:
+                        continue
+            else:
+                prescblob = unpackblobstr(row['prescaleblob'],'I')
+                hltcountblob = unpackblobstr(row['hltcountblob'],'I')
+                hltacceptblob = unpackblobstr(row['hltacceptblob'],'I')
+                if not prescblob or not hltcountblob or not hltacceptblob:
+                    continue
+            prescalevalues = pd.Series(prescblob)
+            hltcountvalues = pd.Series(hltcountblob)
+            hltacceptvalues = pd.Series(hltacceptblob)
+            
+            for idx, prescval in prescalevalues.iteritems():
+                prescidx = 0
+                hltcounts = 0
+                hltaccept = 0
+                hltpathname = ''
+                hltpathid = 0
+                try:
+                    hltpathname = pathnames[idx]
+                except IndexError:
+                    pass
+                if p.match(hltpathname) is None: continue
+                if hltpathname.find('Calibration')!=-1: continue
+                try:
+                    hltcounts = hltcountvalues[idx]
+                except IndexError:
+                    pass
+                try:
+                    hltaccept = hltacceptvalues[idx]
+                except IndexError:
+                    pass
+                try:
+                    prescidx = prescidxmap[lsnum]
+                except KeyError:
+                    pass
+                pathidcandidates = pathnamemap[hltpathname]
+                pathidinsersection = list( set(pathidcandidates) & set(lspathids[lsnum]) )
+                hltpathid = pathidinsersection[0]
+
+                allrows.append({'datatagid':destdatatagidmap[lsnum], 'hltpathid':hltpathid, 'prescidx':prescidx, 'prescval':prescval, 'l1pass':hltcounts, 'hltaccept':hltaccept})
+
     with destconnection.begin() as trans:
         r = destconnection.execute(i,allrows)
         
@@ -281,12 +389,14 @@ if __name__=='__main__':
     destengine = create_engine(desturl)
     destconnection = destengine.connect()
     
-    transfertimeinfo(connection,destconnection,193091)
-    transfer_ids_datatag(connection,destconnection,193091,1649)
+    #transfertimeinfo(connection,destconnection,193091)
+    #transfer_ids_datatag(connection,destconnection,193091,1649)
     #destdatatagid = datatagid_of_run(destconnection,193091,datatagnameid=0)
     destdatatagid_map = datatagid_of_ls(destconnection,193091,datatagnameid=0)
     #print destdatatagid_map
     #transfer_runinfo(connection,destconnection,193091,destdatatagid)
     #transfer_trgconfig(connection,destconnection,193091,1477,destdatatagid)
     #transfer_beamintensity(connection,destconnection,193091,1649,destdatatagid_map)
-    transfer_trgdata(connection,destconnection,193091,1477,destdatatagid_map)
+    #transfer_trgdata(connection,destconnection,193091,1477,destdatatagid_map)
+    transfer_hltdata(connection,destconnection,193091,1391,destdatatagid_map)
+    #transfer_hltdata(connection,destconnection,200491,1748,destdatatagid_map)
