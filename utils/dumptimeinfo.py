@@ -577,19 +577,34 @@ def transfer_lumidata(connection,destconnection,runnum,lumidataid,destdatatagidm
     prerequisite : ids_datatag has already entries for this run
     '''
     qlumioc = '''select LUMILSNUM as lsnum, INSTLUMI as avgrawlumi, BXLUMIVALUE_OCC1 as bxlumiblob from CMS_LUMI_PROD.LUMISUMMARYV2 where DATA_ID=:lumidataid'''
-    
+    ilumi = '''insert into HFOC_RUN1(DATATAGID,AVGRAWLUMI) values(:datatagid, :avgrawlumi)'''
+    ibxlumi = '''insert into BX_HFOC_RUN1(DATATAGID,BXIDX,BXRAWLUMI) values(:datatagid, :bxidx, :bxrawlumi) '''
+
+    allrows = []
     with connection.begin() as trans:
-         lumiresult = connection.execute(qlumioc,{'lumidataid':lumidataid})
-         for row in lumiresult:
-             lsnum = row['lsnum']
-             avgrawlumi = row['avgrawlumi']
-             bxrawlumiblob = unpackblobstr(row['bxlumiblob'],'f')
-             if not bxrawlumiblob:
-                 continue
-             bxrawlumi = pd.Series(bxrawlumiblob, dtype=np.dtype("object"))
-             bxrawlumi_idx = bxrawlumi.nonzero()
-             bxrawlumi = bxrawlumi.loc[bxrawlumi_idx]
-             print lsnum, bxrawlumi_idx,bxrawlumi
+        lumiresult = connection.execute(qlumioc,{'lumidataid':lumidataid})
+        lumirows = []
+        lumibxrows=[]
+        for row in lumiresult:
+            lsnum = row['lsnum']
+            avgrawlumi = row['avgrawlumi']
+            bxrawlumiblob = unpackblobstr(row['bxlumiblob'],'f')
+            if not bxrawlumiblob:
+                continue
+            bxrawlumiS = pd.Series(bxrawlumiblob, dtype=np.dtype("object"))
+            bxrawlumi_idx = pd.Series(bxrawlumiS.nonzero()[0])
+            bxrawlumi = bxrawlumiS.loc[bxrawlumi_idx]
+            bxrows = []
+            for pos,bxidx in bxrawlumi_idx.iteritems():
+                bxrows.append( {'datatagid':destdatatagidmap[lsnum], 'bxidx':bxidx, 'bxrawlumi':bxrawlumi[pos] } )
+            del bxrawlumiS
+            del bxrawlumi_idx
+            allrows.append( [{'datatagid':destdatatagidmap[lsnum] , 'avgrawlumi':avgrawlumi}, bxrows])    
+    with destconnection.begin() as trans:
+        for row in allrows:
+            l = destconnection.execute(ilumi,row[0])
+            if not row[1]: continue
+            r = destconnection.execute(ibxlumi,row[1])    
              
 if __name__=='__main__':
     logging.basicConfig(level=logging.INFO,format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
