@@ -49,6 +49,7 @@ RUNINFO:          #per run
     - hltkey: string
     - gt_rs_key: string
     - fillscheme: string
+    - ncollidingbx: uint32	
    pk: [datatagid]
 
 TRGCONFIG:        #per run
@@ -74,8 +75,7 @@ BX_BEAM_&suffix:  #per ls, per bx
     - bxidx: uint16
     - bxintensity1: float
     - bxintensity2: float
-    - bxconfig1: bool
-    - bxconfig2: bool
+    - iscolliding: bool
    pk: [datatagid,bxidx]
 
 TRG_&suffix:               #per ls, per trg bit
@@ -106,7 +106,6 @@ TIMESOURCE_&suffix:       #per ls
     - norb: uint32
     - nbperls: uint32
     - cmson: bool
-    - ncollidingbx: uint32
    pk: [datatagid] 
 
 HFOC_&suffix:
