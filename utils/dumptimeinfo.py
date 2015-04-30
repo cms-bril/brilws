@@ -605,7 +605,33 @@ def transfer_lumidata(connection,destconnection,runnum,lumidataid,destdatatagidm
             l = destconnection.execute(ilumi,row[0])
             if not row[1]: continue
             r = destconnection.execute(ibxlumi,row[1])    
-             
+
+def transfer_timesource(connection,destconnection,runnum,lumidataid,trgdataid,destdatatagidmap):
+    '''
+    prerequisite : ids_datatag has already entries for this run
+    '''
+    q = '''select l.LUMILSNUM as lsnum, l.CMSLSNUM as cmslsnum, l.NUMORBIT as norb, t.DEADFRAC as deadfrac from CMS_LUMI_PROD.LUMISUMMARYV2 l, CMS_LUMI_PROD.LSTRG t where l.CMSLSNUM=t.CMSLSNUM and l.DATA_ID=:lumidataid and t.DATA_ID=:trgdataid'''
+
+    i = '''insert into TIMESOURCE_RUN1(DATATAGID,DEADTIMEFRAC,NORB,NBPERLS,CMSON) values(:datatagid,:deadtimefrac,:norb,:nbperls,:cmson)'''
+    
+    with connection.begin() as trans:
+        allrows = []
+        result = connection.execute(q,{'lumidataid':lumidataid, 'trgdataid':trgdataid})
+        cmson = False
+        nbperls = 64
+        deadtimefrac = 1.
+        norb = 0 
+        for row in result:
+            lsnum = row['lsnum']
+            cmslsnum = row['cmslsnum']
+            norb = row['norb']
+            if lsnum == cmslsnum:
+                cmson = True
+            deadfrac = row['deadfrac']
+            allrows.append({'datatagid':destdatatagidmap[lsnum], 'deadtimefrac':deadfrac, 'norb':norb, 'nbperls':nbperls, 'cmson':cmson})
+    with destconnection.begin() as trans:
+        r = destconnection.execute(i,allrows)
+        
 if __name__=='__main__':
     logging.basicConfig(level=logging.INFO,format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
     
@@ -631,4 +657,5 @@ if __name__=='__main__':
     #transfer_beamintensity(connection,destconnection,193091,1649,destdatatagid_map)
     #transfer_trgdata(connection,destconnection,193091,1477,destdatatagid_map)
     #transfer_hltdata(connection,destconnection,193091,1391,destdatatagid_map)
-    transfer_lumidata(connection,destconnection,193091,1649,destdatatagid_map)
+    #transfer_lumidata(connection,destconnection,193091,1649,destdatatagid_map)
+    transfer_timesource(connection,destconnection,193091,1649,1477,destdatatagid_map)
