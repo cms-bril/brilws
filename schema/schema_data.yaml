@@ -49,7 +49,7 @@ RUNINFO:          #per run
     - hltkey: string
     - gt_rs_key: string
     - fillscheme: string
-    - ncollidingbx: uint32	
+    - ncollidingbx: uint32
    pk: [datatagid]
 
 TRGCONFIG:        #per run
