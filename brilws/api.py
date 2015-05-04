@@ -1232,6 +1232,47 @@ def insertDataTagEntry(engine,idtablename,datatagnameid,runnum,lsnum,fillnum=0,s
         pass
     return datatagid
 
+####################
+##    Query API
+####################
+
+def datatagIter(engine,datatagnameid,schemaname=None,runmin=None,runmax=None,fillmin=None,timestampsecmin=None,timestampsecmax=None,fillmax=None,beamstatus=None,amodetag=None,targetegev=None,chunksize=9999):
+    '''
+    output: iterator
+    select fillnum,runnum,lsnum,DATATAGID from <schemaname>.IDS_DATATAG [where ]
+    '''
+    q = '''select FILLNUM as fillnum, RUNNUM as runnum, LSNUM as lsnum, BEAMSTATUS as beamstatus, AMODETAG as amodetag, TARGETEGEV as targetegev, max(DATATAGID) as datatagid from IDS_DATATAG where DATATAGNAMEID<=:datatagnameid'''
+    qCondition = ''
+    qPieces = []
+    binddict = {'datatagnameid':datatagnameid}
+    if runmin:
+        qPieces.append('RUNNUM>=:runmin')
+        binddict['runmin'] = runmin
+    if runmax:
+        qPieces.append('RUNNUM<=:runmax')
+        binddict['runmax'] = runmax
+    if fillmin:
+        qPieces.append('FILLNUM>=:fillmin')
+        binddict['fillmin'] = fillmin
+    if fillmax:
+        qPieces.append('FILLNUM<=:fillmax')
+        binddict['fillmax'] = fillmax
+    if beamstatus:
+        qPieces.append('BEAMSTATUS=:beamstatus')
+        binddict['beamstatus'] = beamstatus
+    if amodetag:
+        qPieces.append('AMODETAG=:amodetag')
+        binddict['amodetag'] = amodetag
+    if targetegev:
+        qPieces.append('TARGETEGEV=:targetegev')
+        binddict['targetegev'] = targetegev
+    if qPieces:
+        qCondition = ' and '.join([qCondition]+qPieces)
+    q = q + qCondition +' group by RUNNUM, LSNUM'
+    result = pd.read_sql_query(q,engine,chunksize=chunksize,params=binddict,index_col='datatagid')   
+    return result
+
+
 
 #
 # operation on  data sources

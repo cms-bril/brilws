@@ -28,16 +28,6 @@ from docopt import docopt
 from schema import Schema, And, Or, Use
 from brilws import RegexValidator,params
 
-#outstyle = ['tab','html','csv']
-
-#timeopt_pattern = '^\d\d/\d\d/\d\d \d\d:\d\d:\d\d$|^\d{6}$|^\d{4}$'
-#fillnum_pattern = '^\d{4}$'
-#runnum_pattern = '^\d{6}$'
-#time_pattern = '^\d\d/\d\d/\d\d \d\d:\d\d:\d\d$'
-
-#amodetagChoices = ['PROTPHYS','IONPHYS','PAPHYS','MDEV','BMSETUP']
-#beamstatusChoices = ['FLAT TOP','SQUEEZE','ADJUST','STABLE BEAMS']
-
 def validate(optdict):
     result={}
     schema = Schema({

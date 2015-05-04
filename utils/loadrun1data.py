@@ -84,7 +84,6 @@ def transfer_ids_datatag(connection,destconnection,runnum,lumidataid):
     
     datatagnameid = 0    
     allrows = []
-    datatagnameid = 0
     with connection.begin() as trans:
         result = connection.execute(qrunsummary,{'runnum':runnum,'lumidataid':lumidataid})
         for r in result:
@@ -94,18 +93,16 @@ def transfer_ids_datatag(connection,destconnection,runnum,lumidataid):
             starttimestr = r['starttime']
             starttime = datetime.strptime(starttimestr,pydatetimefm)
             k = next(api.generate_key(lsnum))
-            irow = {'datatagnameid':datatagnameid, 'datatagid':k, 'fillnum':0,'runnum':runnum,'lsnum':0,'timestampsec':starttime,'cmson':cmson,'norb':norb,'targetegev':0,'beamstatus':'','amodetag':''}
+            irow = {'datatagnameid':datatagnameid, 'datatagid':k, 'fillnum':0,'runnum':runnum,'lsnum':0,'timestampsec':0,'cmson':cmson,'norb':norb,'targetegev':0,'beamstatus':'','amodetag':''}
+            irow['datatagid'] = k
             irow['fillnum'] = r['fillnum']
             irow['lsnum'] = lsnum
-            irow['datatagid'] = k
+            irow['timestampsec'] = time.mktime(starttime.timetuple())
             irow['targetegev'] = r['targetegev']
             irow['beamstatus'] = r['beamstatus']
             irow['amodetag'] = r['amodetag']            
             allrows.append(irow)
             #print datatagnameid,runnum,irow['lsnum']
-
-    
-        
     with destconnection.begin() as trans:
         r = destconnection.execute(i,allrows)
 
@@ -129,22 +126,6 @@ def transfer_runinfo(connection,destconnection,runnum,trgdataid,destdatatagid):
             allrows.append(irow)
     with destconnection.begin() as trans:
         r = destconnection.execute(i,allrows)
-
-#def transfer_trgconfig(connection,destconnection,runnum,trgdataid,destdatatagid):
-#    '''
-#    prerequisite : ids_datatag has already entries for this run    
-#    '''
-#    qmask = '''select ALGOMASK_H as algomask_high,ALGOMASK_L as algomask_low,TECHMASK as techmask from CMS_LUMI_PROD.trgdata where DATA_ID=:trgdataid'''
-#    i = '''insert into TRGCONFIG(DATATAGID,ALGOMASK_HIGH,ALGOMASK_LOW,TECHMASK) values(:datatagid, :algomask_high, :algomask_low, :techmask)'''
-#    allrows = []
-#    with connection.begin() as trans:
-#        result = connection.execute(qmask,{'trgdataid':trgdataid})
-#        for r in result:
-#            irow = {'datatagid':destdatatagid, 'algomask_high': r['algomask_high'], 'algomask_low':r['algomask_low'], 'techmask':r['techmask']}
-#            allrows.append(irow)
-#    print allrows
-#    #with destconnection.begin() as trans:
-#    #    r = destconnection.execute(i,allrows)
 
 def transfer_beamintensity(connection,destconnection,runnum,lumidataid,destdatatagidmap):
     '''
@@ -550,25 +531,22 @@ if __name__=='__main__':
     destengine = create_engine(desturl)
     destconnection = destengine.connect()
 
+    ids = [ [165523,279,278,269],[193091,1649,1477,1391] ]
     #run = 165523 #193091
     #lumidataid = 279 #1649
     #trgdataid = 278  #1477
     #hltdataid = 269  #1391
+    for [run,lumidataid,trgdataid,hltdataid] in ids:
+        print 'processing %d,%d,%d,%d'%(run,lumidataid,trgdataid,hltdataid)
+        transfertimeinfo(connection,destconnection,run)
+        transfer_ids_datatag(connection,destconnection,run,lumidataid)
+        destdatatagid = datatagid_of_run(destconnection,run,datatagnameid=0)
+        destdatatagid_map = datatagid_of_ls(destconnection,run,datatagnameid=0)
+        transfer_runinfo(connection,destconnection,run,trgdataid,destdatatagid)
+        transfer_beamintensity(connection,destconnection,run,lumidataid,destdatatagid_map)
+        transfer_trgdata(connection,destconnection,run,trgdataid,destdatatagid_map)
+        transfer_hltdata(connection,destconnection,run,hltdataid,destdatatagid_map)
+        transfer_lumidata(connection,destconnection,run,lumidataid,destdatatagid_map)
+        transfer_deadtime(connection,destconnection,run,trgdataid,destdatatagid_map)
 
-    run = 193091
-    lumidataid = 1649
-    trgdataid = 1477
-    hltdataid = 1391
-    
-    transfertimeinfo(connection,destconnection,run)
-    transfer_ids_datatag(connection,destconnection,run,lumidataid)
-    destdatatagid = datatagid_of_run(destconnection,run,datatagnameid=0)
-    destdatatagid_map = datatagid_of_ls(destconnection,run,datatagnameid=0)
-    #print destdatatagid_map
-    transfer_runinfo(connection,destconnection,run,trgdataid,destdatatagid)
-    transfer_beamintensity(connection,destconnection,run,lumidataid,destdatatagid_map)
-    transfer_trgdata(connection,destconnection,run,trgdataid,destdatatagid_map)
-    transfer_hltdata(connection,destconnection,run,hltdataid,destdatatagid_map)
-    transfer_lumidata(connection,destconnection,run,lumidataid,destdatatagid_map)
-    transfer_deadtime(connection,destconnection,run,trgdataid,destdatatagid_map)
     

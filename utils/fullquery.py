@@ -13,8 +13,8 @@ import array
 import re
 from prettytable import PrettyTable
 
-dbtimefm = 'MM/DD/YY HH24:MI:SS.ff6'
-pydatetimefm = '%m/%d/%y %H:%M:%S.%f'
+#dbtimefm = 'MM/DD/YY HH24:MI:SS.ff6'
+#pydatetimefm = '%m/%d/%y %H:%M:%S.%f'
 
 def datatagIter(engine,datatagnameid,schemaname=None,runmin=None,runmax=None,fillmin=None,fillmax=None,beamstatus=None,amodetag=None,targetegev=None,chunksize=9999):
     '''
