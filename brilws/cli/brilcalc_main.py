@@ -56,7 +56,7 @@ def brilcalc_main():
           import brilcalc_beam
           parseresult = docopt.docopt(brilcalc_beam.__doc__,argv=cmmdargv)
           parseresult = brilcalc_beam.validate(parseresult)
-
+          
       elif args['<command>'] == 'trg':
           import brilcalc_trg
           parseresult = docopt.docopt(brilcalc_trg.__doc__,argv=cmmdargv)
