@@ -1236,9 +1236,9 @@ def insertDataTagEntry(engine,idtablename,datatagnameid,runnum,lsnum,fillnum=0,s
 ##    Query API
 ####################
 
-def datatagIter(engine,datatagnameid,schemaname=None,runmin=None,runmax=None,fillmin=None,timestampsecmin=None,timestampsecmax=None,fillmax=None,beamstatus=None,amodetag=None,targetegev=None,chunksize=9999):
+def datatagIter(engine,datatagnameid,schemaname=None,runmin=None,runmax=None,fillmin=None,tssecmin=None,tssecmax=None,fillmax=None,beamstatus=None,amodetag=None,targetegev=None,chunksize=9999):
     '''
-    output: iterator
+    output: dataframe iterator, index_col='datatagid'
     select fillnum,runnum,lsnum,DATATAGID from <schemaname>.IDS_DATATAG [where ]
     '''
     q = '''select FILLNUM as fillnum, RUNNUM as runnum, LSNUM as lsnum, BEAMSTATUS as beamstatus, AMODETAG as amodetag, TARGETEGEV as targetegev, max(DATATAGID) as datatagid from IDS_DATATAG where DATATAGNAMEID<=:datatagnameid'''
@@ -1257,6 +1257,12 @@ def datatagIter(engine,datatagnameid,schemaname=None,runmin=None,runmax=None,fil
     if fillmax:
         qPieces.append('FILLNUM<=:fillmax')
         binddict['fillmax'] = fillmax
+    if tssecmin:
+        qPieces.append('TIMESTAMPSEC>=:tssecmin')
+        binddict['tssecmin'] = tssecmin
+    if tssecmax:
+        qPieces.append('TIMESTAMPSEC<=:tssecmax')
+        binddict['tssecmax'] = tssecmax        
     if beamstatus:
         qPieces.append('BEAMSTATUS=:beamstatus')
         binddict['beamstatus'] = beamstatus
@@ -1272,6 +1278,21 @@ def datatagIter(engine,datatagnameid,schemaname=None,runmin=None,runmax=None,fil
     result = pd.read_sql_query(q,engine,chunksize=chunksize,params=binddict,index_col='datatagid')   
     return result
 
+def beamInfoIter(engine,datatagidmin,datatagidmax,schemaname=None,tablename=None,chunksize=9999,withBX=False):
+    '''
+    output: 
+    query: select egev,intensity1,intensity2 from BEAM_RUN1 where DATATAGID>=:datatagidmin and DATATAGID<=:datatagidmax 
+
+    withbxquery: select b.DATATAGID as datatagid, b.EGEV as egev, b.INTENSITY1 as intensity1, b.INTENSITY2 as intensity2, bx.BXIDX as bxidx, bx.BXINTENSITY1 as bxintensity1, bx.BXINTENSITY2 as bxintensity2, bx.ISCOLLIDING as iscolliding from BEAM_RUN1 b, BX_BEAM_RUN1 bx where b.DATATAGID=bx.DATATAGID and b.DATATAGID>=:datatagidmin and b.DATATAGID<=:datatagidmax 
+
+    '''
+    
+    q = '''select DATATAGID as datatagid, EGEV as egev, INTENSITY1 as intensity1, INTENSITY2 as intensity2 from BEAM_RUN1 where DATATAGID>=:datatagidmin and DATATAGID<=:datatagidmax'''
+    if withBX:
+        q = '''select b.DATATAGID as datatagid, b.EGEV as egev, b.INTENSITY1 as intensity1, b.INTENSITY2 as intensity2, bx.BXIDX as bxidx, bx.BXINTENSITY1 as bxintensity1, bx.BXINTENSITY2 as bxintensity2, bx.ISCOLLIDING as iscolliding from BEAM_RUN1 b, BX_BEAM_RUN1 bx where b.DATATAGID=bx.DATATAGID and b.DATATAGID>=:datatagidmin and b.DATATAGID<=:datatagidmax'''
+        
+    result = pd.read_sql_query(q,engine,chunksize=chunksize,params={'datatagidmin':datatagidmin,'datatagidmax':datatagidmax},index_col='datatagid')
+    return result
 
 
 #
