@@ -158,7 +158,7 @@ def transfer_beamintensity(connection,destconnection,runnum,lumidataid,destdatat
     allbxbeamrows = []
     bxcols = ['datatagid','bxidx','beam1intensity','beam2intensity']
     bxdt = {'datatagid':'int64','bxidx':'object','beam1intensity':'object','beam2intensity':'object'}
-    print destdatatagidmap
+    #print destdatatagidmap
     with connection.begin() as trans:
         result = connection.execute(qbeam,{'lumidataid':lumidataid})
         for row in result:
