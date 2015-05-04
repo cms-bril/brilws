@@ -74,11 +74,14 @@ def transfertimeinfo(connection,destconnection,runnum):
     with destconnection.begin() as trans:
         r = destconnection.execute(i,allrows)
 
-        
 def transfer_ids_datatag(connection,destconnection,runnum,lumidataid):
     '''
     '''
-    qrunsummary = """select r.fillnum as fillnum,r.egev as targetegev, r.amodetag as amodetag, s.lumilsnum as lsnum,s.beamstatus as beamstatus from CMS_LUMI_PROD.CMSRUNSUMMARY r, CMS_LUMI_PROD.lumisummaryv2 s where r.runnum=s.runnum and r.runnum=:runnum and s.data_id=:lumidataid"""
+    norb = 262144
+    cmson = True
+    qrunsummary = '''select r.FILLNUM as fillnum,r.EGEV as targetegev, r.AMODETAG as amodetag, s.LUMILSNUM as lsnum, s.CMSLSNUM as cmslsnum, s.BEAMSTATUS as beamstatus, to_char(t.STARTTIME,'%s') as starttime from CMS_LUMI_PROD.CMSRUNSUMMARY r, CMS_LUMI_PROD.LUMISUMMARYV2 s,  CMS_RUNTIME_LOGGER.LUMI_SECTIONS t where r.runnum=s.runnum and t.runnumber=s.runnum and s.lumilsnum=t.lumisection and r.runnum=:runnum and s.data_id=:lumidataid'''%(dbtimefm)
+    i = """insert into IDS_DATATAG(DATATAGNAMEID,DATATAGID,FILLNUM,RUNNUM,LSNUM,TIMESTAMPSEC,CMSON,NORB,TARGETEGEV,BEAMSTATUS,AMODETAG) values(:datatagnameid, :datatagid, :fillnum, :runnum, :lsnum, :timestampsec, :cmson, :norb, :targetegev, :beamstatus, :amodetag)"""
+    
     datatagnameid = 0    
     allrows = []
     datatagnameid = 0
@@ -86,33 +89,40 @@ def transfer_ids_datatag(connection,destconnection,runnum,lumidataid):
         result = connection.execute(qrunsummary,{'runnum':runnum,'lumidataid':lumidataid})
         for r in result:
             lsnum = r['lsnum']
+            cmslsnum = r['cmslsnum']
+            if not cmslsnum: cmson=False
+            starttimestr = r['starttime']
+            starttime = datetime.strptime(starttimestr,pydatetimefm)
             k = next(api.generate_key(lsnum))
-            irow = {'datatagnameid':datatagnameid, 'datatagid':k, 'fillnum':0,'runnum':runnum,'lsnum':0,'targetegev':0,'beamstatus':'','amodetag':''}
+            irow = {'datatagnameid':datatagnameid, 'datatagid':k, 'fillnum':0,'runnum':runnum,'lsnum':0,'timestampsec':starttime,'cmson':cmson,'norb':norb,'targetegev':0,'beamstatus':'','amodetag':''}
             irow['fillnum'] = r['fillnum']
             irow['lsnum'] = lsnum
             irow['datatagid'] = k
             irow['targetegev'] = r['targetegev']
             irow['beamstatus'] = r['beamstatus']
-            irow['amodetag'] = r['amodetag']
+            irow['amodetag'] = r['amodetag']            
             allrows.append(irow)
             #print datatagnameid,runnum,irow['lsnum']
 
-    i = """insert into IDS_DATATAG(DATATAGNAMEID,DATATAGID,FILLNUM,RUNNUM,LSNUM,TARGETEGEV,BEAMSTATUS,AMODETAG) values(:datatagnameid, :datatagid, :fillnum, :runnum, :lsnum, :targetegev, :beamstatus, :amodetag)"""
+    
         
     with destconnection.begin() as trans:
         r = destconnection.execute(i,allrows)
 
-def transfer_runinfo(connection,destconnection,runnum,destdatatagid):
+def transfer_runinfo(connection,destconnection,runnum,trgdataid,destdatatagid):
     '''
     prerequisite : ids_datatag has already entries for this run
     '''
     qruninfo = '''select hltkey,l1key,fillscheme from CMS_LUMI_PROD.CMSRUNSUMMARY where runnum=:runnum'''
-    i = '''insert into RUNINFO(DATATAGID,RUNNUM,HLTKEY,GT_RS_KEY,FILLSCHEME) values(:datatagid, :runnum, :hltkey, :l1key, :fillscheme)'''
-    allrows = []
+    qmask = '''select ALGOMASK_H as algomask_high,ALGOMASK_L as algomask_low,TECHMASK as techmask from CMS_LUMI_PROD.trgdata where DATA_ID=:trgdataid'''
+    i = '''insert into RUNINFO(DATATAGID,RUNNUM,HLTKEY,GT_RS_KEY,TRGMASK,FILLSCHEME,NBPERLS) values(:datatagid, :runnum, :hltkey, :l1key, :trgmask, :fillscheme, :nbperls)'''
+    trgmask = ''.join(192*['0'])
+    nbperls = 64
+    allrows = []    
     with connection.begin() as trans:
         result = connection.execute(qruninfo,{'runnum':runnum})
         for r in result:
-            irow = {'datatagid':destdatatagid, 'runnum':runnum,'hltkey':'','l1key':'','fillscheme':''}
+            irow = {'datatagid':destdatatagid, 'runnum':runnum,'hltkey':'','l1key':'','trgmask':trgmask,'fillscheme':'','nbperls':nbperls}
             irow['hltkey'] = r['hltkey']
             irow['l1key'] = r['l1key']
             irow['fillscheme'] = r['fillscheme']
@@ -120,20 +130,21 @@ def transfer_runinfo(connection,destconnection,runnum,destdatatagid):
     with destconnection.begin() as trans:
         r = destconnection.execute(i,allrows)
 
-def transfer_trgconfig(connection,destconnection,runnum,trgdataid,destdatatagid):
-    '''
-    prerequisite : ids_datatag has already entries for this run    
-    '''
-    qmask = '''select ALGOMASK_H as algomask_high,ALGOMASK_L as algomask_low,TECHMASK as techmask from CMS_LUMI_PROD.trgdata where DATA_ID=:trgdataid'''
-    i = '''insert into TRGCONFIG(DATATAGID,ALGOMASK_HIGH,ALGOMASK_LOW,TECHMASK) values(:datatagid, :algomask_high, :algomask_low, :techmask)'''
-    allrows = []
-    with connection.begin() as trans:
-        result = connection.execute(qmask,{'trgdataid':trgdataid})
-        for r in result:
-            irow = {'datatagid':destdatatagid, 'algomask_high': r['algomask_high'], 'algomask_low':r['algomask_low'], 'techmask':r['techmask']}
-            allrows.append(irow)
-    with destconnection.begin() as trans:
-        r = destconnection.execute(i,allrows)
+#def transfer_trgconfig(connection,destconnection,runnum,trgdataid,destdatatagid):
+#    '''
+#    prerequisite : ids_datatag has already entries for this run    
+#    '''
+#    qmask = '''select ALGOMASK_H as algomask_high,ALGOMASK_L as algomask_low,TECHMASK as techmask from CMS_LUMI_PROD.trgdata where DATA_ID=:trgdataid'''
+#    i = '''insert into TRGCONFIG(DATATAGID,ALGOMASK_HIGH,ALGOMASK_LOW,TECHMASK) values(:datatagid, :algomask_high, :algomask_low, :techmask)'''
+#    allrows = []
+#    with connection.begin() as trans:
+#        result = connection.execute(qmask,{'trgdataid':trgdataid})
+#        for r in result:
+#            irow = {'datatagid':destdatatagid, 'algomask_high': r['algomask_high'], 'algomask_low':r['algomask_low'], 'techmask':r['techmask']}
+#            allrows.append(irow)
+#    print allrows
+#    #with destconnection.begin() as trans:
+#    #    r = destconnection.execute(i,allrows)
 
 def transfer_beamintensity(connection,destconnection,runnum,lumidataid,destdatatagidmap):
     '''
@@ -147,6 +158,7 @@ def transfer_beamintensity(connection,destconnection,runnum,lumidataid,destdatat
     allbxbeamrows = []
     bxcols = ['datatagid','bxidx','beam1intensity','beam2intensity']
     bxdt = {'datatagid':'int64','bxidx':'object','beam1intensity':'object','beam2intensity':'object'}
+    print destdatatagidmap
     with connection.begin() as trans:
         result = connection.execute(qbeam,{'lumidataid':lumidataid})
         for row in result:
@@ -162,6 +174,7 @@ def transfer_beamintensity(connection,destconnection,runnum,lumidataid,destdatat
             beam2intensity = pd.Series(beam2intensityblob, dtype=np.dtype("object"))
             tot_beam1intensity = beam1intensity.sum()
             tot_beam2intensity = beam2intensity.sum()
+            
             ibeamrow = {'datatagid':destdatatagidmap[lsnum],'egev':beamenergy, 'intensity1':tot_beam1intensity, 'intensity2':tot_beam2intensity } 
             allbeamrows.append(ibeamrow)
             allbxbeamrows.append( {'datatagid':destdatatagidmap[lsnum],'bxidx':bxindex,'beam1intensity':beam1intensity,'beam2intensity':beam2intensity} )
@@ -307,7 +320,9 @@ def transfer_hltdata(connection,destconnection,runnum,hltdataid,destdatatagidmap
     with connection.begin() as trans:
         lspathidresult = connection.execute(qpathid,{'runnum':runnum})
         for lspathr in lspathidresult:
-            lspathids.setdefault(lspathr['lsnum'],[]).append(lspathr['hltpathid'])
+            lsnum = lspathr['lsnum']
+            hltpathid = lspathr['hltpathid']
+            lspathids.setdefault(lsnum,[]).append(hltpathid)
     
     with connection.begin() as trans:
         pathnameresult = connection.execute(qpathname,{'hltdataid':hltdataid})        
@@ -366,9 +381,12 @@ def transfer_hltdata(connection,destconnection,runnum,hltdataid,destdatatagidmap
                 except KeyError:
                     pass
                 pathidcandidates = pathnamemap[hltpathname]
-                pathidinsersection = list( set(pathidcandidates) & set(lspathids[lsnum]) )
-                hltpathid = pathidinsersection[0]
-
+                try:
+                    pathidinsersection = list( set(pathidcandidates) & set(lspathids[lsnum]) )
+                    hltpathid = pathidinsersection[0]
+                except KeyError:
+                    print 'no hltpath found for ls %d, skip'%(lsnum)
+                    continue
                 allrows.append({'datatagid':destdatatagidmap[lsnum], 'hltpathid':hltpathid, 'prescidx':prescidx, 'prescval':prescval, 'l1pass':hltcounts, 'hltaccept':hltaccept})
 
     with destconnection.begin() as trans:
@@ -462,116 +480,6 @@ def transfer_trgdata(connection,destconnection,runnum,trgdataid,destdatatagidmap
     with destconnection.begin() as trans:
         r = destconnection.execute(i,allrows)
 
-def transfer_hltdata(connection,destconnection,runnum,hltdataid,destdatatagidmap):
-    '''
-    prerequisite : ids_datatag has already entries for this run
-    '''
-    p = re.compile('^HLT_+',re.IGNORECASE)
-    pathnamedf = pd.DataFrame.from_csv('hltpaths.csv',index_col=False)
-    pathnamemap = {}
-    for i,row in pathnamedf.iterrows():
-        n =row['HLTPATHNAME']
-        if p.match(n) is None:
-            continue
-        d = row['HLTPATHID']
-        pathnamemap.setdefault(n,[]).append( int(d) )
-    #print pathnamemap
-    #print pathnamemap.keys()
-        
-    qprescidx = '''select lumi_section as lsnum, prescale_index as prescidx from CMS_GT_MON.LUMI_SECTIONS where run_number=:runnum and prescale_index!=0'''
-
-    qpathname = '''select pathnameclob from CMS_LUMI_PROD.HLTDATA where data_id=:hltdataid'''
-    
-    qhlt = '''select cmslsnum as lsnum, prescaleblob as prescaleblob, hltcountblob as hltcountblob, hltacceptblob as hltacceptblob from CMS_LUMI_PROD.LSHLT where data_id=:hltdataid'''    
-
-    qpathid = '''select lsnumber as lsnum, pathid as hltpathid from cms_runinfo.hlt_supervisor_triggerpaths where runnumber=:runnum'''
-    
-    i = '''insert into HLT_RUN1(DATATAGID,HLTPATHID,PRESCIDX,PRESCVAL,L1PASS,HLTACCEPT) values(:datatagid, :hltpathid, :prescidx, :prescval, :l1pass, :hltaccept)'''
-    
-    allrows = []
-    
-    prescidxmap = {}
-    
-    lspathids = {}
-    
-    with connection.begin() as trans:
-        prescidxresult = connection.execute(qprescidx,{'runnum':runnum})
-        for prescidxr in prescidxresult:
-            lsnum = prescidxr['lsnum']
-            prescidx = prescidxr['prescidx']
-            prescidxmap[lsnum] = prescidx
-
-    with connection.begin() as trans:
-        lspathidresult = connection.execute(qpathid,{'runnum':runnum})
-        for lspathr in lspathidresult:
-            lspathids.setdefault(lspathr['lsnum'],[]).append(lspathr['hltpathid'])
-    
-    with connection.begin() as trans:
-        pathnameresult = connection.execute(qpathname,{'hltdataid':hltdataid})        
-        for row in pathnameresult:
-            pathnameclob = row['pathnameclob']
-            pathnames = pathnameclob.split(',')
-
-        hltresult = connection.execute(qhlt,{'hltdataid':hltdataid})
-        for row in hltresult:
-            lsnum = row['lsnum']
-            if runnum<150008:
-                try:
-                    prescblob = unpackblobstr(row['prescaleblob'],'l')
-                    hltcountblob = unpackblobstr(row['hltcountblob'],'l')
-                    hltacceptblob = unpackblobstr(row['hltacceptblob'],'l')
-                    if not prescblob or not hltcountblob or not hltacceptblob:
-                        continue
-                except ValueError:
-                    prescblob = unpackblobstr(row['prescaleblob'],'I')
-                    hltcountblob = unpackblobstr(row['hltcountblob'],'I')
-                    hltacceptblob = unpackblobstr(row['hltacceptblob'],'I')
-                    if not prescblob or not hltcountblob or not hltacceptblob:
-                        continue
-            else:
-                prescblob = unpackblobstr(row['prescaleblob'],'I')
-                hltcountblob = unpackblobstr(row['hltcountblob'],'I')
-                hltacceptblob = unpackblobstr(row['hltacceptblob'],'I')
-                if not prescblob or not hltcountblob or not hltacceptblob:
-                    continue
-            prescalevalues = pd.Series(prescblob)
-            hltcountvalues = pd.Series(hltcountblob)
-            hltacceptvalues = pd.Series(hltacceptblob)
-            
-            for idx, prescval in prescalevalues.iteritems():
-                prescidx = 0
-                hltcounts = 0
-                hltaccept = 0
-                hltpathname = ''
-                hltpathid = 0
-                try:
-                    hltpathname = pathnames[idx]
-                except IndexError:
-                    pass
-                if p.match(hltpathname) is None: continue
-                if hltpathname.find('Calibration')!=-1: continue
-                try:
-                    hltcounts = hltcountvalues[idx]
-                except IndexError:
-                    pass
-                try:
-                    hltaccept = hltacceptvalues[idx]
-                except IndexError:
-                    pass
-                try:
-                    prescidx = prescidxmap[lsnum]
-                except KeyError:
-                    pass
-                pathidcandidates = pathnamemap[hltpathname]
-                pathidinsersection = list( set(pathidcandidates) & set(lspathids[lsnum]) )
-                hltpathid = pathidinsersection[0]
-
-                allrows.append({'datatagid':destdatatagidmap[lsnum], 'hltpathid':hltpathid, 'prescidx':prescidx, 'prescval':prescval, 'l1pass':hltcounts, 'hltaccept':hltaccept})
-
-    with destconnection.begin() as trans:
-        r = destconnection.execute(i,allrows)
-
-
 def transfer_lumidata(connection,destconnection,runnum,lumidataid,destdatatagidmap):
     '''
     prerequisite : ids_datatag has already entries for this run
@@ -595,8 +503,10 @@ def transfer_lumidata(connection,destconnection,runnum,lumidataid,destdatatagidm
             bxrawlumi_idx = pd.Series(bxrawlumiS.nonzero()[0])
             bxrawlumi = bxrawlumiS.loc[bxrawlumi_idx]
             bxrows = []
+
             for pos,bxidx in bxrawlumi_idx.iteritems():
-                bxrows.append( {'datatagid':destdatatagidmap[lsnum], 'bxidx':bxidx, 'bxrawlumi':bxrawlumi[pos] } )
+                #print bxrawlumi[pos]
+                bxrows.append( {'datatagid':destdatatagidmap[lsnum], 'bxidx':bxidx, 'bxrawlumi':bxrawlumi[bxidx] } )
             del bxrawlumiS
             del bxrawlumi_idx
             allrows.append( [{'datatagid':destdatatagidmap[lsnum] , 'avgrawlumi':avgrawlumi}, bxrows])    
@@ -606,29 +516,22 @@ def transfer_lumidata(connection,destconnection,runnum,lumidataid,destdatatagidm
             if not row[1]: continue
             r = destconnection.execute(ibxlumi,row[1])    
 
-def transfer_timesource(connection,destconnection,runnum,lumidataid,trgdataid,destdatatagidmap):
+def transfer_deadtime(connection,destconnection,runnum,trgdataid,destdatatagidmap):
     '''
     prerequisite : ids_datatag has already entries for this run
     '''
-    q = '''select l.LUMILSNUM as lsnum, l.CMSLSNUM as cmslsnum, l.NUMORBIT as norb, t.DEADFRAC as deadfrac from CMS_LUMI_PROD.LUMISUMMARYV2 l, CMS_LUMI_PROD.LSTRG t where l.CMSLSNUM=t.CMSLSNUM and l.DATA_ID=:lumidataid and t.DATA_ID=:trgdataid'''
+    q = '''select CMSLSNUM as lsnum,DEADFRAC as deadfrac from CMS_LUMI_PROD.LSTRG where DATA_ID=:trgdataid'''
 
-    i = '''insert into TIMESOURCE_RUN1(DATATAGID,DEADTIMEFRAC,NORB,NBPERLS,CMSON) values(:datatagid,:deadtimefrac,:norb,:nbperls,:cmson)'''
+    i = '''insert into DEADTIME_RUN1(DATATAGID,DEADTIMEFRAC) values(:datatagid,:deadtimefrac)'''
     
     with connection.begin() as trans:
         allrows = []
-        result = connection.execute(q,{'lumidataid':lumidataid, 'trgdataid':trgdataid})
-        cmson = False
-        nbperls = 64
+        result = connection.execute(q,{'trgdataid':trgdataid})
         deadtimefrac = 1.
-        norb = 0 
         for row in result:
             lsnum = row['lsnum']
-            cmslsnum = row['cmslsnum']
-            norb = row['norb']
-            if lsnum == cmslsnum:
-                cmson = True
             deadfrac = row['deadfrac']
-            allrows.append({'datatagid':destdatatagidmap[lsnum], 'deadtimefrac':deadfrac, 'norb':norb, 'nbperls':nbperls, 'cmson':cmson})
+            allrows.append({'datatagid':destdatatagidmap[lsnum], 'deadtimefrac':deadfrac})
     with destconnection.begin() as trans:
         r = destconnection.execute(i,allrows)
         
@@ -647,21 +550,25 @@ if __name__=='__main__':
     destengine = create_engine(desturl)
     destconnection = destengine.connect()
 
-    run = 165523 #193091
-    lumidataid = 279 #1649
-    trgdataid = 278  #1477
-    hltdataid = 269  #1391
+    #run = 165523 #193091
+    #lumidataid = 279 #1649
+    #trgdataid = 278  #1477
+    #hltdataid = 269  #1391
+
+    run = 193091
+    lumidataid = 1649
+    trgdataid = 1477
+    hltdataid = 1391
     
     transfertimeinfo(connection,destconnection,run)
     transfer_ids_datatag(connection,destconnection,run,lumidataid)
     destdatatagid = datatagid_of_run(destconnection,run,datatagnameid=0)
     destdatatagid_map = datatagid_of_ls(destconnection,run,datatagnameid=0)
     #print destdatatagid_map
-    transfer_runinfo(connection,destconnection,run,destdatatagid)
-    transfer_trgconfig(connection,destconnection,run,trgdataid,destdatatagid)
+    transfer_runinfo(connection,destconnection,run,trgdataid,destdatatagid)
     transfer_beamintensity(connection,destconnection,run,lumidataid,destdatatagid_map)
     transfer_trgdata(connection,destconnection,run,trgdataid,destdatatagid_map)
     transfer_hltdata(connection,destconnection,run,hltdataid,destdatatagid_map)
     transfer_lumidata(connection,destconnection,run,lumidataid,destdatatagid_map)
-    transfer_timesource(connection,destconnection,run,lumidataid,trgdataid,destdatatagid_map)
+    transfer_deadtime(connection,destconnection,run,trgdataid,destdatatagid_map)
     

@@ -19,19 +19,10 @@ options:
   --beamstatus=BEAMSTATUS
                      Beam mode choices
   --beamenergy=BEAMENERGY
-                     Single beam energy in GeV
-  --beamfluctuation=BEAMFLUCTUATION 
-                     Fluctuation in fraction allowed to beam energy 
-                     [default: 0.2]
+                     Target single beam energy in GeV  
   --datatag=DATATAG  Version of data
   --begin=BEGIN      Min start time 
   --end=END          Max start time
-  --with-beamintensity  
-                     With beam intensity
-                     [default: False]
-  --minintensity=MININTENSITY 
-                     Min filter on beam intensity 
-                     [default: 0.1]
   --nowarning        Suppress warning messages
   --debug            Debug
 
@@ -45,7 +36,6 @@ def validate(optdict,amodetagChoices):
     schema = Schema({
      '--amodetag':  Or(None,And(str,lambda s: s.upper() in amodetagChoices), error='--amodetag choice must be in '+str(amodetagChoices) ),
      '--beamenergy': Or(None,And(Use(int), lambda n: n>0), error='--beamenergy should be integer >0'),
-     '--beamfluctuation': And(Use(float), lambda f: f>0 and f<1.0, error='--beamfluctuation should be float >0'),
      '--beamstatus': Or(None, And(Use(str), lambda s: s.upper()), error='--beamstatus should be string'),
      '--begin': Or(None, Use(str), error='--begin should be string'),
      '--end': Or(None, Use(str), error='--end should be string'),

@@ -36,6 +36,9 @@ IDS_DATATAG:     #per ls
     - fillnum: uint32
     - runnum: uint32
     - lsnum: uint32
+    - timestampsec: uint32
+    - cmson: bool
+    - norb: uint32
     - targetegev: uint16
     - beamstatus: string
     - amodetag: string
@@ -48,17 +51,10 @@ RUNINFO:          #per run
     - runnum: uint32
     - hltkey: string
     - gt_rs_key: string
+    - trgmask: string
     - fillscheme: string
-    - ncollidingbx: uint32
-   pk: [datatagid]
-
-TRGCONFIG:        #per run
-   columns:
-    - datatagid: int64
-    - gt_rs_key: string
-    - algomask_high: uint64
-    - algomask_low: uint64
-    - techmask: uint64
+    - ncollidingbx: uint16
+    - nbperls: uint16
    pk: [datatagid]
 
 BEAM_&suffix:         #per ls
@@ -99,13 +95,10 @@ HLT_&suffix:  #per ls, per hltpath
     - hltaccept: uint32
    pk: [datatagid,hltpathid]
 
-TIMESOURCE_&suffix:       #per ls
+DEADTIME_&suffix:       #per ls
    columns:
     - datatagid: int64
     - deadtimefrac: float
-    - norb: uint32
-    - nbperls: uint32
-    - cmson: bool
    pk: [datatagid] 
 
 HFOC_&suffix:
