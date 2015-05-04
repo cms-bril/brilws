@@ -17,8 +17,8 @@ options:
   --begin BEGIN                Min start time 
   --end END                    Max start time
   --output-style OSTYLE        Screen output style. tab, html, csv [default: tab]
-  --lsxing                     Show result in bx granularity [default: False]
-  --nowarning                  Suppress warning messages
+  --lsxing                     Show result in bx granularity 
+  --nowarning                  Suppress warning messages 
   --debug                      Debug
 
 """
