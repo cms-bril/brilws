@@ -1289,7 +1289,7 @@ def beamInfoIter(engine,datatagidmin,datatagidmax,schemaname=None,tablename=None
     
     q = '''select DATATAGID as datatagid, EGEV as egev, INTENSITY1 as intensity1, INTENSITY2 as intensity2 from BEAM_RUN1 where DATATAGID>=:datatagidmin and DATATAGID<=:datatagidmax'''
     if withBX:
-        q = '''select b.DATATAGID as datatagid, b.EGEV as egev, b.INTENSITY1 as intensity1, b.INTENSITY2 as intensity2, bx.BXIDX as bxidx, bx.BXINTENSITY1 as bxintensity1, bx.BXINTENSITY2 as bxintensity2, bx.ISCOLLIDING as iscolliding from BEAM_RUN1 b, BX_BEAM_RUN1 bx where b.DATATAGID=bx.DATATAGID and b.DATATAGID>=:datatagidmin and b.DATATAGID<=:datatagidmax'''
+        q = '''select b.DATATAGID as datatagid, bx.BXIDX as bxidx, bx.BXINTENSITY1 as bxintensity1, bx.BXINTENSITY2 as bxintensity2, bx.ISCOLLIDING as iscolliding from BEAM_RUN1 b, BX_BEAM_RUN1 bx where b.DATATAGID=bx.DATATAGID and b.DATATAGID>=:datatagidmin and b.DATATAGID<=:datatagidmax'''
         
     result = pd.read_sql_query(q,engine,chunksize=chunksize,params={'datatagidmin':datatagidmin,'datatagidmax':datatagidmax},index_col='datatagid')
     return result

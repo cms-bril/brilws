@@ -17,7 +17,8 @@ options:
   --begin BEGIN                Min start time 
   --end END                    Max start time
   --output-style OSTYLE        Screen output style. tab, html, csv [default: tab]
-  --lsxing                     Show result in bx granularity 
+  --chunk-size CHUNKSIZE       Main data chunk size [default: 100]
+  --xing                       Show result in bx granularity
   --nowarning                  Suppress warning messages 
   --debug                      Debug
 
@@ -36,7 +37,8 @@ def validate(optdict):
      '--beamstatus': Or(None, And(str, lambda s: s.upper() in params._beamstatusChoices), error='--beamstatus must be in '+str(params._beamstatusChoices) ),
      '--begin': Or(None, And(str,Use(RegexValidator.RegexValidator(params._timeopt_pattern))), error='wrong format'),
      '--end': Or(None, And(str,Use(RegexValidator.RegexValidator(params._timeopt_pattern))), error='wrong format'),
-     '--output-style': And(str,Use(str.lower), lambda s: s in params._outstyle, error='--output-style choice must be in '+str(params._outstyle) ),   
+     '--output-style': And(str,Use(str.lower), lambda s: s in params._outstyle, error='--output-style choice must be in '+str(params._outstyle) ),
+     '--chunk-size':  And(Use(int), lambda n: n>0, error='--chunk-size should be integer >0'),
      '--siteconfpath': Or(None, str, error='--siteconfpath should be string'),
      '-c': str,
      '-p': And(os.path.exists, error='AUTHPATH should exist'),   

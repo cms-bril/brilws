@@ -58,10 +58,21 @@ def brilcalc_main():
           import brilcalc_beam
           import csv
           from sqlalchemy import *
-          header = ['fill','run','ls','beamstatus','amodetag','beamegev','intensity1','intensity2']
+
           parseresult = docopt.docopt(brilcalc_beam.__doc__,argv=cmmdargv)
           parseresult = brilcalc_beam.validate(parseresult)
           dbengine = create_engine(parseresult['-c'])
+          
+          csize = parseresult['--chunk-size']
+          bxcsize = 2000*csize
+          withBX = False
+          
+          header = ['fill','run','ls','beamstatus','amodetag','beamegev','intensity1','intensity2']
+          if parseresult['--xing']:
+              withBX = True
+              header = ['fill','run','ls','bx','bxintensity1','bxintensity2','iscolliding']
+              bxcsize = csize*3564
+              
           ofile = '-'
           fh = None
           totable = False
@@ -76,11 +87,13 @@ def brilcalc_main():
               print >> fh, '#'+','.join(header)
               csvwriter = csv.writer(fh)
           else:
-              totable = True                   
+              totable = True
+          
           nchunk = 0
-          for idchunk in brilws.api.datatagIter(dbengine,0,runmin=193091,runmax=193091,chunksize=100):
+
+          for idchunk in brilws.api.datatagIter(dbengine,0,runmin=193091,runmax=193091,chunksize=csize):
               dataids = idchunk.index
-              for beaminfochunk in brilws.api.beamInfoIter(dbengine,dataids.min(),dataids.max(),chunksize=4000,withBX=False):
+              for beaminfochunk in brilws.api.beamInfoIter(dbengine,dataids.min(),dataids.max(),chunksize=bxcsize,withBX=withBX):
                   finalchunk = idchunk.join(beaminfochunk,how='inner',on=None,lsuffix='l',rsuffix='r',sort=False)
                   if totable:
                       ptable = prettytable.PrettyTable(header)
@@ -91,10 +104,17 @@ def brilcalc_main():
                       ptable.align = 'l'
                       ptable.max_width['params']=80 
                   for datatagid,row in finalchunk.iterrows():
+                      #print row['fillnum'],row['runnum'],row['lsnum'],row['bxidx'],'%.6e'%(row['bxintensity1']),'%.6e'%(row['bxintensity1'])
                       if fh:
-                          csvwriter.writerow([row['fillnum'],row['runnum'],row['lsnum'],row['beamstatus'],row['amodetag'],'%.2f'%(row['egev']),'%.4e'%(row['intensity1']),'%.4e'%(row['intensity2'])])
+                          if not withBX:
+                              csvwriter.writerow([row['fillnum'],row['runnum'],row['lsnum'],row['beamstatus'],row['amodetag'],'%.2f'%(row['egev']),'%.6e'%(row['intensity1']),'%.6e'%(row['intensity2'])])
+                          else:
+                              csvwriter.writerow([ row['fillnum'],row['runnum'],row['lsnum'],row['bxidx'],'%.6e'%(row['bxintensity1']),'%.6e'%(row['bxintensity2']),row['iscolliding'] ])
                       else:
-                          ptable.add_row([row['fillnum'],row['runnum'],row['lsnum'],row['beamstatus'],row['amodetag'],'%.2f'%(row['egev']),'%.4e'%(row['intensity1']),'%.4e'%(row['intensity2'])])
+                          if not withBX:
+                              ptable.add_row([row['fillnum'],row['runnum'],row['lsnum'],row['beamstatus'],row['amodetag'],'%.2f'%(row['egev']),'%.6e'%(row['intensity1']),'%.6e'%(row['intensity2'])])
+                          else:
+                              ptable.add_row([row['fillnum'],row['runnum'],row['lsnum'],row['bxidx'],'%.6e'%(row['bxintensity1']),'%.6e'%(row['bxintensity2']),row['iscolliding'] ])
 
                   if parseresult['--output-style']=='tab':
                       print(ptable)
@@ -102,10 +122,13 @@ def brilcalc_main():
                   elif parseresult['--output-style']=='html' :
                       print(ptable.get_html_string())
                       del ptable
+
+                  del finalchunk  
                   nchunk = nchunk + 1                  
                   del beaminfochunk
+              del idchunk
           if fh and fh is not sys.stdout: fh.close()  
-          del idchunk
+
         
       elif args['<command>'] == 'trg':
           import brilcalc_trg
