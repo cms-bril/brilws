@@ -1272,12 +1272,12 @@ def datatagIter(engine,datatagnameid,schemaname=None,runmin=None,runmax=None,fil
     if targetegev:
         qPieces.append('TARGETEGEV=:targetegev')
         binddict['targetegev'] = targetegev
-    if qPieces:
-        qCondition = ' and '.join([qCondition]+qPieces)
+    if not qPieces: return None # at least one piece of selection is required
+    qCondition = ' and '.join([qCondition]+qPieces)
     q = q + qCondition +' group by RUNNUM, LSNUM'
-    result = pd.read_sql_query(q,engine,chunksize=chunksize,params=binddict,index_col='datatagid')   
-    return result
+    return pd.read_sql_query(q,engine,chunksize=chunksize,params=binddict,index_col='datatagid')
 
+    
 def beamInfoIter(engine,datatagidmin,datatagidmax,schemaname=None,tablename=None,chunksize=9999,withBX=False):
     '''
     output: 

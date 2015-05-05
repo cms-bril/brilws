@@ -3,7 +3,9 @@ import docopt
 import schema
 import brilws
 import prettytable
-
+from brilws import api,params
+import re,time
+from datetime import datetime
 log = logging.getLogger('brilcalc')
 logformatter = logging.Formatter('%(levelname)s %(message)s')
 ch = logging.StreamHandler()
@@ -61,10 +63,56 @@ def brilcalc_main():
 
           parseresult = docopt.docopt(brilcalc_beam.__doc__,argv=cmmdargv)
           parseresult = brilcalc_beam.validate(parseresult)
+
+          ##db params
           dbengine = create_engine(parseresult['-c'])
+          authpath = parseresult['-p']
           
+          ##selection params
+          s_bstatus = parseresult['--beamstatus']
+          if s_bstatus: s_bstatus = s_bstatus.upper()
+          s_egev = parseresult['--beamegev']
+          s_amodetag = parseresult['--amodetag']
+          if s_amodetag: s_amodetag = s_amodetag.upper()
+          s_datatagname = parseresult['--datatag']
+          s_fillmin = None
+          s_fillmax = None
+          if parseresult['-f'] :
+              s_fillmin = parseresult['-f']
+              s_fillmax = parseresult['-f']
+          s_runmin = None
+          s_runmax = None
+          if parseresult['-r']:
+              s_runmin = parseresult['-r']
+              s_runmax = parseresult['-r']
+              
+          s_beg = None
+          s_end = None
+          if not parseresult['-f'] and not parseresult['-r']:
+              if parseresult['--begin']:
+                  s_beg = parseresult['--begin']                  
+                  for style,pattern in {'fill':params._fillnum_pattern,'run':params._runnum_pattern, 'time':params._time_pattern}.items():
+                      if re.match(pattern,s_beg):
+                          if style=='fill':
+                              s_fillmin = int(s_beg)
+                          elif style=='run':
+                              s_runmin = int(s_beg)
+                          elif style=='time':
+                              s_tssecmin = int(time.mktime(datetime.strptime(s_beg,params._datetimefm).timetuple()))
+              if parseresult['--end']:
+                  s_end = parseresult['--end']                  
+                  for style,pattern in {'fill':params._fillnum_pattern,'run':params._runnum_pattern, 'time':params._time_pattern}.items():
+                      if re.match(pattern,s_end):
+                          if style=='fill':
+                              s_fillmax = int(s_end)
+                          elif style=='run':
+                              s_runmax = int(s_end)
+                          elif style=='time':
+                              s_tssecmax = int(time.mktime(datetime.strptime(s_end,params._datetimefm).timetuple()))
+
+                              
           csize = parseresult['--chunk-size']
-          bxcsize = 2000*csize
+          bxcsize = csize
           withBX = False
           
           header = ['fill','run','ls','beamstatus','amodetag','beamegev','intensity1','intensity2']
@@ -90,10 +138,11 @@ def brilcalc_main():
               totable = True
           
           nchunk = 0
-
-          for idchunk in brilws.api.datatagIter(dbengine,0,runmin=193091,runmax=193091,chunksize=csize):
+          it = api.datatagIter(dbengine,0,fillmin=s_fillmin,fillmax=s_fillmax,runmin=s_runmin,runmax=s_runmax,amodetag=s_amodetag,targetegev=s_egev,beamstatus=s_bstatus,chunksize=csize)
+          if not it: exit(1)
+          for idchunk in it:              
               dataids = idchunk.index
-              for beaminfochunk in brilws.api.beamInfoIter(dbengine,dataids.min(),dataids.max(),chunksize=bxcsize,withBX=withBX):
+              for beaminfochunk in api.beamInfoIter(dbengine,dataids.min(),dataids.max(),chunksize=bxcsize,withBX=withBX):
                   finalchunk = idchunk.join(beaminfochunk,how='inner',on=None,lsuffix='l',rsuffix='r',sort=False)
                   if totable:
                       ptable = prettytable.PrettyTable(header)
@@ -104,7 +153,6 @@ def brilcalc_main():
                       ptable.align = 'l'
                       ptable.max_width['params']=80 
                   for datatagid,row in finalchunk.iterrows():
-                      #print row['fillnum'],row['runnum'],row['lsnum'],row['bxidx'],'%.6e'%(row['bxintensity1']),'%.6e'%(row['bxintensity1'])
                       if fh:
                           if not withBX:
                               csvwriter.writerow([row['fillnum'],row['runnum'],row['lsnum'],row['beamstatus'],row['amodetag'],'%.2f'%(row['egev']),'%.6e'%(row['intensity1']),'%.6e'%(row['intensity2'])])
