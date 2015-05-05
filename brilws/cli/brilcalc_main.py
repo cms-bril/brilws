@@ -110,15 +110,14 @@ def brilcalc_main():
                           elif style=='time':
                               s_tssecmax = int(time.mktime(datetime.strptime(s_end,params._datetimefm).timetuple()))
 
-                              
           csize = parseresult['--chunk-size']
           bxcsize = csize
           withBX = False
           
-          header = ['fill','run','ls','beamstatus','amodetag','beamegev','intensity1','intensity2']
+          header = ['fill','run','ls','time','beamstatus','amodetag','beamegev','intensity1','intensity2']
           if parseresult['--xing']:
               withBX = True
-              header = ['fill','run','ls','bx','bxintensity1','bxintensity2','iscolliding']
+              header = ['fill','run','ls','time','bx','bxintensity1','bxintensity2','iscolliding']
               bxcsize = csize*3564
               
           ofile = '-'
@@ -138,10 +137,10 @@ def brilcalc_main():
               totable = True
           
           nchunk = 0
-          it = api.datatagIter(dbengine,0,fillmin=s_fillmin,fillmax=s_fillmax,runmin=s_runmin,runmax=s_runmax,amodetag=s_amodetag,targetegev=s_egev,beamstatus=s_bstatus,chunksize=csize)
+          it = api.datatagIter(dbengine,0,fillmin=s_fillmin,fillmax=s_fillmax,runmin=s_runmin,runmax=s_runmax,amodetag=s_amodetag,targetegev=s_egev,beamstatus=s_bstatus,tssecmin=s_tssecmin,tssecmax=s_tssecmax,chunksize=csize)
           if not it: exit(1)
           for idchunk in it:              
-              dataids = idchunk.index
+              dataids = idchunk.index              
               for beaminfochunk in api.beamInfoIter(dbengine,dataids.min(),dataids.max(),chunksize=bxcsize,withBX=withBX):
                   finalchunk = idchunk.join(beaminfochunk,how='inner',on=None,lsuffix='l',rsuffix='r',sort=False)
                   if totable:
@@ -153,16 +152,18 @@ def brilcalc_main():
                       ptable.align = 'l'
                       ptable.max_width['params']=80 
                   for datatagid,row in finalchunk.iterrows():
+                      timestampsec = row['timestampsec']
+                      dtime = datetime.fromtimestamp(int(timestampsec)).strftime(params._datetimefm)
                       if fh:
                           if not withBX:
-                              csvwriter.writerow([row['fillnum'],row['runnum'],row['lsnum'],row['beamstatus'],row['amodetag'],'%.2f'%(row['egev']),'%.6e'%(row['intensity1']),'%.6e'%(row['intensity2'])])
+                              csvwriter.writerow([row['fillnum'],row['runnum'],row['lsnum'],dtime,row['beamstatus'],row['amodetag'],'%.2f'%(row['egev']),'%.6e'%(row['intensity1']),'%.6e'%(row['intensity2'])])
                           else:
-                              csvwriter.writerow([ row['fillnum'],row['runnum'],row['lsnum'],row['bxidx'],'%.6e'%(row['bxintensity1']),'%.6e'%(row['bxintensity2']),row['iscolliding'] ])
+                              csvwriter.writerow([ row['fillnum'],row['runnum'],row['lsnum'],dtime,row['bxidx'],'%.6e'%(row['bxintensity1']),'%.6e'%(row['bxintensity2']),row['iscolliding'] ])
                       else:
                           if not withBX:
-                              ptable.add_row([row['fillnum'],row['runnum'],row['lsnum'],row['beamstatus'],row['amodetag'],'%.2f'%(row['egev']),'%.6e'%(row['intensity1']),'%.6e'%(row['intensity2'])])
+                              ptable.add_row([row['fillnum'],row['runnum'],row['lsnum'],dtime,row['beamstatus'],row['amodetag'],'%.2f'%(row['egev']),'%.6e'%(row['intensity1']),'%.6e'%(row['intensity2'])])
                           else:
-                              ptable.add_row([row['fillnum'],row['runnum'],row['lsnum'],row['bxidx'],'%.6e'%(row['bxintensity1']),'%.6e'%(row['bxintensity2']),row['iscolliding'] ])
+                              ptable.add_row([row['fillnum'],row['runnum'],row['lsnum'],dtime,row['bxidx'],'%.6e'%(row['bxintensity1']),'%.6e'%(row['bxintensity2']),row['iscolliding'] ])
 
                   if parseresult['--output-style']=='tab':
                       print(ptable)

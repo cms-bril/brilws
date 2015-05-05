@@ -1241,7 +1241,7 @@ def datatagIter(engine,datatagnameid,schemaname=None,runmin=None,runmax=None,fil
     output: dataframe iterator, index_col='datatagid'
     select fillnum,runnum,lsnum,DATATAGID from <schemaname>.IDS_DATATAG [where ]
     '''
-    q = '''select FILLNUM as fillnum, RUNNUM as runnum, LSNUM as lsnum, BEAMSTATUS as beamstatus, AMODETAG as amodetag, TARGETEGEV as targetegev, max(DATATAGID) as datatagid from IDS_DATATAG where DATATAGNAMEID<=:datatagnameid'''
+    q = '''select FILLNUM as fillnum, RUNNUM as runnum, LSNUM as lsnum, TIMESTAMPSEC as timestampsec, BEAMSTATUS as beamstatus, AMODETAG as amodetag, TARGETEGEV as targetegev, max(DATATAGID) as datatagid from IDS_DATATAG where DATATAGNAMEID<=:datatagnameid'''
     qCondition = ''
     qPieces = []
     binddict = {'datatagnameid':datatagnameid}
