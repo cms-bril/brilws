@@ -10,8 +10,8 @@ options:
   -i INPUTFILE                 Input selection file
   -o OUTPUTFILE                Output csv file. Special file '-' for stdout.
   --siteconfpath SITECONFPATH  Path to SITECONF/local/JobConfig/site-local-config.xml [default: $CMS_PATH] 
-  --amodetag AMODETAG          Accelerator mod choices 
-  --beamstatus BEAMSTATUS      Beam mode choices
+  --amodetag AMODETAG          Accelerator mode 
+  --beamstatus BEAMSTATUS      Beam mode 
   --egev EGEV                  Target single beam energy in GeV  
   --datatag DATATAG            Data tag name
   --begin BEGIN                Min start time 

@@ -55,7 +55,8 @@ def brilcalc_main():
 
           parseresult = docopt.docopt(brilcalc_lumi.__doc__,argv=cmmdargv)
           parseresult = brilcalc_lumi.validate(parseresult)
-
+          lumiargs = clicommonargs.parser(parseresult)
+          
       elif args['<command>'] == 'beam':
           import brilcalc_beam
           import csv
