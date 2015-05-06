@@ -1271,6 +1271,31 @@ def buildselect_runls(inputSeries):
     result.append(var_lmaxs)
     return result
 
+def max_datatagname(dbengine):
+    '''
+    get the most recent datatagname 
+    output: (datatagname,datatagid)
+    '''
+    result = None
+    q = '''select DATATAGNAME as datatagname, max(DATATAGNAMEID) as datatagnameid from DATATAGS'''
+    qresult = pd.read_sql_query(q,dbengine)
+    for idx,row in qresult.iterrows():
+        result = ( row['datatagname'],row['datatagnameid'] )
+    return result
+
+def datatagnameid(dbengine,datatagname):
+    '''
+    get datatagnameid by name
+    input: datatagname. 
+    output: datatagnameid
+    '''
+    result = None
+    q = '''select DATATAGNAMEID as datatagnameid from DATATAGS where DATATAGNAME=:datatagname limit 1'''
+    qresult = pd.read_sql_query(q,dbengine,params={'datatagname':datatagname})
+    for idx,row in qresult.iterrows():
+        result = row['datatagnameid']
+    return result
+    
 def datatagIter(engine,datatagnameid,schemaname=None,runmin=None,runmax=None,fillmin=None,tssecmin=None,tssecmax=None,fillmax=None,beamstatus=None,amodetag=None,targetegev=None,runlsselect=None,chunksize=9999):
     '''
     output: dataframe iterator, index_col='datatagid'

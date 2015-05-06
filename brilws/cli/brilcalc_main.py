@@ -101,8 +101,20 @@ def brilcalc_main():
               print >> fh, '#'+','.join(header)
               csvwriter = csv.writer(fh)
 
+          datatagname = s_datatagname
+          datatagnameid = 0
+          if not s_datatagname:
+              r = api.max_datatagname(dbengine)
+              if not r:
+                  raise 'no tag found'
+              datatagname = r[0]
+              datatagnameid = r[1]
+          else:
+              datatagnameid = api.datatagnameid(dbengine,datatagname=s_datatagname)
+          print 'data tag : ',datatagname
+          
           nchunk = 0
-          it = api.datatagIter(dbengine,0,fillmin=s_fillmin,fillmax=s_fillmax,runmin=s_runmin,runmax=s_runmax,amodetag=s_amodetag,targetegev=s_egev,beamstatus=s_bstatus,tssecmin=s_tssecmin,tssecmax=s_tssecmax,runlsselect=s_runlsSeries ,chunksize=csize)
+          it = api.datatagIter(dbengine,datatagnameid,fillmin=s_fillmin,fillmax=s_fillmax,runmin=s_runmin,runmax=s_runmax,amodetag=s_amodetag,targetegev=s_egev,beamstatus=s_bstatus,tssecmin=s_tssecmin,tssecmax=s_tssecmax,runlsselect=s_runlsSeries ,chunksize=csize)
 
           if not it: exit(1)
           for idchunk in it:              
