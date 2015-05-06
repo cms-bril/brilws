@@ -82,12 +82,20 @@ def brilcalc_main():
               s_fillmax = parseresult['-f']
           s_runmin = None
           s_runmax = None
-          if parseresult['-r']:
+          s_runlsSeries = None
+          
+          if parseresult['-i']: # -i has precedance over -r
+              fileorpath = parseresult['-i']
+              s_runlsSeries = api.parsecmsselectJSON(fileorpath)
+
+          elif parseresult['-r'] :
               s_runmin = parseresult['-r']
               s_runmax = parseresult['-r']
               
           s_beg = None
           s_end = None
+          s_tssecmin = None
+          s_tssecmax = None
           if not parseresult['-f'] and not parseresult['-r']:
               if parseresult['--begin']:
                   s_beg = parseresult['--begin']                  
@@ -137,7 +145,7 @@ def brilcalc_main():
               totable = True
           
           nchunk = 0
-          it = api.datatagIter(dbengine,0,fillmin=s_fillmin,fillmax=s_fillmax,runmin=s_runmin,runmax=s_runmax,amodetag=s_amodetag,targetegev=s_egev,beamstatus=s_bstatus,tssecmin=s_tssecmin,tssecmax=s_tssecmax,chunksize=csize)
+          it = api.datatagIter(dbengine,0,fillmin=s_fillmin,fillmax=s_fillmax,runmin=s_runmin,runmax=s_runmax,amodetag=s_amodetag,targetegev=s_egev,beamstatus=s_bstatus,tssecmin=s_tssecmin,tssecmax=s_tssecmax,runlsselect=s_runlsSeries ,chunksize=csize)
           if not it: exit(1)
           for idchunk in it:              
               dataids = idchunk.index              

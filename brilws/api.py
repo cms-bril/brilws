@@ -66,20 +66,23 @@ def unpackBlobtoArray(iblob,itemtypecode):
     if not blobstr :
         return None
     result.fromstring(blobstr)
-    return result 
+    return result
 
+####################
+##    Selection API
+####################
 def parsecmsselectJSON(filepath_or_buffer,numpy=False):
     """
     parse cms selection json format
-    {key: }
     input: 
         if file, parse file
         if string in dict format, eval as dict. Key is not required to be double quoted in this case
         if single string, convert to [int]
     output:
-        pd.Series
+        pd.Series , index=runnum, value=[[lsmin,lsmax]]
     """
     d = get_filepath_or_buffer(filepath_or_buffer)
+
     try:
         result = pd.Series([int(d)])
         return result
@@ -1236,7 +1239,39 @@ def insertDataTagEntry(engine,idtablename,datatagnameid,runnum,lsnum,fillnum=0,s
 ##    Query API
 ####################
 
-def datatagIter(engine,datatagnameid,schemaname=None,runmin=None,runmax=None,fillmin=None,tssecmin=None,tssecmax=None,fillmax=None,beamstatus=None,amodetag=None,targetegev=None,chunksize=9999):
+def buildselect_runls(inputSeries):
+    '''
+    output: [conditionstring, var_runs, var_lmins, var_lmaxs]
+    '''
+    result = []
+    bind_runindex = 0
+    bind_lsindex = 0
+    var_runs={}
+    var_lmins={}
+    var_lmaxs={}
+    qstrs = []
+    for run,lsrange in inputSeries.iteritems():
+        runvar='r_%d'%(bind_runindex)
+        var_runs[runvar] = run
+        s = 'RUNNUM=:%s and '%runvar
+        orss = []
+        for lsmin,lsmax in lsrange:
+            lminvar = 'lmin_%d'%(bind_lsindex)
+            lmaxvar = 'lmax_%d'%(bind_lsindex)
+            var_lmins[lminvar] = lsmin
+            var_lmaxs[lmaxvar] = lsmax
+            orss.append( 'LSNUM>=:%s and LSNUM<=:%s'%(lminvar,lmaxvar) )
+            bind_lsindex = bind_lsindex + 1
+        ss = '('+' or '.join(orss)+')'
+        bind_runindex = bind_runindex + 1
+        qstrs.append(s+ss)
+    result.append( ' or '.join(qstrs) )
+    result.append(var_runs)
+    result.append(var_lmins)
+    result.append(var_lmaxs)
+    return result
+
+def datatagIter(engine,datatagnameid,schemaname=None,runmin=None,runmax=None,fillmin=None,tssecmin=None,tssecmax=None,fillmax=None,beamstatus=None,amodetag=None,targetegev=None,runlsselect=None,chunksize=9999):
     '''
     output: dataframe iterator, index_col='datatagid'
     select fillnum,runnum,lsnum,DATATAGID from <schemaname>.IDS_DATATAG [where ]
@@ -1245,12 +1280,7 @@ def datatagIter(engine,datatagnameid,schemaname=None,runmin=None,runmax=None,fil
     qCondition = ''
     qPieces = []
     binddict = {'datatagnameid':datatagnameid}
-    if runmin:
-        qPieces.append('RUNNUM>=:runmin')
-        binddict['runmin'] = runmin
-    if runmax:
-        qPieces.append('RUNNUM<=:runmax')
-        binddict['runmax'] = runmax
+
     if fillmin:
         qPieces.append('FILLNUM>=:fillmin')
         binddict['fillmin'] = fillmin
@@ -1272,12 +1302,34 @@ def datatagIter(engine,datatagnameid,schemaname=None,runmin=None,runmax=None,fil
     if targetegev:
         qPieces.append('TARGETEGEV=:targetegev')
         binddict['targetegev'] = targetegev
+    if runlsselect is not None:
+        s_runls = buildselect_runls(runlsselect)
+        if s_runls:
+            s_runls_str = s_runls[0]
+            var_runs = s_runls[1]
+            var_lmins = s_runls[2]
+            var_lmaxs = s_runls[3]
+            qPieces.append(s_runls_str)
+            for runvarname,runvalue in var_runs.items():                
+                binddict[runvarname] = runvalue
+            for lminname,lmin in var_lmins.items():                
+                binddict[lminname] = lmin
+            for lmaxname,lmax in var_lmaxs.items():                
+                binddict[lmaxname] = lmax
+    else:
+        if runmin:
+            qPieces.append('RUNNUM>=:runmin')
+            binddict['runmin'] = runmin
+        if runmax:
+            qPieces.append('RUNNUM<=:runmax')
+            binddict['runmax'] = runmax
+        
     if not qPieces: return None # at least one piece of selection is required
     qCondition = ' and '.join([qCondition]+qPieces)
     q = q + qCondition +' group by RUNNUM, LSNUM'
+    #print q
     return pd.read_sql_query(q,engine,chunksize=chunksize,params=binddict,index_col='datatagid')
 
-    
 def beamInfoIter(engine,datatagidmin,datatagidmax,schemaname=None,tablename=None,chunksize=9999,withBX=False):
     '''
     output: 
