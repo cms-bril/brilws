@@ -1,6 +1,7 @@
-from brilws import api,params
-import re,time
+from brilws import api,params,RegexValidator
+import re,time,os,sys
 from datetime import datetime
+from schema import And, Or, Use
 
 class parser(object):
     def __init__(self,argdict):
@@ -30,7 +31,7 @@ class parser(object):
         self._dbconnect = self._argdict['-c']
         self._authpath = self._argdict['-p']
         if self._argdict['--beamstatus']: self._beamstatus = self._argdict['--beamstatus'].upper()
-        self._egev = self._argdict['--beamegev']
+        self._egev = self._argdict['--egev']
         self._datatagname = self._argdict['--datatag']
         self._amodetag = self._argdict['--amodetag']
         self._chunksize = self._argdict['--chunk-size']
@@ -133,8 +134,22 @@ class parser(object):
     @property
     def totable(self):
         return self._totable    
-    
-class validator(object):
-    def __init__(self):
-        pass
-    
+
+argvalidators = {
+    '--amodetag': Or(None,And(str,lambda s: s.upper() in params._amodetagChoices), error='--amodetag must be in '+str(params._amodetagChoices) ),
+    '--egev': Or(None,And(Use(int), lambda n: n>0), error='--egev should be integer >0'),
+    '--beamstatus': Or(None, And(str, lambda s: s.upper() in params._beamstatusChoices), error='--beamstatus must be in '+str(params._beamstatusChoices) ),
+    '--begin': Or(None, And(str,Use(RegexValidator.RegexValidator(params._timeopt_pattern))), error='wrong format'),
+    '--end': Or(None, And(str,Use(RegexValidator.RegexValidator(params._timeopt_pattern))), error='wrong format'),
+    '--output-style': And(str,Use(str.lower), lambda s: s in params._outstyle, error='--output-style choice must be in '+str(params._outstyle) ),
+    '--chunk-size':  And(Use(int), lambda n: n>0, error='--chunk-size should be integer >0'),
+    '--siteconfpath': Or(None, str, error='--siteconfpath should be string'),
+    '-c': str,
+    '-p': And(os.path.exists, error='AUTHPATH should exist'),
+    '-i': Or(None,str),
+    '-o': Or(None,str),    
+    '-f': Or(None, And(Use(RegexValidator.RegexValidator(params._fillnum_pattern)),Use(int)), error='-f FILL has wrong format'), 
+    '-n': And(Use(float), lambda f: f>0, error='-n SCALEFACTOR should be float >0'),      
+    '-r': Or(None, And(Use(RegexValidator.RegexValidator(params._runnum_pattern)),Use(int)), error='-r RUN has wrong format'),
+    str:object # catch all
+}
