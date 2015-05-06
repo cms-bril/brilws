@@ -3,7 +3,7 @@ import docopt
 import schema
 import brilws
 import prettytable
-from brilws import api,params
+from brilws import api,params,clicommonargs
 import re,time
 from datetime import datetime
 log = logging.getLogger('brilcalc')
@@ -63,89 +63,47 @@ def brilcalc_main():
 
           parseresult = docopt.docopt(brilcalc_beam.__doc__,argv=cmmdargv)
           parseresult = brilcalc_beam.validate(parseresult)
+          beamargs = clicommonargs.parser(parseresult)
 
           ##db params
-          dbengine = create_engine(parseresult['-c'])
-          authpath = parseresult['-p']
+          dbengine = create_engine(beamargs.dbconnect)
+          authpath = beamargs.authpath
           
           ##selection params
-          s_bstatus = parseresult['--beamstatus']
-          if s_bstatus: s_bstatus = s_bstatus.upper()
-          s_egev = parseresult['--beamegev']
-          s_amodetag = parseresult['--amodetag']
-          if s_amodetag: s_amodetag = s_amodetag.upper()
-          s_datatagname = parseresult['--datatag']
-          s_fillmin = None
-          s_fillmax = None
-          if parseresult['-f'] :
-              s_fillmin = parseresult['-f']
-              s_fillmax = parseresult['-f']
-          s_runmin = None
-          s_runmax = None
-          s_runlsSeries = None
-          
-          if parseresult['-i']: # -i has precedance over -r
-              fileorpath = parseresult['-i']
-              s_runlsSeries = api.parsecmsselectJSON(fileorpath)
+          s_bstatus = beamargs.beamstatus
+          s_egev = beamargs.egev
+          s_amodetag = beamargs.amodetag
+          s_datatagname = beamargs.datatagname
+          s_fillmin = beamargs.fillmin
+          s_fillmax = beamargs.fillmax          
+          s_runmin = beamargs.runmin
+          s_runmax = beamargs.runmax
+          s_runlsSeries = beamargs.runlsSeries                  
+          s_tssecmin = beamargs.tssecmin
+          s_tssecmax = beamargs.tssecmax
 
-          elif parseresult['-r'] :
-              s_runmin = parseresult['-r']
-              s_runmax = parseresult['-r']
-              
-          s_beg = None
-          s_end = None
-          s_tssecmin = None
-          s_tssecmax = None
-          if not parseresult['-f'] and not parseresult['-r']:
-              if parseresult['--begin']:
-                  s_beg = parseresult['--begin']                  
-                  for style,pattern in {'fill':params._fillnum_pattern,'run':params._runnum_pattern, 'time':params._time_pattern}.items():
-                      if re.match(pattern,s_beg):
-                          if style=='fill':
-                              s_fillmin = int(s_beg)
-                          elif style=='run':
-                              s_runmin = int(s_beg)
-                          elif style=='time':
-                              s_tssecmin = int(time.mktime(datetime.strptime(s_beg,params._datetimefm).timetuple()))
-              if parseresult['--end']:
-                  s_end = parseresult['--end']                  
-                  for style,pattern in {'fill':params._fillnum_pattern,'run':params._runnum_pattern, 'time':params._time_pattern}.items():
-                      if re.match(pattern,s_end):
-                          if style=='fill':
-                              s_fillmax = int(s_end)
-                          elif style=='run':
-                              s_runmax = int(s_end)
-                          elif style=='time':
-                              s_tssecmax = int(time.mktime(datetime.strptime(s_end,params._datetimefm).timetuple()))
-
-          csize = parseresult['--chunk-size']
+          ##display params
+          csize = beamargs.chunksize
+          withBX = beamargs.withBX
           bxcsize = csize
-          withBX = False
-          
-          header = ['fill','run','ls','time','beamstatus','amodetag','beamegev','intensity1','intensity2']
-          if parseresult['--xing']:
-              withBX = True
-              header = ['fill','run','ls','time','bx','bxintensity1','bxintensity2','iscolliding']
-              bxcsize = csize*3564
-              
-          ofile = '-'
+          totable = beamargs.totable
           fh = None
-          totable = False
           ptable = None
           csvwriter = None
-          if parseresult['-o'] or parseresult['--output-style']=='csv':
-              if parseresult['-o']:
-                  ofile = parseresult['-o']
-                  fh = open(ofile,'w')
-              else:
-                  fh = sys.stdout
+
+          header = ['fill','run','ls','time','beamstatus','amodetag','beamegev','intensity1','intensity2']
+          if withBX:
+              header = ['fill','run','ls','time','bx','bxintensity1','bxintensity2','iscolliding']
+              bxcsize = csize*3564
+
+          if not totable:
+              fh = beamargs.ofilehandle
               print >> fh, '#'+','.join(header)
               csvwriter = csv.writer(fh)
-          else:
-              totable = True
-          
+
           nchunk = 0
           it = api.datatagIter(dbengine,0,fillmin=s_fillmin,fillmax=s_fillmax,runmin=s_runmin,runmax=s_runmax,amodetag=s_amodetag,targetegev=s_egev,beamstatus=s_bstatus,tssecmin=s_tssecmin,tssecmax=s_tssecmax,runlsselect=s_runlsSeries ,chunksize=csize)
+
           if not it: exit(1)
           for idchunk in it:              
               dataids = idchunk.index              
@@ -173,19 +131,17 @@ def brilcalc_main():
                           else:
                               ptable.add_row([row['fillnum'],row['runnum'],row['lsnum'],dtime,row['bxidx'],'%.6e'%(row['bxintensity1']),'%.6e'%(row['bxintensity2']),row['iscolliding'] ])
 
-                  if parseresult['--output-style']=='tab':
+                  if beamargs.outputstyle=='tab':
                       print(ptable)
                       del ptable
-                  elif parseresult['--output-style']=='html' :
+                  elif beamargs.outputstyle=='html' :
                       print(ptable.get_html_string())
                       del ptable
-
                   del finalchunk  
                   nchunk = nchunk + 1                  
                   del beaminfochunk
               del idchunk
           if fh and fh is not sys.stdout: fh.close()  
-
         
       elif args['<command>'] == 'trg':
           import brilcalc_trg
