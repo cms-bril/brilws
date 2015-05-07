@@ -4,6 +4,7 @@ import schema
 import brilws
 import prettytable
 import pandas as pd
+import numpy as np
 from brilws import api,params,clicommonargs
 import re,time
 from datetime import datetime
@@ -105,7 +106,7 @@ def brilcalc_main():
           else:
               datatagnameid = api.datatagnameid(dbengine,datatagname=datatagname)
             
-          print 'data tag : ',datatagname
+          print '#Data tag : ',datatagname
           nchunk = 0
           it = api.datatagIter(dbengine,datatagnameid,fillmin=lumiargs.fillmin,fillmax=lumiargs.fillmax,runmin=lumiargs.runmin,runmax=lumiargs.runmax,amodetag=lumiargs.amodetag,targetegev=lumiargs.egev,beamstatus=lumiargs.beamstatus,tssecmin=lumiargs.tssecmin,tssecmax=lumiargs.tssecmax,runlsselect=lumiargs.runlsSeries ,chunksize=csize)
           if not it: exit(1)
@@ -116,19 +117,21 @@ def brilcalc_main():
           tot_ncms = 0
           tot_delivered = 0
           tot_recorded = 0
-          runtot = {} #{run:{'fill':fill,'time':time,'nls':nls,'delivered':delivered,'recorded':recorded}}
-          tot = {}
-          
+          runtot = {} #{run:{'fill':fill,'time':time,'nls':nls,'':ncms,'delivered':delivered,'recorded':recorded}}
+          allfills = []
+
           for idchunk in it:              
               dataids = idchunk.index
               for lumichunk in api.lumiInfoIter(dbengine,dataids.min(),dataids.max(),'HFOC','RUN1',chunksize=9999,withBX=withBX):
                   finalchunk = idchunk.join(lumichunk,how='inner',on=None,lsuffix='l',rsuffix='r',sort=False)
                   finalchunk.reset_index()
                   rungrouped = finalchunk.groupby('runnum', as_index=False)                  
+
                   for run, items in rungrouped:
                       if not runtot.has_key(run):
                            runtot[run] = {}
-                           runtot[run]['fill'] = items['fillnum'].iloc[0]
+                           fillnum = items['fillnum'].iloc[0]
+                           runtot[run]['fill'] = fillnum
                            timestampsec_run = items['timestampsec'].iloc[0]
                            dtime = datetime.fromtimestamp(int(timestampsec_run)).strftime(params._datetimefm)
                            runtot[run]['time'] = dtime
@@ -136,16 +139,24 @@ def brilcalc_main():
                            runtot[run]['ncms'] = 0
                            runtot[run]['delivered'] = 0.
                            runtot[run]['recorded'] = 0.
+                           allfills.append(fillnum)                           
                       runtot_countls =  items['lsnum'].count()
                       runtot_avgrawlumi = items['avgrawlumi'].sum()
                       runtot[run]['nls'] = runtot[run]['nls']+runtot_countls
+                      tot_nls = tot_nls +  runtot_countls
                       runtot[run]['ncms'] = runtot[run]['ncms']+runtot_countls
+                      tot_ncms = tot_ncms +  runtot_countls
                       runtot[run]['delivered'] = runtot[run]['delivered']+runtot_avgrawlumi
+                      tot_delivered = tot_delivered + runtot_avgrawlumi
                       runtot[run]['recorded'] = runtot[run]['recorded']+runtot_avgrawlumi
-                
+                      tot_recorded = tot_recorded + runtot_avgrawlumi
+                      
                   del finalchunk
                   del lumichunk
           del idchunk
+          np_allfills = np.array(allfills)
+          tot_nfill = len(np.unique(np_allfills))
+          tot_nrun = len(runtot.keys())
           
           if not byls and not withBX:     
               if totable:
@@ -153,17 +164,31 @@ def brilcalc_main():
                   ptable.header = True
                   ptable.align = 'l'
                   ptable.max_width['params']=80
-                      
+                  ftable = prettytable.PrettyTable(footer)
+                  ftable.header = True
+                  ftable.align = 'l'
+                  ftable.max_width['params']=80
               for run in sorted(runtot):
                   if fh:
                       csvwriter.writerow( [runtot[run]['fill'],run,runtot[run]['time'],runtot[run]['nls'],runtot[run]['ncms'],'%.2f'%(runtot[run]['delivered']),'%.2f'%(runtot[run]['recorded'])] )
                   else:
                       ptable.add_row( [runtot[run]['fill'],run,runtot[run]['time'],runtot[run]['nls'],runtot[run]['ncms'],'%.2f'%(runtot[run]['delivered']),'%.2f'%(runtot[run]['recorded'])] )
+
+
               if lumiargs.outputstyle=='tab':
+                  ftable.add_row( [ tot_nfill,tot_nrun,tot_nls,tot_ncms,'%.2f'%(tot_delivered),'%.2f'%(tot_recorded) ] )
                   print(ptable)
+                  print "#Total: "
+                  print(ftable)
               elif lumiargs.outputstyle=='html' :
+                  ftable.add_row( [ tot_nfill,tot_nrun,tot_nls,tot_ncms,'%.2f'%(tot_delivered),'%.2f'%(tot_recorded) ] )
                   print(ptable.get_html_string())
-                          
+                  print "Total: "
+                  print(ftable)
+              else:
+                  print >> fh, '#Total:'                  
+                  print >> fh, '#'+','.join(footer)
+                  print >> fh, '#'+','.join( [ '%d'%tot_nfill,'%d'%tot_nrun,'%d'%tot_nls,'%d'%tot_ncms,'%.2f'%(tot_delivered),'%.2f'%(tot_recorded) ] )
           if fh and fh is not sys.stdout: fh.close()      
       elif args['<command>'] == 'beam':
           import brilcalc_beam
