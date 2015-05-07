@@ -77,18 +77,15 @@ def brilcalc_main():
           csvwriter = None
 
           header = summaryheader = ['fill','run','time','nls','ncms','delivered','recorded']
-          footer = summaryfooter = ['nfill','nrun','nls','ncms','delivered','recorded']
+          footer = ['nfill','nrun','nls','ncms','delivered','recorded']
           bylsheader = ['fill','run','ls','time','cms','delivered','recorded','avgpu','source']
-          bylsfooter = ['nfill','nrun','nls','ncms','delivered','recorded']
           xingheader = ['fill','run','ls','time','bx','delivered','recorded','iscolliding']
 
           if withBX:
               bxcsize = csize*3564
               header = bxheader
-              footer = bylsfooter
           elif byls:
               header = bylsheader
-              footer = []
 
           if not totable:
               fh = lumiargs.ofilehandle
@@ -108,7 +105,7 @@ def brilcalc_main():
             
           print '#Data tag : ',datatagname
           nchunk = 0
-          it = api.datatagIter(dbengine,datatagnameid,fillmin=lumiargs.fillmin,fillmax=lumiargs.fillmax,runmin=lumiargs.runmin,runmax=lumiargs.runmax,amodetag=lumiargs.amodetag,targetegev=lumiargs.egev,beamstatus=lumiargs.beamstatus,tssecmin=lumiargs.tssecmin,tssecmax=lumiargs.tssecmax,runlsselect=lumiargs.runlsSeries ,chunksize=csize)
+          it = api.datatagIter(dbengine,datatagnameid,fillmin=lumiargs.fillmin,fillmax=lumiargs.fillmax,runmin=lumiargs.runmin,runmax=lumiargs.runmax,amodetag=lumiargs.amodetag,targetegev=lumiargs.egev,beamstatus=lumiargs.beamstatus,tssecmin=lumiargs.tssecmin,tssecmax=lumiargs.tssecmax,runlsselect=lumiargs.runlsSeries,chunksize=csize)
           if not it: exit(1)
 
           tot_nfill = 0
@@ -124,9 +121,32 @@ def brilcalc_main():
               dataids = idchunk.index
               for lumichunk in api.lumiInfoIter(dbengine,dataids.min(),dataids.max(),'HFOC','RUN1',chunksize=9999,withBX=withBX):
                   finalchunk = idchunk.join(lumichunk,how='inner',on=None,lsuffix='l',rsuffix='r',sort=False)
-                  finalchunk.reset_index()
-                  rungrouped = finalchunk.groupby('runnum', as_index=False)                  
 
+                  if byls:
+                      if totable:
+                          ptable = prettytable.PrettyTable(header)
+                          if not nchunk:
+                              ptable.header = True
+                          else:
+                              ptable.header = False
+                          ptable.align = 'l'
+                          ptable.max_width['params']=80 
+                      for datatagid,row in finalchunk.iterrows():
+                          timestampsec = row['timestampsec']
+                          dtime = datetime.fromtimestamp(int(timestampsec)).strftime(params._datetimefm)
+                          cms = 1
+                          if fh:
+                              csvwriter.writerow( [row['fillnum'],row['runnum'],row['lsnum'],dtime,cms,'%.2f'%(row['avgrawlumi']),'%.2f'%(row['avgrawlumi']),'%.2f'%(row['avgrawlumi']*0.5),'HFOC'] )
+                          else:
+                              ptable.add_row( [row['fillnum'],row['runnum'],row['lsnum'],dtime,cms,'%.2f'%(row['avgrawlumi']),'%.2f'%(row['avgrawlumi']),'%.2f'%(row['avgrawlumi']*0.5),'HFOC'] )
+                      if lumiargs.outputstyle=='tab':
+                          print(ptable)
+                      elif lumiargs.outputstyle=='htlm':
+                          print(ptable.get_html_string())
+                      del ptable
+                      ptable = None
+                  finalchunk.reset_index()        
+                  rungrouped = finalchunk.groupby('runnum', as_index=False)    
                   for run, items in rungrouped:
                       if not runtot.has_key(run):
                            runtot[run] = {}
@@ -158,31 +178,34 @@ def brilcalc_main():
           tot_nfill = len(np.unique(np_allfills))
           tot_nrun = len(runtot.keys())
           
-          if not byls and not withBX:     
+          if not byls and not withBX:
               if totable:
                   ptable = prettytable.PrettyTable(header)
                   ptable.header = True
                   ptable.align = 'l'
-                  ptable.max_width['params']=80
-                  ftable = prettytable.PrettyTable(footer)
-                  ftable.header = True
-                  ftable.align = 'l'
-                  ftable.max_width['params']=80
+                  ptable.max_width['params']=80                  
               for run in sorted(runtot):
                   if fh:
                       csvwriter.writerow( [runtot[run]['fill'],run,runtot[run]['time'],runtot[run]['nls'],runtot[run]['ncms'],'%.2f'%(runtot[run]['delivered']),'%.2f'%(runtot[run]['recorded'])] )
                   else:
                       ptable.add_row( [runtot[run]['fill'],run,runtot[run]['time'],runtot[run]['nls'],runtot[run]['ncms'],'%.2f'%(runtot[run]['delivered']),'%.2f'%(runtot[run]['recorded'])] )
+              if lumiargs.outputstyle=='tab':
+                  print(ptable)
+              elif lumiargs.outputstyle=='html' :
+                  print(ptable.get_html_string())
 
-
+          # common footer
+          if totable:
+              ftable = prettytable.PrettyTable(footer)
+              ftable.header = True
+              ftable.align = 'l'
+              ftable.max_width['params']=80    
               if lumiargs.outputstyle=='tab':
                   ftable.add_row( [ tot_nfill,tot_nrun,tot_nls,tot_ncms,'%.2f'%(tot_delivered),'%.2f'%(tot_recorded) ] )
-                  print(ptable)
                   print "#Total: "
                   print(ftable)
               elif lumiargs.outputstyle=='html' :
                   ftable.add_row( [ tot_nfill,tot_nrun,tot_nls,tot_ncms,'%.2f'%(tot_delivered),'%.2f'%(tot_recorded) ] )
-                  print(ptable.get_html_string())
                   print "Total: "
                   print(ftable)
               else:
