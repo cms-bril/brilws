@@ -1299,7 +1299,7 @@ def datatagnameid(dbengine,datatagname):
 def datatagIter(engine,datatagnameid,schemaname=None,runmin=None,runmax=None,fillmin=None,tssecmin=None,tssecmax=None,fillmax=None,beamstatus=None,amodetag=None,targetegev=None,runlsselect=None,chunksize=9999):
     '''
     output: dataframe iterator, index_col='datatagid'
-    select fillnum,runnum,lsnum,DATATAGID from <schemaname>.IDS_DATATAG [where ]
+             [datatagid,fillnum,runnum,lsnum,timestampsec,beamstatus,amodetag,targetegev]
     '''
     q = '''select FILLNUM as fillnum, RUNNUM as runnum, LSNUM as lsnum, TIMESTAMPSEC as timestampsec, BEAMSTATUS as beamstatus, AMODETAG as amodetag, TARGETEGEV as targetegev, max(DATATAGID) as datatagid from IDS_DATATAG where DATATAGNAMEID<=:datatagnameid'''
     qCondition = ''
@@ -1377,7 +1377,8 @@ def beamInfoIter(engine,datatagidmin,datatagidmax,suffix,schemaname='',chunksize
 def lumiInfoIter(engine,datatagidmin,datatagidmax,datasource,suffix,schemaname='',chunksize=9999,withBX=False):
     '''
     output: dataframe iterator 
-            [datatagid,]
+            [datatagid,avgrawlumi]
+            [datatagid,bxidx,bxrawlumi]
     '''
     basetablename = datasource.upper()
     tablename = '_'.join([basetablename,suffix]) 
