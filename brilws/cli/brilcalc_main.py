@@ -55,7 +55,13 @@ def brilcalc_main():
 
           parseresult = docopt.docopt(brilcalc_lumi.__doc__,argv=cmmdargv)
           parseresult = brilcalc_lumi.validate(parseresult)
+          
+          ##parse selection params
           lumiargs = clicommonargs.parser(parseresult)
+
+          ##db params
+          dbengine = create_engine(beamargs.dbconnect)
+          authpath = lumiargs.authpath          
           
       elif args['<command>'] == 'beam':
           import brilcalc_beam
@@ -64,25 +70,14 @@ def brilcalc_main():
 
           parseresult = docopt.docopt(brilcalc_beam.__doc__,argv=cmmdargv)
           parseresult = brilcalc_beam.validate(parseresult)
+          
+          ##parse selection params
           beamargs = clicommonargs.parser(parseresult)
 
           ##db params
           dbengine = create_engine(beamargs.dbconnect)
           authpath = beamargs.authpath
-          
-          ##selection params
-          s_bstatus = beamargs.beamstatus
-          s_egev = beamargs.egev
-          s_amodetag = beamargs.amodetag
-          s_datatagname = beamargs.datatagname
-          s_fillmin = beamargs.fillmin
-          s_fillmax = beamargs.fillmax          
-          s_runmin = beamargs.runmin
-          s_runmax = beamargs.runmax
-          s_runlsSeries = beamargs.runlsSeries                  
-          s_tssecmin = beamargs.tssecmin
-          s_tssecmax = beamargs.tssecmax
-
+                    
           ##display params
           csize = beamargs.chunksize
           withBX = beamargs.withBX
@@ -102,9 +97,9 @@ def brilcalc_main():
               print >> fh, '#'+','.join(header)
               csvwriter = csv.writer(fh)
 
-          datatagname = s_datatagname
+          datatagname = beamargs.datatagname
           datatagnameid = 0
-          if not s_datatagname:
+          if not datatagname:
               r = api.max_datatagname(dbengine)
               if not r:
                   raise 'no tag found'
@@ -112,10 +107,10 @@ def brilcalc_main():
               datatagnameid = r[1]
           else:
               datatagnameid = api.datatagnameid(dbengine,datatagname=s_datatagname)
-          print 'data tag : ',datatagname
+          print 'data tag : ',datatagname          
           
           nchunk = 0
-          it = api.datatagIter(dbengine,datatagnameid,fillmin=s_fillmin,fillmax=s_fillmax,runmin=s_runmin,runmax=s_runmax,amodetag=s_amodetag,targetegev=s_egev,beamstatus=s_bstatus,tssecmin=s_tssecmin,tssecmax=s_tssecmax,runlsselect=s_runlsSeries ,chunksize=csize)
+          it = api.datatagIter(dbengine,datatagnameid,fillmin=beamargs.fillmin,fillmax=beamargs.fillmax,runmin=beamargs.runmin,runmax=beamargs.runmax,amodetag=beamargs.amodetag,targetegev=beamargs.egev,beamstatus=beamargs.beamstatus,tssecmin=beamargs.tssecmin,tssecmax=beamargs.tssecmax,runlsselect=beamargs.runlsSeries ,chunksize=csize)
 
           if not it: exit(1)
           for idchunk in it:              
