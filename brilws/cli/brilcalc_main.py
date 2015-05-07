@@ -111,7 +111,7 @@ def brilcalc_main():
           for idchunk in it:              
               dataids = idchunk.index
               print dataids
-              #for lumichunk in api.lumiInfoIter(dbengine,dataids.min(),dataids.max(),chunksize=bxcsize,withBX=withBX):
+              #for lumichunk in api.lumiInfoIter(dbengine,dataids.min(),dataids.max(),'HFOC','RUN1',chunksize=bxcsize,withBX=withBX):
                   
       elif args['<command>'] == 'beam':
           import brilcalc_beam
@@ -166,7 +166,7 @@ def brilcalc_main():
           if not it: exit(1)
           for idchunk in it:              
               dataids = idchunk.index              
-              for beaminfochunk in api.beamInfoIter(dbengine,dataids.min(),dataids.max(),chunksize=bxcsize,withBX=withBX):
+              for beaminfochunk in api.beamInfoIter(dbengine,dataids.min(),dataids.max(),'RUN1',chunksize=bxcsize,withBX=withBX):
                   finalchunk = idchunk.join(beaminfochunk,how='inner',on=None,lsuffix='l',rsuffix='r',sort=False)
                   if totable:
                       ptable = prettytable.PrettyTable(header)
