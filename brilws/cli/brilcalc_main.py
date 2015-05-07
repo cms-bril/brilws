@@ -52,7 +52,8 @@ def brilcalc_main():
     try:
       if args['<command>'] == 'lumi':
           import brilcalc_lumi
-
+          import csv
+          from sqlalchemy import *
           parseresult = docopt.docopt(brilcalc_lumi.__doc__,argv=cmmdargv)
           parseresult = brilcalc_lumi.validate(parseresult)
           
@@ -60,9 +61,58 @@ def brilcalc_main():
           lumiargs = clicommonargs.parser(parseresult)
 
           ##db params
-          dbengine = create_engine(beamargs.dbconnect)
+          dbengine = create_engine(lumiargs.dbconnect)
           authpath = lumiargs.authpath          
-          
+
+          ##display params
+          csize = lumiargs.chunksize
+          withBX = lumiargs.withBX          
+          byls = lumiargs.byls
+          bxcsize = csize
+          totable = lumiargs.totable
+          fh = None
+          ptable = None
+          csvwriter = None
+
+          header = summaryheader = ['fill','run','time','nls','ncms','delivered','recorded']
+          footer = summaryfooter = ['nfill','nrun','nls','ncms','delivered','recorded']
+          bylsheader = ['fill','run','ls','time','cms','delivered','recorded','avgpu','source']
+          bylsfooter = ['nfill','nrun','nls','ncms','delivered','recorded']
+          xingheader = ['fill','run','ls','time','bx','delivered','recorded','iscolliding']
+
+          if withBX:
+              bxcsize = csize*3564
+              header = bxheader
+              footer = bylsfooter
+          elif byls:
+              header = bylsheader
+              footer = []
+
+          if not totable:
+              fh = lumiargs.ofilehandle
+              print >> fh, '#'+','.join(header)
+              csvwriter = csv.writer(fh)
+
+          datatagname = lumiargs.datatagname
+          datatagnameid = 0
+          if not datatagname:
+              r = api.max_datatagname(dbengine)
+              if not r:
+                  raise 'no tag found'
+              datatagname = r[0]
+              datatagnameid = r[1]
+          else:
+              datatagnameid = api.datatagnameid(dbengine,datatagname=datatagname)
+            
+          print 'data tag : ',datatagname
+          nchunk = 0
+          it = api.datatagIter(dbengine,datatagnameid,fillmin=lumiargs.fillmin,fillmax=lumiargs.fillmax,runmin=lumiargs.runmin,runmax=lumiargs.runmax,amodetag=lumiargs.amodetag,targetegev=lumiargs.egev,beamstatus=lumiargs.beamstatus,tssecmin=lumiargs.tssecmin,tssecmax=lumiargs.tssecmax,runlsselect=lumiargs.runlsSeries ,chunksize=csize)
+          if not it: exit(1)
+          for idchunk in it:              
+              dataids = idchunk.index
+              print dataids
+              #for lumichunk in api.lumiInfoIter(dbengine,dataids.min(),dataids.max(),chunksize=bxcsize,withBX=withBX):
+                  
       elif args['<command>'] == 'beam':
           import brilcalc_beam
           import csv
@@ -87,11 +137,12 @@ def brilcalc_main():
           ptable = None
           csvwriter = None
 
-          header = ['fill','run','ls','time','beamstatus','amodetag','beamegev','intensity1','intensity2']
+          header = ['fill','run','ls','time','beamstatus','amodetag','egev','intensity1','intensity2']
+          bxheader = ['fill','run','ls','time','bx','bxintensity1','bxintensity2','iscolliding']
           if withBX:
-              header = ['fill','run','ls','time','bx','bxintensity1','bxintensity2','iscolliding']
               bxcsize = csize*3564
-
+              header = bxheader
+              
           if not totable:
               fh = beamargs.ofilehandle
               print >> fh, '#'+','.join(header)
@@ -106,7 +157,7 @@ def brilcalc_main():
               datatagname = r[0]
               datatagnameid = r[1]
           else:
-              datatagnameid = api.datatagnameid(dbengine,datatagname=s_datatagname)
+              datatagnameid = api.datatagnameid(dbengine,datatagname=datatagname)
           print 'data tag : ',datatagname          
           
           nchunk = 0

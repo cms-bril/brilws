@@ -20,6 +20,7 @@ class parser(object):
         self._tssecmax = None
         self._runlsSeries = None
         self._withBX = False
+        self._byls = False
         self._chunksize = None
         self._ofilename = '-'
         self._fh = None
@@ -36,8 +37,8 @@ class parser(object):
         self._amodetag = self._argdict['--amodetag']
         self._chunksize = self._argdict['--chunk-size']
         self._outputstyle = self._argdict['--output-style']
-        if self._argdict['--xing']:
-            self._withBX = True
+        if self._argdict.has_key('--xing'): self._withBX = self._argdict['--xing']
+        if self._argdict.has_key('--byls'): self._byls = self._argdict['--byls']
         if self._argdict['-f'] :
             self._fillmin = self._argdict['-f']
             self._fillmax = self._argdict['-f']
@@ -122,6 +123,9 @@ class parser(object):
     @property
     def withBX(self):
         return self._withBX
+    @property
+    def byls(self):
+        return self._byls
     @property
     def chunksize(self):
         return self._chunksize
