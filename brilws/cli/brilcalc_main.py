@@ -135,14 +135,14 @@ def brilcalc_main():
                           
                           if fh:
                               if byls:
-                                  csvwriter.writerow( [row['fillnum'],row['runnum'],row['lsnum'],dtime,cms,'%.2f'%(row['avgrawlumi']),'%.2f'%(row['avgrawlumi']),'%.2f'%(row['avgrawlumi']*0.5),'HFOC'] )
+                                  csvwriter.writerow( [row['fillnum'],row['runnum'],row['lsnum'],dtime,cms,'%.4e'%(row['avgrawlumi']),'%.4e'%(row['avgrawlumi']),'%.4e'%(row['avgrawlumi']*0.5),'HFOC'] )
                               else:
-                                  csvwriter.writerow( [row['fillnum'],row['runnum'],row['lsnum'],row['bxidx'],'%.2f'%(row['bxrawlumi']),'%.2f'%(row['bxrawlumi'])] )
+                                  csvwriter.writerow( [row['fillnum'],row['runnum'],row['lsnum'],row['bxidx'],'%.6e'%(row['bxrawlumi']),'%.6e'%(row['bxrawlumi'])] )
                           else:
                               if byls:
-                                  ptable.add_row( [row['fillnum'],row['runnum'],row['lsnum'],dtime,cms,'%.2f'%(row['avgrawlumi']),'%.2f'%(row['avgrawlumi']),'%.2f'%(row['avgrawlumi']*0.5),'HFOC'] )
+                                  ptable.add_row( [row['fillnum'],row['runnum'],row['lsnum'],dtime,cms,'%.4e'%(row['avgrawlumi']),'%.4e'%(row['avgrawlumi']),'%.4e'%(row['avgrawlumi']*0.5),'HFOC'] )
                               else:
-                                  ptable.add_row( [row['fillnum'],row['runnum'],row['lsnum'],row['bxidx'],'%.2f'%(row['bxrawlumi']),'%.2f'%(row['bxrawlumi'])] )
+                                  ptable.add_row( [row['fillnum'],row['runnum'],row['lsnum'],row['bxidx'],'%.6e'%(row['bxrawlumi']),'%.6e'%(row['bxrawlumi'])] )
                       if lumiargs.outputstyle=='tab':
                           print(ptable)
                       elif lumiargs.outputstyle=='htlm':
@@ -189,9 +189,9 @@ def brilcalc_main():
                   ptable = display.create_table(header)
               for run in sorted(runtot):
                   if fh:
-                      csvwriter.writerow( [runtot[run]['fill'],run,runtot[run]['time'],runtot[run]['nls'],runtot[run]['ncms'],'%.2f'%(runtot[run]['delivered']),'%.2f'%(runtot[run]['recorded'])] )
+                      csvwriter.writerow( [runtot[run]['fill'],run,runtot[run]['time'],runtot[run]['nls'],runtot[run]['ncms'],'%.3e'%(runtot[run]['delivered']),'%.3e'%(runtot[run]['recorded'])] )
                   else:
-                      ptable.add_row( [runtot[run]['fill'],run,runtot[run]['time'],runtot[run]['nls'],runtot[run]['ncms'],'%.2f'%(runtot[run]['delivered']),'%.2f'%(runtot[run]['recorded'])] )
+                      ptable.add_row( [runtot[run]['fill'],run,runtot[run]['time'],runtot[run]['nls'],runtot[run]['ncms'],'%.3e'%(runtot[run]['delivered']),'%.3e'%(runtot[run]['recorded'])] )
               if lumiargs.outputstyle=='tab':
                   print(ptable)
               elif lumiargs.outputstyle=='html' :
@@ -202,17 +202,17 @@ def brilcalc_main():
               if totable:
                   ftable = display.create_table(footer)
                   if lumiargs.outputstyle=='tab':
-                      ftable.add_row( [ tot_nfill,tot_nrun,tot_nls,tot_ncms,'%.2f'%(tot_delivered),'%.2f'%(tot_recorded) ] )
+                      ftable.add_row( [ tot_nfill,tot_nrun,tot_nls,tot_ncms,'%.3e'%(tot_delivered),'%.3e'%(tot_recorded) ] )
                       print "#Total: "
                       print(ftable)
                   elif lumiargs.outputstyle=='html' :
-                      ftable.add_row( [ tot_nfill,tot_nrun,tot_nls,tot_ncms,'%.2f'%(tot_delivered),'%.2f'%(tot_recorded) ] )
+                      ftable.add_row( [ tot_nfill,tot_nrun,tot_nls,tot_ncms,'%.3e'%(tot_delivered),'%.3e'%(tot_recorded) ] )
                       print "Total: "
                       print(ftable)
               else:
                   print >> fh, '#Total:'                  
                   print >> fh, '#'+','.join(footer)
-                  print >> fh, '#'+','.join( [ '%d'%tot_nfill,'%d'%tot_nrun,'%d'%tot_nls,'%d'%tot_ncms,'%.2f'%(tot_delivered),'%.2f'%(tot_recorded) ] )
+                  print >> fh, '#'+','.join( [ '%d'%tot_nfill,'%d'%tot_nrun,'%d'%tot_nls,'%d'%tot_ncms,'%.3e'%(tot_delivered),'%.3e'%(tot_recorded) ] )
           if fh and fh is not sys.stdout: fh.close()
           
       elif args['<command>'] == 'beam':

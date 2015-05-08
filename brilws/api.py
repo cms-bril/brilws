@@ -1388,7 +1388,7 @@ def lumiInfoIter(engine,datatagidmin,datatagidmax,datasource,suffix,schemaname='
         bxtablenme = '.'.join([schemaname,bxtablename])
     q = '''select DATATAGID as datatagid, AVGRAWLUMI as avgrawlumi from %s where DATATAGID>=:datatagidmin and DATATAGID<=:datatagidmax'''%(tablename)
     if withBX:
-        q = '''select b.DATATAGID as datatagid, bx.BXIDX as bxidx, bx.BXRAWLUMI as bxrawlumi from %s b, %s bx where b.DATATAGID=bx.DATATAGID and b.DATATAGID>=:datatagidmin and b.DATATAGID<=:datatagidmax'''%(tablename,bxtablename)
+        q = '''select b.DATATAGID as datatagid, bx.BXIDX as bxidx, bx.BXRAWLUMI as bxrawlumi from %s b, %s bx where b.DATATAGID=bx.DATATAGID and b.DATATAGID>=:datatagidmin and b.DATATAGID<=:datatagidmax and bxrawlumi>0'''%(tablename,bxtablename)
     result = pd.read_sql_query(q,engine,chunksize=chunksize,params={'datatagidmin':datatagidmin,'datatagidmax':datatagidmax},index_col='datatagid')
     return result
 
