@@ -116,10 +116,14 @@ def brilcalc_main():
           tot_recorded = 0
           runtot = {} #{run:{'fill':fill,'time':time,'nls':nls,'':ncms,'delivered':delivered,'recorded':recorded}}
           allfills = []
-
+          
           for idchunk in it:              
               dataids = idchunk.index
-              for lumichunk in api.lumiInfoIter(dbengine,dataids.min(),dataids.max(),'HFOC','RUN1',chunksize=9999,withBX=withBX):
+              idstrings = ','.join([str(d) for d in dataids])
+              print len(dataids)
+              
+              #for lumichunk in api.lumiInfoIter(dbengine,dataids.min(),dataids.max(),'HFOC','RUN1',chunksize=9999,withBX=withBX):
+              for lumichunk in api.lumiInfoIter(dbengine,dataids,'HFOC','RUN1',chunksize=9999,withBX=withBX):
                   finalchunk = idchunk.join(lumichunk,how='inner',on=None,lsuffix='l',rsuffix='r',sort=False)
 
                   if byls or withBX:
@@ -268,7 +272,7 @@ def brilcalc_main():
           if not it: exit(1)
           for idchunk in it:              
               dataids = idchunk.index              
-              for beaminfochunk in api.beamInfoIter(dbengine,dataids.min(),dataids.max(),'RUN1',chunksize=bxcsize,withBX=withBX):
+              for beaminfochunk in api.beamInfoIter(dbengine,dataids,'RUN1',chunksize=bxcsize,withBX=withBX):
                   finalchunk = idchunk.join(beaminfochunk,how='inner',on=None,lsuffix='l',rsuffix='r',sort=False)
                   if totable:
                       if not nchunk:

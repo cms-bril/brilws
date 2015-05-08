@@ -1355,8 +1355,9 @@ def datatagIter(engine,datatagnameid,schemaname=None,runmin=None,runmax=None,fil
     #print q
     return pd.read_sql_query(q,engine,chunksize=chunksize,params=binddict,index_col='datatagid')
 
-def beamInfoIter(engine,datatagidmin,datatagidmax,suffix,schemaname='',chunksize=9999,withBX=False):
+def beamInfoIter(engine,datatagids,suffix,schemaname='',chunksize=9999,withBX=False):
     '''
+    input: datatagids []
     output: dataframe iterator 
     [datatagid,]
     '''
@@ -1366,30 +1367,35 @@ def beamInfoIter(engine,datatagidmin,datatagidmax,suffix,schemaname='',chunksize
     if schemaname:
         tablename = '.'.join([schemaname,tablename])
         bxtablename = '.'.join([schemaname,bxtablename])
-        
-    q = '''select DATATAGID as datatagid, EGEV as egev, INTENSITY1 as intensity1, INTENSITY2 as intensity2 from %s where DATATAGID>=:datatagidmin and DATATAGID<=:datatagidmax'''%(tablename)
+    idstrings = ','.join([str(x) for x in datatagids])
+    
+    q = '''select DATATAGID as datatagid, EGEV as egev, INTENSITY1 as intensity1, INTENSITY2 as intensity2 from %s where DATATAGID in (%s)'''%(tablename,idstrings)
     if withBX:
-        q = '''select b.DATATAGID as datatagid, bx.BXIDX as bxidx, bx.BXINTENSITY1 as bxintensity1, bx.BXINTENSITY2 as bxintensity2, bx.ISCOLLIDING as iscolliding from %s b, %s bx where b.DATATAGID=bx.DATATAGID and b.DATATAGID>=:datatagidmin and b.DATATAGID<=:datatagidmax'''%(tablename,bxtablename)
+        q = '''select b.DATATAGID as datatagid, bx.BXIDX as bxidx, bx.BXINTENSITY1 as bxintensity1, bx.BXINTENSITY2 as bxintensity2, bx.ISCOLLIDING as iscolliding from %s b, %s bx where b.DATATAGID=bx.DATATAGID and b.DATATAGID in (%s)'''%(tablename,bxtablename,idstrings)
         
-    result = pd.read_sql_query(q,engine,chunksize=chunksize,params={'datatagidmin':datatagidmin,'datatagidmax':datatagidmax},index_col='datatagid')
+    result = pd.read_sql_query(q,engine,chunksize=chunksize,params={},index_col='datatagid')
     return result
 
-def lumiInfoIter(engine,datatagidmin,datatagidmax,datasource,suffix,schemaname='',chunksize=9999,withBX=False):
+def lumiInfoIter(engine,datatagids,datasource,suffix,schemaname='',chunksize=9999,withBX=False):
     '''
+    input: datatagids []
     output: dataframe iterator 
             [datatagid,avgrawlumi]
             [datatagid,bxidx,bxrawlumi]
-    '''
+    '''     
     basetablename = datasource.upper()
     tablename = '_'.join([basetablename,suffix]) 
     bxtablename = 'BX_'+tablename
     if schemaname:
         tablename = '.'.join([schemaname,tablename])
         bxtablenme = '.'.join([schemaname,bxtablename])
-    q = '''select DATATAGID as datatagid, AVGRAWLUMI as avgrawlumi from %s where DATATAGID>=:datatagidmin and DATATAGID<=:datatagidmax'''%(tablename)
+        
+    idstrings = ','.join([str(x) for x in datatagids])
+    
+    q = '''select DATATAGID as datatagid, AVGRAWLUMI as avgrawlumi from %s where DATATAGID in (%s)'''%(tablename,idstrings)
     if withBX:
-        q = '''select b.DATATAGID as datatagid, bx.BXIDX as bxidx, bx.BXRAWLUMI as bxrawlumi from %s b, %s bx where b.DATATAGID=bx.DATATAGID and b.DATATAGID>=:datatagidmin and b.DATATAGID<=:datatagidmax and bxrawlumi>0'''%(tablename,bxtablename)
-    result = pd.read_sql_query(q,engine,chunksize=chunksize,params={'datatagidmin':datatagidmin,'datatagidmax':datatagidmax},index_col='datatagid')
+        q = '''select b.DATATAGID as datatagid, bx.BXIDX as bxidx, bx.BXRAWLUMI as bxrawlumi from %s b, %s bx where b.DATATAGID=bx.DATATAGID and b.DATATAGID in (%s)'''%(tablename,bxtablename,idstrings)
+    result = pd.read_sql_query(q,engine,chunksize=chunksize,params={},index_col='datatagid')
     return result
 
 #
