@@ -79,11 +79,11 @@ def brilcalc_main():
           header = summaryheader = ['fill','run','time','nls','ncms','delivered','recorded']
           footer = ['nfill','nrun','nls','ncms','delivered','recorded']
           bylsheader = ['fill','run','ls','time','cms','delivered','recorded','avgpu','source']
-          xingheader = ['fill','run','ls','time','bx','delivered','recorded','iscolliding']
+          xingheader = ['fill','run','ls','bx','delivered','recorded']
 
           if withBX:
               bxcsize = csize*3564
-              header = bxheader
+              header = xingheader
           elif byls:
               header = bylsheader
 
@@ -122,7 +122,7 @@ def brilcalc_main():
               for lumichunk in api.lumiInfoIter(dbengine,dataids.min(),dataids.max(),'HFOC','RUN1',chunksize=9999,withBX=withBX):
                   finalchunk = idchunk.join(lumichunk,how='inner',on=None,lsuffix='l',rsuffix='r',sort=False)
 
-                  if byls:
+                  if byls or withBX:
                       if totable:
                           if not nchunk:
                               ptable = display.create_table(header,header=True)
@@ -132,50 +132,59 @@ def brilcalc_main():
                           timestampsec = row['timestampsec']
                           dtime = datetime.fromtimestamp(int(timestampsec)).strftime(params._datetimefm)
                           cms = 1
+                          
                           if fh:
-                              csvwriter.writerow( [row['fillnum'],row['runnum'],row['lsnum'],dtime,cms,'%.2f'%(row['avgrawlumi']),'%.2f'%(row['avgrawlumi']),'%.2f'%(row['avgrawlumi']*0.5),'HFOC'] )
+                              if byls:
+                                  csvwriter.writerow( [row['fillnum'],row['runnum'],row['lsnum'],dtime,cms,'%.2f'%(row['avgrawlumi']),'%.2f'%(row['avgrawlumi']),'%.2f'%(row['avgrawlumi']*0.5),'HFOC'] )
+                              else:
+                                  csvwriter.writerow( [row['fillnum'],row['runnum'],row['lsnum'],row['bxidx'],'%.2f'%(row['bxrawlumi']),'%.2f'%(row['bxrawlumi'])] )
                           else:
-                              ptable.add_row( [row['fillnum'],row['runnum'],row['lsnum'],dtime,cms,'%.2f'%(row['avgrawlumi']),'%.2f'%(row['avgrawlumi']),'%.2f'%(row['avgrawlumi']*0.5),'HFOC'] )
+                              if byls:
+                                  ptable.add_row( [row['fillnum'],row['runnum'],row['lsnum'],dtime,cms,'%.2f'%(row['avgrawlumi']),'%.2f'%(row['avgrawlumi']),'%.2f'%(row['avgrawlumi']*0.5),'HFOC'] )
+                              else:
+                                  ptable.add_row( [row['fillnum'],row['runnum'],row['lsnum'],row['bxidx'],'%.2f'%(row['bxrawlumi']),'%.2f'%(row['bxrawlumi'])] )
                       if lumiargs.outputstyle=='tab':
                           print(ptable)
                       elif lumiargs.outputstyle=='htlm':
                           print(ptable.get_html_string())
                       del ptable
                       ptable = None
-                  finalchunk.reset_index()        
-                  rungrouped = finalchunk.groupby('runnum', as_index=False)    
-                  for run, items in rungrouped:
-                      if not runtot.has_key(run):
-                           runtot[run] = {}
-                           fillnum = items['fillnum'].iloc[0]
-                           runtot[run]['fill'] = fillnum
-                           timestampsec_run = items['timestampsec'].iloc[0]
-                           dtime = datetime.fromtimestamp(int(timestampsec_run)).strftime(params._datetimefm)
-                           runtot[run]['time'] = dtime
-                           runtot[run]['nls'] = 0
-                           runtot[run]['ncms'] = 0
-                           runtot[run]['delivered'] = 0.
-                           runtot[run]['recorded'] = 0.
-                           allfills.append(fillnum)                           
-                      runtot_countls =  items['lsnum'].count()
-                      runtot_avgrawlumi = items['avgrawlumi'].sum()
-                      runtot[run]['nls'] = runtot[run]['nls']+runtot_countls
-                      tot_nls = tot_nls +  runtot_countls
-                      runtot[run]['ncms'] = runtot[run]['ncms']+runtot_countls
-                      tot_ncms = tot_ncms +  runtot_countls
-                      runtot[run]['delivered'] = runtot[run]['delivered']+runtot_avgrawlumi
-                      tot_delivered = tot_delivered + runtot_avgrawlumi
-                      runtot[run]['recorded'] = runtot[run]['recorded']+runtot_avgrawlumi
-                      tot_recorded = tot_recorded + runtot_avgrawlumi
+                      
+                  if not withBX:   
+                      finalchunk.reset_index()
+                      rungrouped = finalchunk.groupby('runnum', as_index=False)    
+                      for run, items in rungrouped:
+                          if not runtot.has_key(run):
+                              runtot[run] = {}
+                              fillnum = items['fillnum'].iloc[0]
+                              runtot[run]['fill'] = fillnum
+                              timestampsec_run = items['timestampsec'].iloc[0]
+                              dtime = datetime.fromtimestamp(int(timestampsec_run)).strftime(params._datetimefm)
+                              runtot[run]['time'] = dtime
+                              runtot[run]['nls'] = 0
+                              runtot[run]['ncms'] = 0
+                              runtot[run]['delivered'] = 0.
+                              runtot[run]['recorded'] = 0.
+                              allfills.append(fillnum)                           
+                          runtot_countls =  items['lsnum'].count()
+                          runtot_avgrawlumi = items['avgrawlumi'].sum()
+                          runtot[run]['nls'] = runtot[run]['nls']+runtot_countls
+                          tot_nls = tot_nls +  runtot_countls
+                          runtot[run]['ncms'] = runtot[run]['ncms']+runtot_countls
+                          tot_ncms = tot_ncms +  runtot_countls
+                          runtot[run]['delivered'] = runtot[run]['delivered']+runtot_avgrawlumi
+                          tot_delivered = tot_delivered + runtot_avgrawlumi
+                          runtot[run]['recorded'] = runtot[run]['recorded']+runtot_avgrawlumi
+                          tot_recorded = tot_recorded + runtot_avgrawlumi
                       
                   del finalchunk
                   del lumichunk
-          del idchunk
+              del idchunk
           np_allfills = np.array(allfills)
           tot_nfill = len(np.unique(np_allfills))
           tot_nrun = len(runtot.keys())
           
-          if not byls and not withBX:
+          if not byls and not withBX: #run table
               if totable:
                   ptable = display.create_table(header)
               for run in sorted(runtot):
@@ -189,21 +198,23 @@ def brilcalc_main():
                   print(ptable.get_html_string())
 
           # common footer
-          if totable:
-              ftable = display.create_table(footer)
-              if lumiargs.outputstyle=='tab':
-                  ftable.add_row( [ tot_nfill,tot_nrun,tot_nls,tot_ncms,'%.2f'%(tot_delivered),'%.2f'%(tot_recorded) ] )
-                  print "#Total: "
-                  print(ftable)
-              elif lumiargs.outputstyle=='html' :
-                  ftable.add_row( [ tot_nfill,tot_nrun,tot_nls,tot_ncms,'%.2f'%(tot_delivered),'%.2f'%(tot_recorded) ] )
-                  print "Total: "
-                  print(ftable)
+          if not withBX:
+              if totable:
+                  ftable = display.create_table(footer)
+                  if lumiargs.outputstyle=='tab':
+                      ftable.add_row( [ tot_nfill,tot_nrun,tot_nls,tot_ncms,'%.2f'%(tot_delivered),'%.2f'%(tot_recorded) ] )
+                      print "#Total: "
+                      print(ftable)
+                  elif lumiargs.outputstyle=='html' :
+                      ftable.add_row( [ tot_nfill,tot_nrun,tot_nls,tot_ncms,'%.2f'%(tot_delivered),'%.2f'%(tot_recorded) ] )
+                      print "Total: "
+                      print(ftable)
               else:
                   print >> fh, '#Total:'                  
                   print >> fh, '#'+','.join(footer)
                   print >> fh, '#'+','.join( [ '%d'%tot_nfill,'%d'%tot_nrun,'%d'%tot_nls,'%d'%tot_ncms,'%.2f'%(tot_delivered),'%.2f'%(tot_recorded) ] )
-          if fh and fh is not sys.stdout: fh.close()      
+          if fh and fh is not sys.stdout: fh.close()
+          
       elif args['<command>'] == 'beam':
           import brilcalc_beam
           import csv
