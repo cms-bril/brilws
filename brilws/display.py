@@ -17,6 +17,24 @@ _prettytable_style={
     'maxwidth':80
 }
 
+def add_row(row,fh=None,csvwriter=None,ptable=None):
+    '''
+    input: row=[]
+    '''
+    if fh and csvwriter:
+        csvwriter.writerow(row)
+    elif ptable:
+        ptable.add_row(row)
+    else:
+        return
+    
+def show_table(ptable,style='tab'):
+    if not ptable: return
+    if style=='tab':
+        print(ptable)
+    elif style=='html':
+        print(ptable.get_html_string())
+        
 def create_table(columns,**kwargs):
     '''
     create a prettytable instance
