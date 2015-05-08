@@ -21,6 +21,7 @@ class parser(object):
         self._runlsSeries = None
         self._withBX = False
         self._byls = False
+        self._bybit = False
         self._chunksize = None
         self._ofilename = '-'
         self._fh = None
@@ -39,6 +40,7 @@ class parser(object):
         self._outputstyle = self._argdict['--output-style']
         if self._argdict.has_key('--xing'): self._withBX = self._argdict['--xing']
         if self._argdict.has_key('--byls'): self._byls = self._argdict['--byls']
+        if self._argdict.has_key('--bybit'): self._bybit = self._argdict['--bybit']
         if self._argdict['-f'] :
             self._fillmin = self._argdict['-f']
             self._fillmax = self._argdict['-f']
@@ -138,7 +140,10 @@ class parser(object):
     @property
     def totable(self):
         return self._totable    
-
+    @property
+    def bybit(self):
+        return self._bybit
+    
 argvalidators = {
     '--amodetag': Or(None,And(str,lambda s: s.upper() in params._amodetagChoices), error='--amodetag must be in '+str(params._amodetagChoices) ),
     '--egev': Or(None,And(Use(int), lambda n: n>0), error='--egev should be integer >0'),

@@ -266,7 +266,6 @@ def brilcalc_main():
           
           nchunk = 0
           it = api.datatagIter(dbengine,datatagnameid,fillmin=beamargs.fillmin,fillmax=beamargs.fillmax,runmin=beamargs.runmin,runmax=beamargs.runmax,amodetag=beamargs.amodetag,targetegev=beamargs.egev,beamstatus=beamargs.beamstatus,tssecmin=beamargs.tssecmin,tssecmax=beamargs.tssecmax,runlsselect=beamargs.runlsSeries ,chunksize=csize)
-
           if not it: exit(1)
           for idchunk in it:              
               dataids = idchunk.index              
@@ -298,16 +297,87 @@ def brilcalc_main():
                       print(ptable.get_html_string())
                       del ptable
                   del finalchunk  
-                  nchunk = nchunk + 1                  
                   del beaminfochunk
               del idchunk
+              nchunk = nchunk + 1                  
           if fh and fh is not sys.stdout: fh.close()  
         
       elif args['<command>'] == 'trg':
           import brilcalc_trg
           parseresult = docopt.docopt(brilcalc_trg.__doc__,argv=cmmdargv)
           parseresult = brilcalc_trg.validate(parseresult)
-          print parseresult
+          
+          ##parse selection params
+          trgargs = clicommonargs.parser(parseresult)
+
+          ##db params
+          dbengine = create_engine(trgargs.dbconnect)
+          authpath = trgargs.authpath
+
+          ##display params
+          csize = trgargs.chunksize
+          bybit = trgargs.bybit
+          totable = trgargs.totable
+          fh = None
+          ptable = None
+          csvwriter = None
+
+          header = ['fill','run','ls','time','deadfrac']          
+          bybitheader = ['fill','run','ls','id','name','prescidx','presc','counts','mask']
+          if bybit:
+              csize = csize*200
+              header = bybitheader
+          if not totable:
+              fh = trgargs.ofilehandle
+              print >> fh, '#'+','.join(header)
+              csvwriter = csv.writer(fh)
+
+          datatagname = trgargs.datatagname
+          datatagnameid = 0
+          if not datatagname:
+              r = api.max_datatagname(dbengine)
+              if not r:
+                  raise 'no tag found'
+              datatagname = r[0]
+              datatagnameid = r[1]
+          else:
+              datatagnameid = api.datatagnameid(dbengine,datatagname=datatagname)
+          print 'data tag : ',datatagname
+          
+          nchunk  = 0
+          it = api.datatagIter(dbengine,datatagnameid,fillmin=trgargs.fillmin,fillmax=trgargs.fillmax,runmin=trgargs.runmin,runmax=trgargs.runmax,amodetag=trgargs.amodetag,targetegev=trgargs.egev,beamstatus=trgargs.beamstatus,tssecmin=trgargs.tssecmin,tssecmax=trgargs.tssecmax,runlsselect=trgargs.runlsSeries ,chunksize=csize)
+          if not it: exit(1)
+          for idchunk in it:              
+              dataids = idchunk.index
+              if not bybit:
+                  for deadtimechunk in api.deadtimeIter(dbengine,dataids,'RUN1',chunksize=csize):
+                      finalchunk = idchunk.join(deadtimechunk,how='inner',on=None,lsuffix='l',rsuffix='r',sort=False)
+                      if totable:
+                          if not nchunk:
+                              ptable = display.create_table(header,header=True)
+                          else:
+                              ptable = display.create_table(header,header=False)
+                      for datatagid,row in finalchunk.iterrows():
+                          timestampsec = row['timestampsec']
+                          dtime = datetime.fromtimestamp(int(timestampsec)).strftime(params._datetimefm)                          
+                          if fh:
+                              csvwriter.writerow( [row['fillnum'],row['runnum'],row['lsnum'],dtime,'%.4f'%(row['deadtimefrac']) ] )
+                          else:
+                              ptable.add_row( [ row['fillnum'], row['runnum'], row['lsnum'],dtime,'%.4f'%row['deadtimefrac']] )
+                      del finalchunk
+                      del deadtimechunk
+              else:
+                  print 'blah'
+              if trgargs.outputstyle=='tab':
+                  print(ptable)
+                  del ptable
+              elif trgargs.outputstyle=='tab':
+                  print (ptable.get_html_string())
+                  del ptable
+              del idchunk
+              nchunk = nchunk + 1
+              
+          if fh and fh is not sys.stdout: fh.close()
           
       elif args['<command>'] == 'hlt':
           import brilcalc_hlt
