@@ -6,8 +6,10 @@ import prettytable
 import pandas as pd
 import numpy as np
 from brilws import api,params,clicommonargs,display
-import re,time
+import re,time, csv
 from datetime import datetime
+from sqlalchemy import *
+
 log = logging.getLogger('brilcalc')
 logformatter = logging.Formatter('%(levelname)s %(message)s')
 ch = logging.StreamHandler()
@@ -53,9 +55,7 @@ def brilcalc_main():
 
     try:
       if args['<command>'] == 'lumi':
-          import brilcalc_lumi
-          import csv
-          from sqlalchemy import *
+          import brilcalc_lumi          
           parseresult = docopt.docopt(brilcalc_lumi.__doc__,argv=cmmdargv)
           parseresult = brilcalc_lumi.validate(parseresult)
           
@@ -221,8 +221,6 @@ def brilcalc_main():
           
       elif args['<command>'] == 'beam':
           import brilcalc_beam
-          import csv
-          from sqlalchemy import *
 
           parseresult = docopt.docopt(brilcalc_beam.__doc__,argv=cmmdargv)
           parseresult = brilcalc_beam.validate(parseresult)
@@ -309,6 +307,7 @@ def brilcalc_main():
           import brilcalc_trg
           parseresult = docopt.docopt(brilcalc_trg.__doc__,argv=cmmdargv)
           parseresult = brilcalc_trg.validate(parseresult)
+          print parseresult
           
       elif args['<command>'] == 'hlt':
           import brilcalc_hlt

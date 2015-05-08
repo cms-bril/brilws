@@ -1,56 +1,40 @@
-"""Usage: brilcalc.py trg (deadtime | prescale | counts) [options] 
+"""Usage: brilcalc.py trg [options] 
 
 Options:
-  -h, --help         Show this screen
-  -c CONNECT         Connect string to lumiDB 
-                     [default: frontier://LumiCalc/CMS_LUMI_PROD]
-  -p AUTHPATH        Path to authentication.xml 
-  -n SCALEFACTOR     Scale factor to results [default: 1.0]
-  -f FILLNUM         Fill number
-  -r RUNNUMBER       Run number
-  -i INPUTFILE       Input selection file
-  -o OUTPUTFILE      Output file
-  --siteconfpath=SITECONFPATH 
-                     Path to SITECONF/local/JobConfig/site-local-config.xml
-                     [default: $CMS_PATH] 
-  --amodetag=AMODETAG 
-                     Accelerator mod choices 
-  --beamstatus=BEAMSTATUS
-                     Beam mode choices
-  --beamenergy=BEAMENERGY
-                     Single beam energy in GeV
-  --beamfluctuation=BEAMFLUCTUATION 
-                     Fluctuation in fraction allowed to beam energy 
-                     [default: 0.2]
-  --datatag=DATATAG  Version of data
-  --begin=BEGIN      Min start time 
-  --end=END          Max start time
-  --name=BITNAME     L1bit name/pattern
-  --without-mask     Not considering trigger mask
-                     [default: False]
-  --nowarning        Suppress warning messages
-  --debug            Debug
+  -h, --help                   Show this screen
+  -c CONNECT                   Connect string to DB [default: frontier://LumiCalc/CMS_LUMI_PROD]
+  -p AUTHPATH                  Path to authentication.xml 
+  -f FILL                      Fill number
+  -r RUN                       Run number
+  -i INPUTFILE                 Input selection file
+  -o OUTPUTFILE                Output file
+  --siteconfpath SITECONFPATH  Path to SITECONF/local/JobConfig/site-local-config.xml [default: $CMS_PATH] 
+  --amodetag AMODETAG          Accelerator mode 
+  --beamstatus BEAMSTATUS      Beam mode 
+  --egev EGEV                  Target single beam energy in GeV  
+  --datatag DATATAG            Data tag name
+  --begin BEGIN                Min start time 
+  --end END                    Max start time
+  --output-style OSTYLE        Screen output style. tab, html, csv [default: tab]
+  --chunk-size CHUNKSIZE       Main data chunk size [default: 100]
+  --name BITNAME               L1bit name/pattern. To use with --bybit
+  --bybit                      Show per bit info
+  --without-mask               Not considering trigger mask [default: False]
+  --nowarning                  Suppress warning messages
+  --debug                      Debug
 
 """
 from docopt import docopt
-from schema import Schema, And, Or, Use
+from schema import Schema
+from brilws import clicommonargs
 
-def validate(optdict,amodetagChoices):
+def validate(optdict):
     result={}
-    schema = Schema({
-     '--amodetag':  Or(None,And(str,lambda s: s.upper() in amodetagChoices), error='--amodetag choice must be in '+str(amodetagChoices) ),
-     '--beamenergy': Or(None,And(Use(int), lambda n: n>0), error='--beamenergy should be integer >0'),
-     '--beamfluctuation': And(Use(float), lambda f: f>=0. and f<1.0, error='--beamfluctuation should be float >0'),
-     '--beamstatus': Or(None, And(Use(str), lambda s: s.upper()), error='--beamstatus should be string'),
-     '--begin': Or(None, Use(str), error='--begin should be string'),
-     '--end': Or(None, Use(str), error='--end should be string'),
-     '--siteconfpath': Or(None, str, error='--siteconfpath should be string'),
-     '-c': str,
-     '-f': Or(None, And(Use(int), lambda n: n>1000), error='-f FILLNUMBER should be integer >1000'), 
-     '-n': And(Use(float), lambda f: f>0, error='-n SCALEFACTOR should be float >0'),      
-     '-r': Or(None, And(Use(int), lambda n: n>100000), error='-r RUNNUMBER should be integer >100000'),
-     str:object # catch all
-    })
+    argdict = clicommonargs.argvalidators
+    #extract sub argdict here
+    myvalidables = ['-f','-r','-i','-o','--amodetag','--beamstatus','--egev','--datatag','--begin','--end','--output-style','--chunk-size','--siteconfpath',str]
+    argdict = dict((k,v) for k,v in clicommonargs.argvalidators.iteritems() if k in myvalidables)
+    schema = Schema(argdict)
     result=schema.validate(optdict)
     return result
 
