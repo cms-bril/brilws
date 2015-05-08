@@ -1,5 +1,6 @@
 import pandas as pd
 import numpy as np
+import prettytable
 
 _floatformatter='{:,.3f}'.format
 
@@ -8,6 +9,39 @@ pd.set_option('display.max_colwidth', 200)
 pd.set_option('display.max_rows', 1000)
 pd.set_option('display.width', 200)
 pd.set_option('display.float_format',_floatformatter)
+
+
+_prettytable_style={
+    'withheader':True,
+    'align':'l',
+    'maxwidth':80
+}
+
+def create_table(columns,**kwargs):
+    '''
+    create a prettytable instance
+    https://code.google.com/p/prettytable/wiki/Tutorial
+    '''
+    ptable = prettytable.PrettyTable(columns)
+    if kwargs.has_key('border'): ptable.border = kwargs['border']
+    if kwargs.has_key('header'): ptable.header = kwargs['header']
+    if kwargs.has_key('header_style'): ptable.header_style = kwargs['header_style']
+    if kwargs.has_key('hrules'): ptable.hrules = kwargs['hrules']
+    if kwargs.has_key('vrules'): ptable.hrules = kwargs['vrules']
+    if kwargs.has_key('align'): ptable.align = kwargs['align']
+    if kwargs.has_key('valign'): ptable.valign = kwargs['valign']
+    if kwargs.has_key('int_format'): ptable.int_format = kwargs['int_format']
+    if kwargs.has_key('float_format'): ptable.float_format = kwargs['float_format']
+    if kwargs.has_key('padding_width'): ptable.padding_width = kwargs['padding_width']
+    if kwargs.has_key('left_padding_width'): ptable.left_padding_width = kwargs['left_padding_width']
+    if kwargs.has_key('right_padding_width'): ptable.right_padding_width = kwargs['right_padding_width']
+    if kwargs.has_key('vertical_char'): ptable.vertical_char = kwargs['vertical_char']
+    if kwargs.has_key('horizontal_char'): ptable.horizontal_char = kwargs['horizontal_char']
+    if kwargs.has_key('junction_char'): ptable.junction_char = kwargs['junction_char']
+    if kwargs.has_key('maxwidth'): ptable.max_width = kwargs['maxwidth']    
+    
+    return ptable
+
 
 def formatter_tuple((x,y)):
     if isinstance(x,float):
@@ -59,7 +93,7 @@ if __name__=='__main__':
     print rowdef.names
     listdf(df,npp=30,formatters=myformatter,columns=['tagid','tagname'])
 
-
-
+    
+    create_table(['a','b'],border = True,align='l')
 
        

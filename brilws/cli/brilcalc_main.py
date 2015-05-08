@@ -5,7 +5,7 @@ import brilws
 import prettytable
 import pandas as pd
 import numpy as np
-from brilws import api,params,clicommonargs
+from brilws import api,params,clicommonargs,display
 import re,time
 from datetime import datetime
 log = logging.getLogger('brilcalc')
@@ -124,13 +124,10 @@ def brilcalc_main():
 
                   if byls:
                       if totable:
-                          ptable = prettytable.PrettyTable(header)
                           if not nchunk:
-                              ptable.header = True
+                              ptable = display.create_table(header,header=True)
                           else:
-                              ptable.header = False
-                          ptable.align = 'l'
-                          ptable.max_width['params']=80 
+                              ptable = display.create_table(header,header=False)
                       for datatagid,row in finalchunk.iterrows():
                           timestampsec = row['timestampsec']
                           dtime = datetime.fromtimestamp(int(timestampsec)).strftime(params._datetimefm)
@@ -180,10 +177,7 @@ def brilcalc_main():
           
           if not byls and not withBX:
               if totable:
-                  ptable = prettytable.PrettyTable(header)
-                  ptable.header = True
-                  ptable.align = 'l'
-                  ptable.max_width['params']=80                  
+                  ptable = display.create_table(header)
               for run in sorted(runtot):
                   if fh:
                       csvwriter.writerow( [runtot[run]['fill'],run,runtot[run]['time'],runtot[run]['nls'],runtot[run]['ncms'],'%.2f'%(runtot[run]['delivered']),'%.2f'%(runtot[run]['recorded'])] )
@@ -196,10 +190,7 @@ def brilcalc_main():
 
           # common footer
           if totable:
-              ftable = prettytable.PrettyTable(footer)
-              ftable.header = True
-              ftable.align = 'l'
-              ftable.max_width['params']=80    
+              ftable = display.create_table(footer)
               if lumiargs.outputstyle=='tab':
                   ftable.add_row( [ tot_nfill,tot_nrun,tot_nls,tot_ncms,'%.2f'%(tot_delivered),'%.2f'%(tot_recorded) ] )
                   print "#Total: "
@@ -269,13 +260,10 @@ def brilcalc_main():
               for beaminfochunk in api.beamInfoIter(dbengine,dataids.min(),dataids.max(),'RUN1',chunksize=bxcsize,withBX=withBX):
                   finalchunk = idchunk.join(beaminfochunk,how='inner',on=None,lsuffix='l',rsuffix='r',sort=False)
                   if totable:
-                      ptable = prettytable.PrettyTable(header)
                       if not nchunk:
-                          ptable.header = True
+                          ptable = display.create_table(header,header=True)
                       else:
-                          ptable.header = False
-                      ptable.align = 'l'
-                      ptable.max_width['params']=80 
+                          ptable = display.create_table(header,header=False)
                   for datatagid,row in finalchunk.iterrows():
                       timestampsec = row['timestampsec']
                       dtime = datetime.fromtimestamp(int(timestampsec)).strftime(params._datetimefm)
