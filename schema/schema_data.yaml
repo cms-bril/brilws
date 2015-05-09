@@ -77,13 +77,12 @@ BX_BEAM_&suffix:  #per ls, per bx
 TRG_&suffix:               #per ls, per trg bit
    columns:
     - datatagid: int64
-    - trgbitid: uint16
-    - trgbitnameid: uint16 #tech bit alias id is 65535
-    - isalgo: bool
+    - bitid: uint16
+    - bitnameid: uint16 #tech bit alias id is 65535
     - prescidx: uint16
     - prescval: uint32  
     - counts: uint32
-   pk: [datatagid,trgbitid,isalgo]
+   pk: [datatagid,bitnameid]
    
 HLT_&suffix:  #per ls, per hltpath
    columns:

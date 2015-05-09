@@ -18,10 +18,9 @@ DATATABLEMAP: #static map , data shard registry
 
 TRGBITMAP:
    columns:    #static map
-    - bitnameid: uint16
-    - bitid: uint16
-    - bitname: string              #name used in l1seed expression
-    - isalgo: bool
+    - bitnameid: uint16            #0-63 reserved for techbits
+    - bitid: uint16                #0-127 algo, 128-191 techbits
+    - bitname: string              #alias used in l1seed expression
    pk: [bitnameid]
 
 TRGHLTSEEDMAP:
@@ -48,18 +47,6 @@ DATASETMAP:   #static map
     - datasetid: uint32
     - datasetname: string
    pk: [datasetid]
-   
-BEAMSTATUSMAP: #static map
-   columns:
-    - beamstatusid: uint16
-    - beamstatus: string
-   pk: [beamstatusid]
-
-AMODETAGMAP:
-   columns:
-    - amodetagid: uint16
-    - amodetag: string
-   pk: [amodetagid]
 
 HLTSTREAMDATASET:  #static map , hlt stream, dataset, path map           
    columns:

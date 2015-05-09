@@ -20,13 +20,14 @@ if __name__=='__main__':
     destdbstr = 'sqlite:///test.db'
     destengine = create_engine(destdbstr)
     trgmap = api.TrgBitMap()
-    #trgmapdf = trgmap.from_trgdb(engine)
+    trgmapdf = trgmap.from_sourcedb(engine)
     #trgmap.to_brildb(destengine,trgmapdf)
-    #trgmap.to_csv(outfilename,trgmapdf,chunksize=100)
+    #print trgmapdf
+    trgmap.to_csv(outfilename,trgmapdf)
 
     
-    datatablemap = api.DatatableMap()
-    datatablemapdf = datatablemap.from_csv('../data/datatables.csv')
-    print datatablemapdf
+    #datatablemap = api.DatatableMap()
+    #datatablemapdf = datatablemap.from_csv('../data/datatables.csv')
+    #print datatablemapdf
     #datatablemap.to_brildb(destengine,datatablemapdf)
     

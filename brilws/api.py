@@ -692,7 +692,7 @@ class BrilDataSource(object):
     def _to_csv(self,filepath_or_buffer,data,header=True,index=False,index_label=None,chunksize=None):
         log.info('%s.to_csv'%self.name)
         log.info('to %s '%(filepath_or_buffer))
-        data.to_csv(filepath_or_buffer,header=True)
+        data.to_csv(filepath_or_buffer,header=header,index=index,index_label=index_label,chunksize=chunksize)
 
     def _from_csv(self,filepath_or_buffer,index_col=0):
         log.info('%s.from_csv'%self.name)
@@ -851,39 +851,30 @@ class DatatableMap(BrilDataSource):
 class TrgBitMap(BrilDataSource):
     def __init__(self):
         super(TrgBitMap,self).__init__()
-        self._columns = ['BITNAMEID','BITID','BITNAME','ISALGO']
+        self._columns = ['bitnameid','bitid','bitname']
     def from_brildb(self,engine,schema=''):
         return super(TrgBitMap,self)._from_brildb(engine,schema=schema,index_col='BITNAMEID')
     def from_sourcedb(self,engine):
-        if os.path.isfile(engine):
-            return self.from_csv(engine)
         log.info('%s.from_sourcedb'%self.name)
-        qAlgo = """select distinct ALGO_INDEX as BITID,ALIAS as BITNAME from CMS_GT.GT_RUN_ALGO_VIEW order by ALGO_INDEX"""
-        qTech = """select distinct TECHTRIG_INDEX as BITID,NAME as BITNAME from CMS_GT.GT_RUN_TECH_VIEW order by TECHTRIG_INDEX"""
+        algostartid = 65
+        qAlgo = """select distinct ALGO_INDEX as bitid,ALIAS as bitname from CMS_GT.GT_RUN_ALGO_VIEW"""
         log.info(qAlgo)
-        log.info(qTech)
+
+        techbits = [ [id,128+id,str(id)] for id in xrange(0,64) ]        
+        dftech = pd.DataFrame(techbits)
+        dftech.columns = self._columns
         dfalgo = pd.read_sql_query(qAlgo,engine)
-        if dfalgo.empty:
-            log.info('no result from qAlgo')
-            return dfalgo
-        dfalgo['ISALGO'] = [1]*len(dfalgo)
         dfalgo.columns = self._columns[1:]
-        dftech = pd.read_sql_query(qTech,engine)
-        if not dftech.empty:
-            dftech['ISALGO'] = [0]*len(dftech)
-            dftech.columns = self._columns[1:]
-            result = dfalgo.append(dftech)
-        else:
-            log.info('no result from qTech')
-            result = dfalgo
-        result.index=range(len(result))
+        dfalgo['bitnameid'] = 65+pd.Series(range(len(dfalgo)))
+        dfalgo = dfalgo.reindex_axis(self._columns,axis=1) #change column order
+        result = pd.concat([dftech,dfalgo])
         return result
     def to_brildb(self,engine,data,schema=''):
-        return super(TrgBitMap,self).to_brildb(engine,data,schema=schema,index_labe='BITNAMEID')
+        return super(TrgBitMap,self)._to_brildb(engine,data,schema=schema,index=False)
     def from_csv(self,filepath_or_buffer):
         return super(TrgBitMap,self)._from_csv(filepath_or_buffer)
     def to_csv(self,filepath_or_buffer,data):
-        super(TrgBitMap,self)._to_csv(filepath_or_buffer,data,index_label='BITNAMEID')
+        super(TrgBitMap,self)._to_csv(filepath_or_buffer,data,index=False)
 
 class L1SeedMap(BrilDataSource):
     def __init__(self):
