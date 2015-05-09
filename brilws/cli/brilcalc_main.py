@@ -289,7 +289,7 @@ def brilcalc_main():
           csvwriter = None
 
           header = ['fill','run','ls','time','deadfrac']          
-          bybitheader = ['fill','run','ls','id','name','prescidx','presc','counts','mask']
+          bybitheader = ['fill','run','ls','id','name','prescidx','presc','counts']
           if bybit:
               csize = csize*200
               header = bybitheader
@@ -326,21 +326,15 @@ def brilcalc_main():
                       for datatagid,row in finalchunk.iterrows():
                           timestampsec = row['timestampsec']
                           dtime = datetime.fromtimestamp(int(timestampsec)).strftime(params._datetimefm)                          
-                          if fh:
-                              csvwriter.writerow( [row['fillnum'],row['runnum'],row['lsnum'],dtime,'%.4f'%(row['deadtimefrac']) ] )
-                          else:
-                              ptable.add_row( [ row['fillnum'], row['runnum'], row['lsnum'],dtime,'%.4f'%row['deadtimefrac']] )
+                          display.add_row( ['%d'%row['fillnum'],'%d'%row['runnum'],'%d'%row['lsnum'],dtime,'%.4f'%(row['deadtimefrac']) ] , fh=fh, csvwriter=csvwriter, ptable=ptable )
                       del finalchunk
                       del deadtimechunk
               else:
-                  print 'blah'
-                  
-              if trgargs.outputstyle=='tab':
-                  print(ptable)
-                  del ptable
-              elif trgargs.outputstyle=='tab':
-                  print (ptable.get_html_string())
-                  del ptable
+                  for trginfochunk in api.trgInfoIter(dbengine,dataids,'RUN1',schemaname='',chunksize=csize*192):
+                      print trginfochunk
+                      
+              display.show_table(ptable,trgargs.outputstyle)
+              if ptable: del ptable             
               del idchunk
               nchunk = nchunk + 1
               

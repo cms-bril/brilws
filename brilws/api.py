@@ -1457,19 +1457,21 @@ def trgMask(engine,datatagid):
         if mask=='1': result[idx] = 1
     return result
 
-def trgInfoIter(engine,datatagids,suffix,schemaname='',chunksize=9999,ignoreMask=False):
+def trgInfoIter(engine,datatagids,suffix,schemaname='',bitnamepattern='',chunksize=9999):
     '''
     input: datatagids []
     output: dataframe iterator
-    [datatagid,bitid,bitalias,prescidx,presc,counts]
+    [datatagid,bitid,bitname,prescidx,presc,counts]
     '''
-    basetrgtablename = 'TRG'
+    basetablename = 'TRG'
     tablename = '_'.join([basetablename,suffix])
-    if schemaname: tablename = '.'.join([schemaname,tablename])
+    maptablename = 'TRGBITMAP'
+    if schemaname:
+        tablename = '.'.join([schemaname,tablename])
+        maptablename = '.'.join([schemaname,maptablename])
     idstrings = ','.join([str(x) for x in datatagids])
 
-
-    q = '''select t.DATATAGID as datatagid,t.TRGBITID as bitid,m.BITNAME,t.PRESCIDX as prescidx,t.PRESCVAL as presc,t.COUNTS as counts from %s t, TRGBITMAP m where m.BITNAMEID=r.BITNAMEID and t.TRGBITID=m.BITID'''%(tablename,idstrings)
+    q = '''select t.DATATAGID as datatagid,t.BITID as bitid,m.BITNAME as bitname, t.PRESCIDX as prescidx,t.PRESCVAL as presc,t.COUNTS as counts from %s t, %s m where m.BITNAMEID=t.BITNAMEID and t.BITID=m.BITID and t.DATATAGID in (%s)'''%(tablename,maptablename,idstrings)
     result = pd.read_sql_query(q,engine,chunksize=chunksize,params={},index_col='datatagid')
     return result
 
