@@ -353,7 +353,22 @@ def brilcalc_main():
           import brilcalc_hlt
           parseresult = docopt.docopt(brilcalc_hlt.__doc__,argv=cmmdargv)
           parseresult = brilcalc_hlt.validate(parseresult)
+          ##parse selection params
+          hltargs = clicommonargs.parser(parseresult)
 
+          ##db params
+          dbengine = create_engine(hltargs.dbconnect)
+          authpath = hltargs.authpath
+
+          ##display params
+          csize = hltargs.chunksize
+          bybit = hltargs.bybit
+          totable = hltargs.totable
+          fh = None
+          ptable = None
+          csvwriter = None
+
+          print parseresult
       elif args['<command>'] == 'bkg':
           exit("bkg is not implemented")
       else:
