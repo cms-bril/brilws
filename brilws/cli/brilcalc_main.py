@@ -368,7 +368,29 @@ def brilcalc_main():
           ptable = None
           csvwriter = None
 
-          print parseresult
+          datatagname = hltargs.datatagname
+          datatagnameid = 0
+          if not datatagname:
+              r = api.max_datatagname(dbengine)
+              if not r:
+                  raise 'no tag found'
+              datatagname = r[0]
+              datatagnameid = r[1]
+          else:
+              datatagnameid = api.datatagnameid(dbengine,datatagname=datatagname)
+          print 'data tag : ',datatagname
+          
+          nchunk  = 0
+          
+          it = api.rundatatagIter(dbengine,datatagnameid,fillmin=hltargs.fillmin,fillmax=hltargs.fillmax,runmin=hltargs.runmin,runmax=hltargs.runmax,amodetag=hltargs.amodetag,targetegev=hltargs.egev,tssecmin=hltargs.tssecmin,tssecmax=hltargs.tssecmax,runlsselect=hltargs.runlsSeries ,chunksize=csize)
+          if not it: exit(1)
+          for idchunk in it:
+              rundataids = idchunk.index
+              for runchunk in api.runinfoIter(dbengine,rundataids,fields=['hltkey']):
+                  finalchunk = idchunk.join(runchunk,how='inner',on=None,lsuffix='l',rsuffix='r',sort=False)
+                  for rundatatagid,row in finalchunk.iterrows():
+                      print row['runnum'],row['hltkey']
+                      
       elif args['<command>'] == 'bkg':
           exit("bkg is not implemented")
       else:
