@@ -723,7 +723,7 @@ class BeamStatusMap(BrilDataSource):
 class HLTPathMap(BrilDataSource):
     def __init__(self):
         super(HLTPathMap,self).__init__()
-        self._columns = ['HLTPATHID','HLTPATHNAME']
+        self._columns = ['hltpathid','hltpathname']
     def to_brildb(self,engine,data,schema=''):
         super(HLTPathMap,self)._to_brildb(engine,data,schema=schema,index=False)
     def to_csv(self,filepath_or_buffer,data):
@@ -731,14 +731,12 @@ class HLTPathMap(BrilDataSource):
     def from_csv(self,filepath_or_buffer):
         return super(HLTPathMap,self)._from_csv(filepath_or_buffer)
     def from_sourcedb(self,engine):
-        if os.path.isfile(engine):
-            return self.from_csv(engine)
         log.info('%s.from_sourcedb'%self.name)
-        q = """select PATHID as HLTPATHID,NAME as HLTPATHNAME from CMS_HLT.PATHS where ISENDPATH=0 and NAME like 'HLT_%'"""
+        q = """select PATHID as hltpathid,NAME as hltpathname from CMS_HLT.PATHS where ISENDPATH=0 and NAME like 'HLT/_%' escape '/' and NAME NOT like '%Calibration%'"""
         log.info(q)
         result = pd.read_sql_query(q,engine)
         result.columns = self._columns
-        return result
+        return result    
     def from_brildb(self,engine,schema=''):
         return super(HLTPathMap,self)._from_brildb(self,engine,schema=schema)
     

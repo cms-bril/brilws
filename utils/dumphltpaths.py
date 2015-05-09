@@ -16,6 +16,7 @@ if __name__=='__main__':
     connecturl = connectstr[:idx]+':'+passwd.decode('base64')+connectstr[idx:]
     engine = create_engine(connecturl)
     
+    '''
     outfilename = 'trgbits.csv'
     destdbstr = 'sqlite:///test.db'
     destengine = create_engine(destdbstr)
@@ -24,9 +25,15 @@ if __name__=='__main__':
     #trgmap.to_brildb(destengine,trgmapdf)
     #print trgmapdf
     trgmap.to_csv(outfilename,trgmapdf)
+    '''
+
+    outfilename = 'hltpaths.csv'
+    destdbstr = 'sqlite:///test.db'
+    destengine = create_engine(destdbstr)
+    hltmap = api.HLTPathMap()
+    hltmapdf = hltmap.from_sourcedb(engine)
+    hltmap.to_brildb(destengine,hltmapdf)
+    #print hltmapdf
+    #hltmap.to_csv(outfilename,hltmapdf)
     
-    #datatablemap = api.DatatableMap()
-    #datatablemapdf = datatablemap.from_csv('../data/datatables.csv')
-    #print datatablemapdf
-    #datatablemap.to_brildb(destengine,datatablemapdf)
     

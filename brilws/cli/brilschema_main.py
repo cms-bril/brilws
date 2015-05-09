@@ -108,7 +108,7 @@ def brilschema_main():
          if not os.path.isfile(inengine):
              sourceurl = inengine
              if sourceurl.find('oracle') != -1:
-                 iniparser.read(os.path.join(parseresult['-p'],'authentication.ini'))
+                 iniparser.read(os.path.join(parseresult['-p'],'readdb2.ini'))
                  sourcepasswd = parser.get(outengine,'pwd')
                  sourceschema = parser.get(outengine,'schema')
                  idx = sourceengine.find('@')
