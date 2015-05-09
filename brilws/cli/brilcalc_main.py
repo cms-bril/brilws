@@ -330,8 +330,17 @@ def brilcalc_main():
                       del finalchunk
                       del deadtimechunk
               else:
-                  for trginfochunk in api.trgInfoIter(dbengine,dataids,'RUN1',schemaname='',chunksize=csize*192):
-                      print trginfochunk
+                  for trginfochunk in api.trgInfoIter(dbengine,dataids,'RUN1',schemaname='',bitnamepattern=trgargs.name,chunksize=csize*192):
+                      finalchunk = idchunk.join(trginfochunk,how='inner',on=None,lsuffix='l',rsuffix='r',sort=False)
+                      if totable:
+                          if not nchunk:
+                              ptable = display.create_table(header,header=True)
+                          else:
+                              ptable = display.create_table(header,header=False)
+                      for datatagid,row in finalchunk.iterrows():
+                          display.add_row( [ '%d'%row['fillnum'],'%d'%row['runnum'],'%d'%row['lsnum'],'%d'%row['bitid'],row['bitname'],'%d'%row['prescidx'],'%d'%row['presc'],'%d'%row['counts'] ], fh=fh, csvwriter=csvwriter, ptable=ptable )
+                      del finalchunk
+                      del trginfochunk
                       
               display.show_table(ptable,trgargs.outputstyle)
               if ptable: del ptable             

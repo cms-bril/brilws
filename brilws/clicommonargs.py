@@ -26,6 +26,7 @@ class parser(object):
         self._ofilename = '-'
         self._fh = None
         self._totable = False
+        self._name = None
         self._outputstyle = 'tab'
         self._parse()
         
@@ -38,6 +39,7 @@ class parser(object):
         self._amodetag = self._argdict['--amodetag']
         self._chunksize = self._argdict['--chunk-size']
         self._outputstyle = self._argdict['--output-style']
+        self._name = self._argdict['--name']
         if self._argdict.has_key('--xing'): self._withBX = self._argdict['--xing']
         if self._argdict.has_key('--byls'): self._byls = self._argdict['--byls']
         if self._argdict.has_key('--bybit'): self._bybit = self._argdict['--bybit']
@@ -143,6 +145,9 @@ class parser(object):
     @property
     def bybit(self):
         return self._bybit
+    @property
+    def name(self):
+        return self._name
     
 argvalidators = {
     '--amodetag': Or(None,And(str,lambda s: s.upper() in params._amodetagChoices), error='--amodetag must be in '+str(params._amodetagChoices) ),

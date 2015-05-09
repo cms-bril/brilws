@@ -32,7 +32,7 @@ def validate(optdict):
     result={}
     argdict = clicommonargs.argvalidators
     #extract sub argdict here
-    myvalidables = ['-f','-r','-i','-o','--amodetag','--beamstatus','--egev','--datatag','--begin','--end','--output-style','--chunk-size','--siteconfpath',str]
+    myvalidables = ['-f','-r','-i','-o','--amodetag','--beamstatus','--egev','--datatag','--begin','--end','--output-style','--name','--chunk-size','--siteconfpath',str]
     argdict = dict((k,v) for k,v in clicommonargs.argvalidators.iteritems() if k in myvalidables)
     schema = Schema(argdict)
     result=schema.validate(optdict)

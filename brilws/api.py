@@ -1472,6 +1472,15 @@ def trgInfoIter(engine,datatagids,suffix,schemaname='',bitnamepattern='',chunksi
     idstrings = ','.join([str(x) for x in datatagids])
 
     q = '''select t.DATATAGID as datatagid,t.BITID as bitid,m.BITNAME as bitname, t.PRESCIDX as prescidx,t.PRESCVAL as presc,t.COUNTS as counts from %s t, %s m where m.BITNAMEID=t.BITNAMEID and t.BITID=m.BITID and t.DATATAGID in (%s)'''%(tablename,maptablename,idstrings)
+    
+    if bitnamepattern:
+        namefilter = ''
+        if bitnamepattern.find('*')==-1:#is not pattern
+            namefilter = 'm.BITNAME=:bitname'
+            q = '''select t.DATATAGID as datatagid,t.BITID as bitid,m.BITNAME as bitname, t.PRESCIDX as prescidx,t.PRESCVAL as presc,t.COUNTS as counts from %s t, %s m where m.BITNAMEID=t.BITNAMEID and t.BITID=m.BITID and %s and t.DATATAGID in (%s)'''%(tablename,maptablename,namefilter,idstrings)
+            result = pd.read_sql_query(q,engine,chunksize=chunksize,params={'bitname':bitnamepattern},index_col='datatagid')
+            return result
+        
     result = pd.read_sql_query(q,engine,chunksize=chunksize,params={},index_col='datatagid')
     return result
 
