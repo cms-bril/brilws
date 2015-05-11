@@ -409,13 +409,17 @@ def brilcalc_main():
                       hltconfigid = row['hltconfigid']
                       for hltpathchunk in api.hltl1seedinfoIter(dbengine,hltconfigid,hltpathnameorpattern=hltargs.name,):
                           for idx,hltpathinfo in hltpathchunk.iterrows():                              
-                              hltpathname = hltpathinfo['hltpath']
+                              hltpathname = hltpathinfo['hltpath']                              
                               l1seedexp = hltpathinfo['l1seed']
                               display.add_row( [fill,run,hltkey,hltpathname,l1seedexp], fh=fh, csvwriter=csvwriter, ptable=ptable )
                           del hltpathchunk
                   nchunk = nchunk+1
                   del finalchunk
-                  display.show_table(ptable,hltargs.outputstyle)
+                  if ptable:
+                      ptable.max_width['hltkey']=20
+                      ptable.max_width['hltpath']=30
+                      ptable.max_width['l1seed']=20
+                      display.show_table(ptable,hltargs.outputstyle)
 
                       
           if fh and fh is not sys.stdout: fh.close()

@@ -39,7 +39,7 @@ class parser(object):
         self._amodetag = self._argdict['--amodetag']
         self._chunksize = self._argdict['--chunk-size']
         self._outputstyle = self._argdict['--output-style']
-        self._name = self._argdict['--name']
+        if self._argdict.has_key('--name'): self._name = self._argdict['--name']
         if self._argdict.has_key('--xing'): self._withBX = self._argdict['--xing']
         if self._argdict.has_key('--byls'): self._byls = self._argdict['--byls']
         if self._argdict.has_key('--bybit'): self._bybit = self._argdict['--bybit']

@@ -56,8 +56,7 @@ def create_table(columns,**kwargs):
     if kwargs.has_key('vertical_char'): ptable.vertical_char = kwargs['vertical_char']
     if kwargs.has_key('horizontal_char'): ptable.horizontal_char = kwargs['horizontal_char']
     if kwargs.has_key('junction_char'): ptable.junction_char = kwargs['junction_char']
-    if kwargs.has_key('maxwidth'): ptable.max_width = kwargs['maxwidth']    
-    
+    if kwargs.has_key('maxwidth'): ptable.max_width = kwargs['maxwidth'] 
     return ptable
 
 
