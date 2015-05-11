@@ -1427,7 +1427,16 @@ def runinfoIter(engine,datatagids,schemaname='',chunksize=9999,fields=''):
         result = pd.read_sql_query(q,engine,chunksize=chunksize,params={},index_col='datatagid')
     return result
 
-def hltl1seedinfoIter(engine,hltconfigid,schemaname='',chunksize=9999,):
+def translate_fntosql(pattern):
+    '''
+    translate fnmatch pattern to sql pattern 
+    '''    
+    sqlresult = pattern
+    sqlresult = sqlresult.replace('*','%')
+    sqlresult = sqlresult.replace('?','_')
+    return sqlresult
+
+def hltl1seedinfoIter(engine,hltconfigid,hltpathnameorpattern='',schemaname='',chunksize=9999,):
     '''
     
     '''
@@ -1440,6 +1449,19 @@ def hltl1seedinfoIter(engine,hltconfigid,schemaname='',chunksize=9999,):
         hltpathtablename = '.'.join([schemaname,hltpathtablename])
         
     q = '''select h.HLTPATHNAME as hltpath, s.L1SEED as l1seed from %s h, %s m, %s s where s.L1SEEDID=m.L1SEEDID and h.hltpathid=m.hltpathid and m.hltconfigid=:hltconfigid'''%(hltpathtablename,hlttrgtablename,seedtablename)
+    pathnamecondition = ''
+    result = None
+    if hltpathnameorpattern:
+        if hltpathnameorpattern.find('*')==-1 and hltpathnameorpattern.find('?')==-1 and hltpathnameorpattern.find('[')==-1:
+            pathnamecondition = 'h.HLTPATHNAME=:hltpathname'
+            q = q+' and '+pathnamecondition
+            result = pd.read_sql_query(q,engine,chunksize=chunksize,params={'hltconfigid':hltconfigid,'hltpathname':hltpathnameorpattern})
+            return result
+        else:
+            sqlpattern = translate_fntosql(hltpathnameorpattern)
+            q = q+" and h.HLTPATHNAME like '"+sqlpattern+"'"
+            result = pd.read_sql_query(q,engine,chunksize=chunksize,params={'hltconfigid':hltconfigid})
+            return result
     result = pd.read_sql_query(q,engine,chunksize=chunksize,params={'hltconfigid':hltconfigid})
     return result
     

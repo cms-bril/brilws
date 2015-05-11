@@ -407,7 +407,7 @@ def brilcalc_main():
                       run = row['runnum']
                       hltkey = row['hltkey']
                       hltconfigid = row['hltconfigid']
-                      for hltpathchunk in api.hltl1seedinfoIter(dbengine,hltconfigid):
+                      for hltpathchunk in api.hltl1seedinfoIter(dbengine,hltconfigid,hltpathnameorpattern=hltargs.name,):
                           for idx,hltpathinfo in hltpathchunk.iterrows():                              
                               hltpathname = hltpathinfo['hltpath']
                               l1seedexp = hltpathinfo['l1seed']
