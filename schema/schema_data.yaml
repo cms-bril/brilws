@@ -50,10 +50,17 @@ RUNINFO:          #per run
     - datatagid: int64
     - runnum: uint32
     - hltkey: string
+    - hltconfigid: uint32
     - gt_rs_key: string
-    - trgmask: string
+    - trgmask1: uint32
+    - trgmask2: uint32
+    - trgmask3: uint32
+    - trgmask4: uint32
+    - trgmask5: uint32
+    - trgmask6: uint32
     - fillscheme: string
     - ncollidingbx: uint16
+    - bxpattern: blob
     - nbperls: uint16
    pk: [datatagid]
 

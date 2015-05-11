@@ -700,25 +700,25 @@ class BrilDataSource(object):
         data = pd.read_csv(filepath_or_buffer,index_col=index_col)
         return data
 ##### Map ######    
-class BeamStatusMap(BrilDataSource):
-    def __init__(self):
-        super(BeamStatusMap,self).__init__()
-        self._columns = ['BEAMSTATUSID','BEAMSTATUS']
-    def to_brildb(self,engine,data,schema=''):
-        super(BeamStatusMap,self)._to_brildb(engine,data,schema=schema)
-    def to_csv(self,filepath_or_buffer,data):
-        super(BeamStatusMap,self)._to_csv(filepath_or_buffer,data)
-    def from_csv(self,filepath_or_buffer):
-        return super(BeamStatusMap,self)._from_csv(filepath_or_buffer)
-    def from_brildb(self,engine,schema=''):
-        return super(BeamStatusMap,self)._from_brildb(self,engine,schema=schema)
-    def from_sourcedb(self,engine):
-        if os.path.isfile(engine):
-            return self.from_csv(engine)
-        log.info('%s.from_sourcedb'%self.name)
-        if not os.path.isfile(engine):
-            raise IOError('sourcedb must be a csv file')
-        return self.from_csv(engine)
+#class BeamStatusMap(BrilDataSource):
+#    def __init__(self):
+#        super(BeamStatusMap,self).__init__()
+#        self._columns = ['BEAMSTATUSID','BEAMSTATUS']
+#    def to_brildb(self,engine,data,schema=''):
+#        super(BeamStatusMap,self)._to_brildb(engine,data,schema=schema)
+#    def to_csv(self,filepath_or_buffer,data):
+#        super(BeamStatusMap,self)._to_csv(filepath_or_buffer,data)
+#    def from_csv(self,filepath_or_buffer):
+#        return super(BeamStatusMap,self)._from_csv(filepath_or_buffer)
+#    def from_brildb(self,engine,schema=''):
+#        return super(BeamStatusMap,self)._from_brildb(self,engine,schema=schema)
+#    def from_sourcedb(self,engine):
+#        if os.path.isfile(engine):
+#            return self.from_csv(engine)
+#        log.info('%s.from_sourcedb'%self.name)
+#        if not os.path.isfile(engine):
+#            raise IOError('sourcedb must be a csv file')
+#        return self.from_csv(engine)
     
 class HLTPathMap(BrilDataSource):
     def __init__(self):
@@ -762,25 +762,25 @@ class DatasetMap(BrilDataSource):
     def from_brildb(self,engine,schema=''):
         return super(DatasetMap,self)._from_brildb(self,engine,schema=schema)
     
-class AmodetagMap(BrilDataSource):
-    def __init__(self):
-        super(AmodetagMap,self).__init__()
-        self._columns = ['AMODETAGID','AMODETAG']
-    def to_brildb(self,engine,data,schema=''):
-        super(AmodetagMap,self)._to_brildb(engine,data,schema=schema)
-    def to_csv(self,filepath_or_buffer,data):
-        super(AmodetagMap,self)._to_csv(filepath_or_buffer,data)
-    def from_csv(self,filepath_or_buffer):
-        return super(AmodetagMap,self)._from_csv(filepath_or_buffer)    
-    def from_brildb(self,engine,schema=''):
-        return super(AmodetagMap,self)._from_brildb(self,engine,schema=schema)
-    def from_sourcedb(self,engine):
-        if os.path.isfile(engine):
-            return self.from_csv(engine)
-        log.info('%s.from_sourcedb'%self.name)
-        if not os.path.isfile(engine):
-            raise IOError('sourcedb must be a csv file')
-        return self.from_csv(engine)
+#class AmodetagMap(BrilDataSource):
+#    def __init__(self):
+#        super(AmodetagMap,self).__init__()
+#        self._columns = ['AMODETAGID','AMODETAG']
+#    def to_brildb(self,engine,data,schema=''):
+#        super(AmodetagMap,self)._to_brildb(engine,data,schema=schema)
+#    def to_csv(self,filepath_or_buffer,data):
+#        super(AmodetagMap,self)._to_csv(filepath_or_buffer,data)
+#    def from_csv(self,filepath_or_buffer):
+#        return super(AmodetagMap,self)._from_csv(filepath_or_buffer)    
+#    def from_brildb(self,engine,schema=''):
+#        return super(AmodetagMap,self)._from_brildb(self,engine,schema=schema)
+#    def from_sourcedb(self,engine):
+#        if os.path.isfile(engine):
+#            return self.from_csv(engine)
+#        log.info('%s.from_sourcedb'%self.name)
+#        if not os.path.isfile(engine):
+#            raise IOError('sourcedb must be a csv file')
+#        return self.from_csv(engine)
     
 class HltConfigMap(BrilDataSource):
     def __init__(self):

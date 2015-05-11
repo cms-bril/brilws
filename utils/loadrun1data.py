@@ -14,6 +14,11 @@ import re
 dbtimefm = 'MM/DD/YY HH24:MI:SS.ff6'
 pydatetimefm = '%m/%d/%y %H:%M:%S.%f'
 
+def unpack64to32(a):
+    b = a & 0xffffffff
+    c = a >> 32
+    return (b,c)
+    
 def unpackblobstr(iblobstr,itemtypecode):
     if itemtypecode not in ['c','b','B','u','h','H','i','I','l','L','f','d']:
         raise RuntimeError('unsupported typecode '+itemtypecode)
@@ -109,21 +114,59 @@ def transfer_ids_datatag(connection,destconnection,runnum,lumidataid):
 def transfer_runinfo(connection,destconnection,runnum,trgdataid,destdatatagid):
     '''
     prerequisite : ids_datatag has already entries for this run
-    '''
-    qruninfo = '''select hltkey,l1key,fillscheme from CMS_LUMI_PROD.CMSRUNSUMMARY where runnum=:runnum'''
+    '''    
+    qconfigid = '''select cast(STRING_VALUE as INT) as hltconfigid from CMS_RUNINFO.RUNSESSION_PARAMETER where NAME='CMS.LVL0:HLT_KEY' and RUNNUMBER=:runnum'''
+    qruninfo = '''select fillnum,hltkey,l1key from CMS_LUMI_PROD.CMSRUNSUMMARY where runnum=:runnum'''
+    qnbx = '''select INJECTIONSCHEME as fillscheme, NCOLLIDINGBUNCHES as ncollidingbx from CMS_RUNTIME_LOGGER.RUNTIME_SUMMARY where LHCFILL=:fillnum'''
     qmask = '''select ALGOMASK_H as algomask_high,ALGOMASK_L as algomask_low,TECHMASK as techmask from CMS_LUMI_PROD.trgdata where DATA_ID=:trgdataid'''
-    i = '''insert into RUNINFO(DATATAGID,RUNNUM,HLTKEY,GT_RS_KEY,TRGMASK,FILLSCHEME,NBPERLS) values(:datatagid, :runnum, :hltkey, :l1key, :trgmask, :fillscheme, :nbperls)'''
-    trgmask = ''.join(192*['0'])
+    i = '''insert into RUNINFO(DATATAGID,RUNNUM,HLTKEY,HLTCONFIGID,GT_RS_KEY,TRGMASK1,TRGMASK2,TRGMASK3,TRGMASK4,TRGMASK5,TRGMASK6,FILLSCHEME,BXPATTERN,NCOLLIDINGBX,NBPERLS) values(:datatagid, :runnum, :hltkey, :hltconfigid, :l1key, :trgmask1, :trgmask2, :trgmask3, :trgmask4, :trgmask5, :trgmask6, :fillscheme, :bxpattern, :ncollidingbx, :nbperls)'''
+    
+    allrows = []
     nbperls = 64
-    allrows = []    
+    hltkey = ''
+    l1key = ''
+    fillscheme = ''
+    hltconfigid = 0
+    fillnum = 0
+    ncollidingbx = 0
+    bxpattern = None
+    trgmask1 = trgmask2 = trgmask3 = trgmask4 = trgmask5 = trgmask6 = 0
+    
     with connection.begin() as trans:
-        result = connection.execute(qruninfo,{'runnum':runnum})
-        for r in result:
-            irow = {'datatagid':destdatatagid, 'runnum':runnum,'hltkey':'','l1key':'','trgmask':trgmask,'fillscheme':'','nbperls':nbperls}
-            irow['hltkey'] = r['hltkey']
-            irow['l1key'] = r['l1key']
-            irow['fillscheme'] = r['fillscheme']
-            allrows.append(irow)
+        hltconfigresult = connection.execute(qconfigid,{'runnum':runnum})
+        
+        for r in hltconfigresult:
+            hltconfigid = r['hltconfigid']
+
+        runinforesult = connection.execute(qruninfo,{'runnum':runnum})
+        for r in runinforesult:
+            fillnum = r['fillnum']
+            hltkey = r['hltkey']
+            l1key = r['l1key']
+            
+        runtimeloggerresult = connection.execute(qnbx,{'fillnum':fillnum})
+        for r in runtimeloggerresult:
+            fillscheme = r['fillscheme']
+            ncollidingbx = r['ncollidingbx']
+            
+        maskresult = connection.execute(qmask,{'trgdataid':trgdataid})
+        for r in maskresult:
+            algomask_high = r['algomask_high']
+            algomask_low = r['algomask_low']
+            techmask = r['techmask']
+            (trgmask1,trgmask2) = unpack64to32(algomask_high)
+            (trgmask3,trgmask4) = unpack64to32(algomask_low)
+            (trgomask5,trgmask6) = unpack64to32(techmask)
+            
+        #for r in result:
+        #    irow = {'datatagid':destdatatagid, 'runnum':runnum,'hltkey':'','l1key':'','trgmask':trgmask,'fillscheme':'','nbperls':nbperls}
+        #    irow['hltkey'] = r['hltkey']
+        #    irow['l1key'] = r['l1key']
+        #    irow['fillscheme'] = r['fillscheme']
+
+        irow = {'datatagid':destdatatagid, 'runnum':runnum, 'hltkey':hltkey, 'hltconfigid':hltconfigid, 'l1key':l1key, 'trgmask1':trgmask1, 'trgmask2':trgmask2, 'trgmask2':trgmask2, 'trgmask3':trgmask3, 'trgmask4':trgmask4, 'trgmask5':trgmask5, 'trgmask6':trgmask6, 'fillscheme':fillscheme, 'ncollidingbx': ncollidingbx, 'bxpattern':bxpattern, 'nbperls': nbperls}
+        print irow
+        allrows.append(irow)
     with destconnection.begin() as trans:
         r = destconnection.execute(i,allrows)
 
@@ -274,7 +317,7 @@ def transfer_hltdata(connection,destconnection,runnum,hltdataid,destdatatagidmap
         pathnamemap.setdefault(n,[]).append( int(d) )
     #print pathnamemap
     #print pathnamemap.keys()
-        
+
     qprescidx = '''select lumi_section as lsnum, prescale_index as prescidx from CMS_GT_MON.LUMI_SECTIONS where run_number=:runnum and prescale_index!=0'''
 
     qpathname = '''select pathnameclob from CMS_LUMI_PROD.HLTDATA where data_id=:hltdataid'''
@@ -456,9 +499,9 @@ if __name__=='__main__':
         #transfer_ids_datatag(connection,destconnection,run,lumidataid)
         destdatatagid = datatagid_of_run(destconnection,run,datatagnameid=0)
         destdatatagid_map = datatagid_of_ls(destconnection,run,datatagnameid=0)
-        #transfer_runinfo(connection,destconnection,run,trgdataid,destdatatagid)
+        transfer_runinfo(connection,destconnection,run,trgdataid,destdatatagid)
         #transfer_beamintensity(connection,destconnection,run,lumidataid,destdatatagid_map)
-        transfer_trgdata(connection,destconnection,run,trgdataid,destdatatagid_map)
+        #transfer_trgdata(connection,destconnection,run,trgdataid,destdatatagid_map)
         #transfer_hltdata(connection,destconnection,run,hltdataid,destdatatagid_map)
         #transfer_lumidata(connection,destconnection,run,lumidataid,destdatatagid_map)
         #transfer_deadtime(connection,destconnection,run,trgdataid,destdatatagid_map)
