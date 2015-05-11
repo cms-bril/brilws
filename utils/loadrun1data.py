@@ -472,7 +472,7 @@ def transfer_deadtime(connection,destconnection,runnum,trgdataid,destdatatagidma
             allrows.append({'datatagid':destdatatagidmap[lsnum], 'deadtimefrac':deadfrac})
     with destconnection.begin() as trans:
         r = destconnection.execute(i,allrows)
-        
+    
 if __name__=='__main__':
     logging.basicConfig(level=logging.INFO,format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
     

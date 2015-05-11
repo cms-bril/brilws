@@ -1,11 +1,5 @@
 ##### Map tables #####
 
-HLTCONFIGMAP:
-   columns:
-    - hltconfigid: uint32
-    - hltkey: string
-   pk: [hltconfigid]
-   
 DATATABLEMAP: #static map , data shard registry
    columns:
     - id: uint16

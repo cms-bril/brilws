@@ -782,28 +782,6 @@ class DatasetMap(BrilDataSource):
 #            raise IOError('sourcedb must be a csv file')
 #        return self.from_csv(engine)
     
-class HltConfigMap(BrilDataSource):
-    def __init__(self):
-        super(HltConfigMap,self).__init__()
-        self._columns = ['HLTCONFIGID','HLTKEY']
-    def to_brildb(self,engine,data,schema=''):
-        super(HltConfigMap,self)._to_brildb(engine,data,schema=schema)
-    def to_csv(self,filepath_or_buffer,data):
-        super(HltConfigMap,self)._to_csv(filepath_or_buffer,data)
-    def from_csv(self,filepath_or_buffer):
-        return super(HltConfigMap,self)._from_csv(filepath_or_buffer)    
-    def from_brildb(self,engine,schema=''):
-        return super(HltConfigMap,self)._from_brildb(self,engine,schema=schema)
-    def from_sourcedb(self,engine):
-        if os.path.isfile(engine):
-            return self.from_csv(engine)
-        log.info('%s.from_sourcedb'%self.name)
-        q = """select CONFIGID as HLTCONFIGID, CONFIGDESCRIPTOR as HLTKEY from CMS_HLT.CONFIGURATIONS where PROCESSNAME='HLT' and  CONFIGDESCRIPTOR like '/cdaq/physics%'"""
-        log.info(q)
-        result =  pd.read_sql_query(q,engine)
-        result.columns = self._columns
-        return result
-    
 class HLTStreamDatasetMap(BrilDataSource):
     def __init__(self):
         super(StreamDatasetHLTPathMap,self).__init__()
@@ -877,15 +855,14 @@ class TrgBitMap(BrilDataSource):
 class L1SeedMap(BrilDataSource):
     def __init__(self):
         super(L1SeedMap,self).__init__()
-        self._columns = ['L1SEEDID','L1SEED']
-    def from_sourecdb(self,engine):
-        if os.path.isfile(engine):
-            return self.from_csv(engine)
+        self._columns = ['l1seedid','l1seed']
+    def from_sourcedb(self,engine):        
         log.info('%s.from_sourcedb'%self.name)
-        q = """select PARAMID as L1SEEDID,VALUE as L1SEED from CMS_HLT.STRINGPARAMVALUES"""
+        q = """select distinct s.PARAMID as l1seedid, s.VALUE as l1seed from CMS_HLT.STRINGPARAMVALUES s,CMS_HLT.paths p, CMS_HLT.parameters, CMS_HLT.superidparameterassoc, CMS_HLT.modules, CMS_HLT.moduletemplates, CMS_HLT.pathmoduleassoc, CMS_HLT.configurationpathassoc, CMS_HLT.configurations c where parameters.paramid=s.paramid and superidparameterassoc.paramid=parameters.paramid and modules.superid=superidparameterassoc.superid and moduletemplates.superid=modules.templateid and pathmoduleassoc.moduleid=modules.superid and p.pathid=pathmoduleassoc.pathid and configurationpathassoc.pathid=p.pathid and c.configid=configurationpathassoc.configid and moduletemplates.name='HLTLevel1GTSeed' and parameters.name='L1SeedsLogicalExpression' and p.ISENDPATH=0 and p.NAME like 'HLT/_%' escape '/' and p.NAME not like '%Calibration%' and s.VALUE not like '%/_Not%' escape '/' and s.VALUE not like '\"NOT %' and s.VALUE not like '% NOT %' and s.VALUE not like '%(%'"""
         log.info(q)
         result = pd.read_sql_query(q,engine)
         result.columns = self._columns
+        result['l1seed'] = result['l1seed'].apply(lambda x: x.replace('"',''))        
         return result
     def to_brildb(self,engine,data,schema=''):
         super(L1SeedMap,self)._to_brildb(engine,data,schema=schema,index=False)
@@ -1089,14 +1066,16 @@ class Hlt(BrilDataSource):
 class TrgHltSeedMap(BrilDataSource):
     def __init__(self):
         super(TrgHltSeedMap,self).__init__()
-        self._columns = ['HLTPATHID','HLTCONFIGID','L1SEEDID']
+        self._columns = ['hltpathid','hltconfigid','l1seedid']
     def to_brildb(self,engine,data,schema='',chunksize=None):
         super(TrgHltSeedMap,self)._to_brildb(engine,data,schema=schema,index=False)
-    def from_sourcedb(self,engine,hltconfigid):
+    def to_csv(self,filepath_or_buffer,data):
+        super(TrgHltSeedMap,self)._to_csv(filepath_or_buffer,data,index=False)    
+    def from_sourcedb(self,engine):
         log.info('%s.from_sourcedb'%self.name)
-        q = """select p.PATHID as HLTPATHID,c.CONFIGID as HLTCONFIGID, s.PARAMID as L1SEEDID from CMS_HLT.STRINGPARAMVALUES s,CMS_HLT.paths p, CMS_HLT.parameters, CMS_HLT.superidparameterassoc, CMS_HLT.modules, CMS_HLT.moduletemplates, CMS_HLT.pathmoduleassoc, CMS_HLT.configurationpathassoc, CMS_HLT.configurations c where parameters.paramid=s.paramid and superidparameterassoc.paramid=parameters.paramid and modules.superid=superidparameterassoc.superid and moduletemplates.superid=modules.templateid and pathmoduleassoc.moduleid=modules.superid and p.pathid=pathmoduleassoc.pathid and configurationpathassoc.pathid=p.pathid and c.configid=configurationpathassoc.configid and moduletemplates.name='HLTLevel1GTSeed' and parameters.name='L1SeedsLogicalExpression' and p.ISENDPATH=0 and p.NAME like 'HLT_%' and c.configid=:configid"""
+        q = """select p.PATHID as hltpathid, c.CONFIGID as hltconfigid, s.PARAMID as l1seedid from CMS_HLT.STRINGPARAMVALUES s,CMS_HLT.paths p, CMS_HLT.parameters, CMS_HLT.superidparameterassoc, CMS_HLT.modules, CMS_HLT.moduletemplates, CMS_HLT.pathmoduleassoc, CMS_HLT.configurationpathassoc, CMS_HLT.configurations c where parameters.paramid=s.paramid and superidparameterassoc.paramid=parameters.paramid and modules.superid=superidparameterassoc.superid and moduletemplates.superid=modules.templateid and pathmoduleassoc.moduleid=modules.superid and p.pathid=pathmoduleassoc.pathid and configurationpathassoc.pathid=p.pathid and c.configid=configurationpathassoc.configid and moduletemplates.name='HLTLevel1GTSeed' and parameters.name='L1SeedsLogicalExpression' and p.ISENDPATH=0 and p.NAME like 'HLT/_%' escape '/' and s.VALUE not like '\"NOT %' and s.VALUE not like '% NOT %' and s.VALUE not like '%(%'"""
         log.info(q)
-        result = pd.read_sql_query(q,engine,params={'configid':hltconfigid})
+        result = pd.read_sql_query(q,engine,params={})
         result.columns = self._columns
         return result
         
