@@ -1442,7 +1442,7 @@ def runinfoIter(engine,datatagids,schemaname='',chunksize=9999,fields=''):
     result = None
     if len(datatagids)==1:
         q = q+''' from %s where DATATAGID=:datatagid'''%(tablename)
-        result = pd.read_sql_query(q,engine,params={'datatagid':datatagids[0]},index_col='datatagid')
+        result = pd.read_sql_query(q,engine,chunksize=1,params={'datatagid':datatagids[0]},index_col='datatagid')
     else:
         q = q+''' from %s where DATATAGID in (%s)'''%(tablename,idstrings)
         result = pd.read_sql_query(q,engine,chunksize=chunksize,params={},index_col='datatagid')

@@ -386,10 +386,11 @@ def brilcalc_main():
           if not it: exit(1)
           for idchunk in it:
               rundataids = idchunk.index
-              for runchunk in api.runinfoIter(dbengine,rundataids,fields=['hltkey']):
+              
+              for runchunk in api.runinfoIter(dbengine,rundataids,chunksize=csize,fields=['hltconfigid','hltkey']):
                   finalchunk = idchunk.join(runchunk,how='inner',on=None,lsuffix='l',rsuffix='r',sort=False)
                   for rundatatagid,row in finalchunk.iterrows():
-                      print row['runnum'],row['hltkey']
+                      print row['runnum'],row['hltconfigid'],row['hltkey']
                       
       elif args['<command>'] == 'bkg':
           exit("bkg is not implemented")
