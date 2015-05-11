@@ -1427,6 +1427,22 @@ def runinfoIter(engine,datatagids,schemaname='',chunksize=9999,fields=''):
         result = pd.read_sql_query(q,engine,chunksize=chunksize,params={},index_col='datatagid')
     return result
 
+def hltl1seedinfoIter(engine,hltconfigid,schemaname='',chunksize=9999,):
+    '''
+    
+    '''
+    seedtablename = 'L1SEEDMAP'
+    hlttrgtablename = 'TRGHLTSEEDMAP'
+    hltpathtablename = 'HLTPATHMAP'
+    if schemaname:
+        seedtablename = '.'.join([schemaname,seedtablename])
+        hlttrgtablename = '.'.join([schemaname,hlttrgtablename])
+        hltpathtablename = '.'.join([schemaname,hltpathtablename])
+        
+    q = '''select h.HLTPATHNAME as hltpath, s.L1SEED as l1seed from %s h, %s m, %s s where s.L1SEEDID=m.L1SEEDID and h.hltpathid=m.hltpathid and m.hltconfigid=:hltconfigid'''%(hltpathtablename,hlttrgtablename,seedtablename)
+    result = pd.read_sql_query(q,engine,chunksize=chunksize,params={'hltconfigid':hltconfigid})
+    return result
+    
 def beamInfoIter(engine,datatagids,suffix,schemaname='',chunksize=9999,withBX=False):
     '''
     input: datatagids []

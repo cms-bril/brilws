@@ -368,6 +368,13 @@ def brilcalc_main():
           ptable = None
           csvwriter = None
 
+          header = ['fill','run','hltkey','hltpath','l1seed']
+
+          if not totable:
+              fh = hltargs.ofilehandle
+              print >> fh, '#'+','.join(header)
+              csvwriter = csv.writer(fh)
+              
           datatagname = hltargs.datatagname
           datatagnameid = 0
           if not datatagname:
@@ -381,17 +388,38 @@ def brilcalc_main():
           print 'data tag : ',datatagname
           
           nchunk  = 0
-          
+
           it = api.rundatatagIter(dbengine,datatagnameid,fillmin=hltargs.fillmin,fillmax=hltargs.fillmax,runmin=hltargs.runmin,runmax=hltargs.runmax,amodetag=hltargs.amodetag,targetegev=hltargs.egev,tssecmin=hltargs.tssecmin,tssecmax=hltargs.tssecmax,runlsselect=hltargs.runlsSeries ,chunksize=csize)
           if not it: exit(1)
+          
           for idchunk in it:
               rundataids = idchunk.index
               
               for runchunk in api.runinfoIter(dbengine,rundataids,chunksize=csize,fields=['hltconfigid','hltkey']):
                   finalchunk = idchunk.join(runchunk,how='inner',on=None,lsuffix='l',rsuffix='r',sort=False)
+                  if totable:
+                      if not nchunk:
+                          ptable = display.create_table(header,header=True)
+                      else:
+                          ptable = display.create_table(header,header=False)
                   for rundatatagid,row in finalchunk.iterrows():
-                      print row['runnum'],row['hltconfigid'],row['hltkey']
+                      fill = row['fillnum']
+                      run = row['runnum']
+                      hltkey = row['hltkey']
+                      hltconfigid = row['hltconfigid']
+                      for hltpathchunk in api.hltl1seedinfoIter(dbengine,hltconfigid):
+                          for idx,hltpathinfo in hltpathchunk.iterrows():                              
+                              hltpathname = hltpathinfo['hltpath']
+                              l1seedexp = hltpathinfo['l1seed']
+                              display.add_row( [fill,run,hltkey,hltpathname,l1seedexp], fh=fh, csvwriter=csvwriter, ptable=ptable )
+                          del hltpathchunk
+                  nchunk = nchunk+1
+                  del finalchunk
+                  display.show_table(ptable,hltargs.outputstyle)
+
                       
+          if fh and fh is not sys.stdout: fh.close()
+          
       elif args['<command>'] == 'bkg':
           exit("bkg is not implemented")
       else:
