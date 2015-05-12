@@ -1631,7 +1631,7 @@ def hltInfoIter(engine,datatagids,suffix,schemaname='',hltpathnamepattern='',chu
         if hltpathnamepattern.find('*')==-1 and hltpathnamepattern.find('?')==-1 and hltpathnamepattern.find('[')==-1:#is not pattern
             pathnamecondition = 'm.HLTPATHNAME=:hltpathname'
             q = q+' and '+pathnamecondition
-            result = pd.read_sql_query(q,engine,chunksize=chunksize,params={'hltpathname':hltpathnameorpattern},index_col='datatagid')
+            result = pd.read_sql_query(q,engine,chunksize=chunksize,params={'hltpathname':hltpathnamepattern},index_col='datatagid')
             return result
         else:
             sqlpattern = translate_fntosql(hltpathnamepattern)

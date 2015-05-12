@@ -369,7 +369,8 @@ def brilcalc_main():
           csvwriter = None
 
           header = ['fill','run','hltkey','hltpath','l1seed']
-
+          if  hltargs.pathinfo:
+              header = ['fill','run','ls','hltpath','pidx','presc','l1pass','accept']
           if not totable:
               fh = hltargs.ofilehandle
               print >> fh, '#'+','.join(header)
@@ -402,8 +403,21 @@ def brilcalc_main():
                   dataids = idchunk.index
                   for hltchunk in api.hltInfoIter(dbengine,dataids,'RUN1',schemaname='',hltpathnamepattern=hltargs.name,chunksize=csize):
                       finalchunk = idchunk.join(hltchunk,how='inner',on=None,lsuffix='l',rsuffix='r',sort=False)
+                      if totable:
+                          if not nchunk:
+                              ptable = display.create_table(header,header=True)
+                          else:
+                              ptable = display.create_table(header,header=False)
                       for datatagid, row in finalchunk.iterrows():
-                          print row['fillnum'],row['runnum'],row['lsnum'],row['hltpathname'],row['prescidx'],row['prescval'],row['l1pass'],row['hltaccept']
+                          display.add_row( [row['fillnum'],row['runnum'],row['lsnum'],row['hltpathname'],row['prescidx'],row['prescval'],row['l1pass'],row['hltaccept'] ],fh=fh, csvwriter=csvwriter, ptable=ptable )
+                      nchunk = nchunk+1
+                      del finalchunk
+                      if ptable:
+                          ptable.max_width = 80
+                          ptable.max_width['hltpath']=40
+                          ptable.align='l'
+                          display.show_table(ptable,hltargs.outputstyle)
+                          del ptable
               else:
                   rundataids = idchunk.index              
                   for runchunk in api.runinfoIter(dbengine,rundataids,chunksize=csize,fields=['hltconfigid','hltkey']):
