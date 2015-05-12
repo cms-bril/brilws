@@ -58,7 +58,6 @@ def brilcalc_main():
           import brilcalc_lumi          
           parseresult = docopt.docopt(brilcalc_lumi.__doc__,argv=cmmdargv)
           parseresult = brilcalc_lumi.validate(parseresult)
-          
           ##parse selection params
           lumiargs = clicommonargs.parser(parseresult)
 
@@ -133,10 +132,9 @@ def brilcalc_main():
                           dtime = datetime.fromtimestamp(int(timestampsec)).strftime(params._datetimefm)
                           cms = 1
                           if byls:
-                              print row['fillnum']
-                              display.add_row( [row['fillnum'],row['runnum'],row['lsnum'],dtime,cms,'%.4e'%(row['avgrawlumi']),'%.4e'%(row['avgrawlumi']),'%.4e'%(row['avgrawlumi']*0.5),'HFOC'] , fh=fh, csvwriter=csvwriter, ptable=ptable)
+                              display.add_row( ['%d'%row['fillnum'],'%d'%row['runnum'],'%d'%row['lsnum'],dtime,cms,'%.4e'%(row['avgrawlumi']),'%.4e'%(row['avgrawlumi']),'%.4e'%(row['avgrawlumi']*0.5),'HFOC'] , fh=fh, csvwriter=csvwriter, ptable=ptable)
                           else:
-                              display.add_row( [row['fillnum'],row['runnum'],row['lsnum'],row['bxidx'],'%.6e'%(row['bxrawlumi']),'%.6e'%(row['bxrawlumi'])] , fh=fh, csvwriter=csvwriter, ptable=ptable)
+                              display.add_row( ['%d'%row['fillnum'],'%d'%row['runnum'],'%d'%row['lsnum'],'%d'%row['bxidx'],'%.6e'%(row['bxrawlumi']),'%.6e'%(row['bxrawlumi'])] , fh=fh, csvwriter=csvwriter, ptable=ptable)
                       display.show_table(ptable,lumiargs.outputstyle)                              
                       if ptable: del ptable
                       
@@ -289,7 +287,7 @@ def brilcalc_main():
           csvwriter = None
 
           header = ['fill','run','ls','time','deadfrac']          
-          bybitheader = ['fill','run','ls','id','name','prescidx','presc','counts']
+          bybitheader = ['fill','run','ls','id','name','pidx','pval','counts']
           if bybit:
               csize = csize*200
               header = bybitheader
@@ -329,6 +327,8 @@ def brilcalc_main():
                           display.add_row( ['%d'%row['fillnum'],'%d'%row['runnum'],'%d'%row['lsnum'],dtime,'%.4f'%(row['deadtimefrac']) ] , fh=fh, csvwriter=csvwriter, ptable=ptable )
                       del finalchunk
                       del deadtimechunk
+                      display.show_table(ptable,trgargs.outputstyle)
+                      if ptable: del ptable 
               else:
                   for trginfochunk in api.trgInfoIter(dbengine,dataids,'RUN1',schemaname='',bitnamepattern=trgargs.name,chunksize=csize*192):
                       finalchunk = idchunk.join(trginfochunk,how='inner',on=None,lsuffix='l',rsuffix='r',sort=False)
@@ -341,9 +341,10 @@ def brilcalc_main():
                           display.add_row( [ '%d'%row['fillnum'],'%d'%row['runnum'],'%d'%row['lsnum'],'%d'%row['bitid'],row['bitname'],'%d'%row['prescidx'],'%d'%row['presc'],'%d'%row['counts'] ], fh=fh, csvwriter=csvwriter, ptable=ptable )
                       del finalchunk
                       del trginfochunk
-                      
-              display.show_table(ptable,trgargs.outputstyle)
-              if ptable: del ptable             
+                      ptable.max_width['bitname']=20
+                      ptable.align='l'
+                      display.show_table(ptable,trgargs.outputstyle)
+                      if ptable: del ptable 
               del idchunk
               nchunk = nchunk + 1
               
@@ -370,7 +371,7 @@ def brilcalc_main():
 
           header = ['fill','run','hltkey','hltpath','l1seed']
           if  hltargs.pathinfo:
-              header = ['fill','run','ls','hltpath','pidx','presc','l1pass','accept']
+              header = ['fill','run','ls','hltpath','pidx','pval','l1pass','accept']
           if not totable:
               fh = hltargs.ofilehandle
               print >> fh, '#'+','.join(header)

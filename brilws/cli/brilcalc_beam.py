@@ -9,13 +9,13 @@ options:
   -r RUN                       Run number
   -i INPUTFILE                 Input selection file
   -o OUTPUTFILE                Output csv file. Special file '-' for stdout.
+  -b BEAMSTATUS                 Beam mode. FLAT TOP,SQUEEZE,ADJUST,STABLE BEAMS
   --siteconfpath SITECONFPATH  Path to SITECONF/local/JobConfig/site-local-config.xml [default: $CMS_PATH] 
   --amodetag AMODETAG          Accelerator mode 
-  --beamstatus BEAMSTATUS      Beam mode 
-  --egev EGEV                  Target single beam energy in GeV  
+  --beamenergy BEAMENERGY      Target single beam energy in GeV  
   --datatag DATATAG            Data tag name
-  --begin BEGIN                Min start time 
-  --end END                    Max start time
+  --begin BEGIN                Min start time/fill/run
+  --end END                    Max start time/fill/run
   --output-style OSTYLE        Screen output style. tab, html, csv [default: tab]
   --chunk-size CHUNKSIZE       Main data chunk size [default: 100]
   --xing                       Show result in bx granularity
@@ -33,7 +33,7 @@ def validate(optdict):
     result={}
     argdict = clicommonargs.argvalidators
     #extract sub argdict here
-    myvalidables = ['-n','-f','-r','-i','-o','--amodetag','--beamstatus','--egev','--datatag','--begin','--end','--output-style','--chunk-size','--siteconfpath',str]
+    myvalidables = ['-c','-n','-f','-r','-i','-o','--amodetag','-b','--beamenergy','--datatag','--begin','--end','--output-style','--chunk-size','--siteconfpath',str]
     argdict = dict((k,v) for k,v in clicommonargs.argvalidators.iteritems() if k in myvalidables)
     schema = Schema(argdict)
     result = schema.validate(optdict)
