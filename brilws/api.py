@@ -1625,7 +1625,7 @@ def hltInfoIter(engine,datatagids,suffix,schemaname='',hltpathnamepattern='',chu
         maptablename = '.'.join([schemaname,maptablename])
     idstrings = ','.join([str(x) for x in datatagids])
     
-    q = '''select h.DATATAGID as datatagid,m.HLTPATHNAME as hltpathname, h.PRESCIDX as prescidx,h.PRESCVAL as prescval,h.L1PASS as l1pass,h.HLTACCEPT as hltaccept from %s m, %s h where m.HLTPATHID=h.HLTPATHID and h.DATATAGID IN (%S)'''%(maptablename,tablename,idstrings)
+    q = '''select h.DATATAGID as datatagid,m.HLTPATHNAME as hltpathname, h.PRESCIDX as prescidx,h.PRESCVAL as prescval,h.L1PASS as l1pass,h.HLTACCEPT as hltaccept from %s m, %s h where m.HLTPATHID=h.HLTPATHID and h.DATATAGID IN (%s)'''%(maptablename,tablename,idstrings)
     pathnamecondition = ''
     if hltpathnamepattern:
         if hltpathnamepattern.find('*')==-1 and hltpathnamepattern.find('?')==-1 and hltpathnamepattern.find('[')==-1:#is not pattern
@@ -1635,10 +1635,11 @@ def hltInfoIter(engine,datatagids,suffix,schemaname='',hltpathnamepattern='',chu
             return result
         else:
             sqlpattern = translate_fntosql(hltpathnamepattern)
-            q = q+" and h.HLTPATHNAME like '"+sqlpattern+"'"
-            result = pd.read_sql_query(q,engine,chunksize=chunksize,params={'hltpathname':hltpathnameorpattern},index_col='datatagid')
+            q = q+" and m.HLTPATHNAME like '"+sqlpattern+"'"
+            result = pd.read_sql_query(q,engine,chunksize=chunksize,params={'hltpathname':hltpathnamepattern},index_col='datatagid')
             return result
     result = pd.read_sql_query(q,engine,chunksize=chunksize,params={},index_col='datatagid')
+    return result
 #
 # operation on  data sources
 # 

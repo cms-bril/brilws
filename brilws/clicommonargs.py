@@ -22,6 +22,7 @@ class parser(object):
         self._withBX = False
         self._byls = False
         self._bybit = False
+        self._pathinfo = False
         self._chunksize = None
         self._ofilename = '-'
         self._fh = None
@@ -43,6 +44,7 @@ class parser(object):
         if self._argdict.has_key('--xing'): self._withBX = self._argdict['--xing']
         if self._argdict.has_key('--byls'): self._byls = self._argdict['--byls']
         if self._argdict.has_key('--bybit'): self._bybit = self._argdict['--bybit']
+        if self._argdict.has_key('--pathinfo'): self._pathinfo = self._argdict['--pathinfo']
         if self._argdict['-f'] :
             self._fillmin = self._argdict['-f']
             self._fillmax = self._argdict['-f']
@@ -145,6 +147,9 @@ class parser(object):
     @property
     def bybit(self):
         return self._bybit
+    @property
+    def pathinfo(self):
+        return self._pathinfo
     @property
     def name(self):
         return self._name

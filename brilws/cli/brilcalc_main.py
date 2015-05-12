@@ -389,46 +389,56 @@ def brilcalc_main():
           
           nchunk  = 0
 
-          it = api.rundatatagIter(dbengine,datatagnameid,fillmin=hltargs.fillmin,fillmax=hltargs.fillmax,runmin=hltargs.runmin,runmax=hltargs.runmax,amodetag=hltargs.amodetag,targetegev=hltargs.egev,tssecmin=hltargs.tssecmin,tssecmax=hltargs.tssecmax,runlsselect=hltargs.runlsSeries ,chunksize=csize)
+          it = None
+          if hltargs.pathinfo:
+              it = api.datatagIter(dbengine,datatagnameid,fillmin=hltargs.fillmin,fillmax=hltargs.fillmax,runmin=hltargs.runmin,runmax=hltargs.runmax,amodetag=hltargs.amodetag,targetegev=hltargs.egev,beamstatus=hltargs.beamstatus,tssecmin=hltargs.tssecmin,tssecmax=hltargs.tssecmax,runlsselect=hltargs.runlsSeries ,chunksize=csize, slim=True)
+          else:
+              it = api.rundatatagIter(dbengine,datatagnameid,fillmin=hltargs.fillmin,fillmax=hltargs.fillmax,runmin=hltargs.runmin,runmax=hltargs.runmax,amodetag=hltargs.amodetag,targetegev=hltargs.egev,tssecmin=hltargs.tssecmin,tssecmax=hltargs.tssecmax,runlsselect=hltargs.runlsSeries ,chunksize=csize)
           if not it: exit(1)
-          
-          for idchunk in it:
-              rundataids = idchunk.index
-              
-              for runchunk in api.runinfoIter(dbengine,rundataids,chunksize=csize,fields=['hltconfigid','hltkey']):
-                  finalchunk = idchunk.join(runchunk,how='inner',on=None,lsuffix='l',rsuffix='r',sort=False)
-                  if totable:
-                      if not nchunk:
-                          ptable = display.create_table(header,header=True)
-                      else:
-                          ptable = display.create_table(header,header=False)
-                  for rundatatagid,row in finalchunk.iterrows():
-                      fill = row['fillnum']
-                      run = row['runnum']
-                      hltkey = row['hltkey']
-                      hltconfigid = row['hltconfigid']
-                      for hltpathchunk in api.hltl1seedinfoIter(dbengine,hltconfigid,hltpathnameorpattern=hltargs.name,):
-                          for idx,hltpathinfo in hltpathchunk.iterrows():                              
-                              hltpathname = hltpathinfo['hltpath']                              
-                              l1seedexp = hltpathinfo['l1seed']
-                              l1bits = api.findUniqueSeed(hltpathname,l1seedexp)
-                              if l1bits is not None:
-                                  l1logic = str(l1bits[1])
-                                  if not l1bits[0]:
-                                      l1logic = l1bits[1][0]
-                                  else:
-                                      l1logic = l1bits[0]+' '+' '.join(l1bits[1])
-                                  display.add_row( [fill,run,hltkey,hltpathname,l1logic], fh=fh, csvwriter=csvwriter, ptable=ptable )
-                          del hltpathchunk
-                  nchunk = nchunk+1
-                  del finalchunk
-                  if ptable:
-                      ptable.max_width['hltkey']=20
-                      ptable.max_width['hltpath']=60
-                      ptable.max_width['l1seed']=20
-                      ptable.align='l'
-                      display.show_table(ptable,hltargs.outputstyle)
 
+          
+          for idchunk in it:              
+              if hltargs.pathinfo:
+                  dataids = idchunk.index
+                  for hltchunk in api.hltInfoIter(dbengine,dataids,'RUN1',schemaname='',hltpathnamepattern=hltargs.name,chunksize=csize):
+                      finalchunk = idchunk.join(hltchunk,how='inner',on=None,lsuffix='l',rsuffix='r',sort=False)
+                      for datatagid, row in finalchunk.iterrows():
+                          print row['fillnum'],row['runnum'],row['lsnum'],row['hltpathname'],row['prescidx'],row['prescval'],row['l1pass'],row['hltaccept']
+              else:
+                  rundataids = idchunk.index              
+                  for runchunk in api.runinfoIter(dbengine,rundataids,chunksize=csize,fields=['hltconfigid','hltkey']):
+                      finalchunk = idchunk.join(runchunk,how='inner',on=None,lsuffix='l',rsuffix='r',sort=False)
+                      if totable:
+                          if not nchunk:
+                              ptable = display.create_table(header,header=True)
+                          else:
+                              ptable = display.create_table(header,header=False)
+                      for rundatatagid,row in finalchunk.iterrows():
+                          fill = row['fillnum']
+                          run = row['runnum']
+                          hltkey = row['hltkey']
+                          hltconfigid = row['hltconfigid']
+                          for hltpathchunk in api.hltl1seedinfoIter(dbengine,hltconfigid,hltpathnameorpattern=hltargs.name):
+                              for idx,hltpathinfo in hltpathchunk.iterrows():                              
+                                  hltpathname = hltpathinfo['hltpath']                              
+                                  l1seedexp = hltpathinfo['l1seed']
+                                  l1bits = api.findUniqueSeed(hltpathname,l1seedexp)
+                                  if l1bits is not None:
+                                      l1logic = str(l1bits[1])
+                                      if not l1bits[0]:
+                                          l1logic = l1bits[1][0]
+                                      else:
+                                          l1logic = l1bits[0]+' '+' '.join(l1bits[1])
+                                      display.add_row( [fill,run,hltkey,hltpathname,l1logic], fh=fh, csvwriter=csvwriter, ptable=ptable )
+                              del hltpathchunk
+                      nchunk = nchunk+1
+                      del finalchunk
+                      if ptable:                          
+                          ptable.max_width['hltkey']=20
+                          ptable.max_width['hltpath']=60
+                          ptable.max_width['l1seed']=20
+                          ptable.align='l'
+                          display.show_table(ptable,hltargs.outputstyle)
                       
           if fh and fh is not sys.stdout: fh.close()
           
