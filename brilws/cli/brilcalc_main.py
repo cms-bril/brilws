@@ -411,14 +411,22 @@ def brilcalc_main():
                           for idx,hltpathinfo in hltpathchunk.iterrows():                              
                               hltpathname = hltpathinfo['hltpath']                              
                               l1seedexp = hltpathinfo['l1seed']
-                              display.add_row( [fill,run,hltkey,hltpathname,l1seedexp], fh=fh, csvwriter=csvwriter, ptable=ptable )
+                              l1bits = api.findUniqueSeed(hltpathname,l1seedexp)
+                              if l1bits is not None:
+                                  l1logic = str(l1bits[1])
+                                  if not l1bits[0]:
+                                      l1logic = l1bits[1][0]
+                                  else:
+                                      l1logic = l1bits[0]+' '+' '.join(l1bits[1])
+                                  display.add_row( [fill,run,hltkey,hltpathname,l1logic], fh=fh, csvwriter=csvwriter, ptable=ptable )
                           del hltpathchunk
                   nchunk = nchunk+1
                   del finalchunk
                   if ptable:
                       ptable.max_width['hltkey']=20
-                      ptable.max_width['hltpath']=30
+                      ptable.max_width['hltpath']=60
                       ptable.max_width['l1seed']=20
+                      ptable.align='l'
                       display.show_table(ptable,hltargs.outputstyle)
 
                       

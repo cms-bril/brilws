@@ -13,7 +13,7 @@ import contextlib
 import sys
 import ast
 import logging
-
+import string
 decimalcontext = decimal.getcontext().copy()
 decimalcontext.prec = 3
 
@@ -1464,6 +1464,57 @@ def hltl1seedinfoIter(engine,hltconfigid,hltpathnameorpattern='',schemaname='',c
             return result
     result = pd.read_sql_query(q,engine,chunksize=chunksize,params={'hltconfigid':hltconfigid})
     return result
+
+def findUniqueSeed(hltPathname,l1seed):
+    '''
+    given a hltpath and its L1SeedExpression, find the L1 bit name
+    can return None
+    
+    if hltPath contains the following, skip do not parse seed.
+    
+    FakeHLTPATH*, HLT_Physics*, HLT_*Calibration*, HLT_HFThreashold,
+    HLT_MiniBias*,HLT_Random*,HLTTriggerFinalPath,HLT_PixelFED*
+    parse hltpath contains at most 2 logics x OR y, x AND y, and return left val
+    do not consider path containing operator NOT
+
+    output: (expressiontype,[l1bitname])
+    '''
+    if re.match('HLT_Physics',hltPathname)!=None :
+        return None
+    if re.match('HLT_[aA-zZ]*Calibration',hltPathname)!=None :
+        return None
+    if re.match('HLT_[aA-zZ]*Threshold',hltPathname)!=None :
+        return None
+    if re.match('HLT_MiniBias',hltPathname)!=None :
+        return None
+    if re.match('HLT_Random',hltPathname)!=None :
+        return None    
+    if re.match('HLT_[aA-zZ]*FEDSize',hltPathname)!=None :
+        return None
+    if l1seed.find('(')!=-1 : #we don't parse expression with ()
+        return None
+    if re.match('FakeHLTPATH',hltPathname)!=None :
+        return None
+    if re.match('HLTriggerFinalPath',hltPathname)!=None :
+        return None
+    sep=re.compile('(\sAND\s|\sOR\s)',re.IGNORECASE)
+    result=re.split(sep,l1seed)
+    cleanresult=[]
+    exptype=''
+    notsep=re.compile('NOT\s',re.IGNORECASE)
+    andsep=re.compile('\sAND\s',re.IGNORECASE)
+    orsep=re.compile('\sOR\s',re.IGNORECASE)
+    for r in result:
+        if notsep.match(r) : #we don't know what to do with NOT
+            return ('',None)
+        if orsep.match(r):
+            exptype='OR'
+            continue
+        if andsep.match(r):
+            exptype='AND'
+            continue
+        cleanresult.append(string.strip(r).replace('\"',''))
+    return (exptype,cleanresult)
     
 def beamInfoIter(engine,datatagids,suffix,schemaname='',chunksize=9999,withBX=False):
     '''
@@ -1528,14 +1579,11 @@ def deadtimeIter(engine,datatagids,suffix,schemaname='',chunksize=9999):
 
 def trgMask(engine,datatagid):
     '''
-    output: [trgMask]
+    output: [trgmask1,...,trgmask6]
     '''
     result = 192*[0]
-    q = '''select trgmask from RUNINFO where datatagid=:datatagid'''
-    maskstr = pd.read_sql_query(q,engine,params={'datatagid':datatagid})
-    ar = maskstr.split(',')
-    for idx,mask in enumerate(ar):
-        if mask=='1': result[idx] = 1
+    q = '''select trgmask1,trgmask2,trgmask3,trgmask4,trgmask5,trgmask5 from RUNINFO where datatagid=:datatagid'''
+    result = pd.read_sql_query(q,engine,params={'datatagid':datatagid})
     return result
 
 def trgInfoIter(engine,datatagids,suffix,schemaname='',bitnamepattern='',chunksize=9999):
@@ -1565,11 +1613,32 @@ def trgInfoIter(engine,datatagids,suffix,schemaname='',bitnamepattern='',chunksi
     result = pd.read_sql_query(q,engine,chunksize=chunksize,params={},index_col='datatagid')
     return result
 
-def hltInfoIter(engine,datatagids,suffix,schemaname='',chunksize=9999,ignoreMask=False):
+def hltInfoIter(engine,datatagids,suffix,schemaname='',hltpathnamepattern='',chunksize=9999):
     '''
     
     '''
-    pass
+    basetablename = 'HLT'
+    tablename = '_'.join([basetablename,suffix])
+    maptablename = 'HLTPATHMAP'
+    if schemaname:
+        tablename = '.'.join([schemaname,tablename])
+        maptablename = '.'.join([schemaname,maptablename])
+    idstrings = ','.join([str(x) for x in datatagids])
+    
+    q = '''select h.DATATAGID as datatagid,m.HLTPATHNAME as hltpathname, h.PRESCIDX as prescidx,h.PRESCVAL as prescval,h.L1PASS as l1pass,h.HLTACCEPT as hltaccept from %s m, %s h where m.HLTPATHID=h.HLTPATHID and h.DATATAGID IN (%S)'''%(maptablename,tablename,idstrings)
+    pathnamecondition = ''
+    if hltpathnamepattern:
+        if hltpathnamepattern.find('*')==-1 and hltpathnamepattern.find('?')==-1 and hltpathnamepattern.find('[')==-1:#is not pattern
+            pathnamecondition = 'm.HLTPATHNAME=:hltpathname'
+            q = q+' and '+pathnamecondition
+            result = pd.read_sql_query(q,engine,chunksize=chunksize,params={'hltpathname':hltpathnameorpattern},index_col='datatagid')
+            return result
+        else:
+            sqlpattern = translate_fntosql(hltpathnamepattern)
+            q = q+" and h.HLTPATHNAME like '"+sqlpattern+"'"
+            result = pd.read_sql_query(q,engine,chunksize=chunksize,params={'hltpathname':hltpathnameorpattern},index_col='datatagid')
+            return result
+    result = pd.read_sql_query(q,engine,chunksize=chunksize,params={},index_col='datatagid')
 #
 # operation on  data sources
 # 
