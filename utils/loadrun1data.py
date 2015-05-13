@@ -1,6 +1,9 @@
 import sys,logging
 from sqlalchemy import *
 from sqlalchemy import exc
+
+from sqlalchemy import MetaData, Table, Column, Integer
+import binascii
 from ConfigParser import SafeConfigParser
 import pandas as pd
 import collections
@@ -11,6 +14,7 @@ from brilws import api
 import time
 import array
 import re
+from sqlalchemy import schema, types
 dbtimefm = 'MM/DD/YY HH24:MI:SS.ff6'
 pydatetimefm = '%m/%d/%y %H:%M:%S.%f'
 
@@ -174,46 +178,29 @@ def transfer_beamintensity(connection,destconnection,runnum,lumidataid,destdatat
     '''
     prerequisite : ids_datatag has already entries for this run
     '''
-    qbeam = '''select lumilsnum as lsnum,beamenergy as beamenergy,cmsbxindexblob as cmsbxindexblob, beamintensityblob_1 as beamintensityblob_1,beamintensityblob_2 as beamintensityblob_2 from CMS_LUMI_PROD.lumisummaryv2 where data_id=:lumidataid'''
-    ibeam = '''insert into BEAM_RUN1(DATATAGID,EGEV,INTENSITY1,INTENSITY2) values(:datatagid, :egev, :intensity1, :intensity2)'''
-    ibeambx = '''insert into BX_BEAM_RUN1(DATATAGID,BXIDX,BXINTENSITY1,BXINTENSITY2) values(:datatagid, :bxidx, :bxintensity1, :bxintensity2)'''
-    
+    qbeam = '''select l.LUMILSNUM as lsnum,l.BEAMENERGY as beamenergy,l.CMSBXINDEXBLOB as cmsbxindexblob, l.BEAMINTENSITYBLOB_1 as beamintensityblob_1,l.BEAMINTENSITYBLOB_2 as beamintensityblob_2,r.BEAM1_INTENSITY as beam1intensity, r.BEAM2_INTENSITY as beam2intensity from CMS_LUMI_PROD.lumisummaryv2 l, CMS_RUNTIME_LOGGER.LUMI_SECTIONS r where l.LUMILSNUM=r.LUMISECTION and l.RUNNUM=r.RUNNUMBER and l.DATA_ID=:lumidataid'''
+    destTable = Table('BEAM_RUN1', MetaData(), Column('DATATAGID',types.BigInteger),Column('EGEV',types.Float),Column('INTENSITY1',types.Float),Column('INTENSITY2',types.Float),Column('BXIDXBLOB',types.BLOB),Column('BXINTENSITY1BLOB',types.BLOB),Column('BXINTENSITY2BLOB',types.BLOB),)
+    #ibeam = '''insert into BEAM_RUN1(DATATAGID,EGEV,INTENSITY1,INTENSITY2,BXIDXBLOB,BXINTENSITY1BLOB,BXINTENSITY2BLOB) values(:datatagid, :egev, :intensity1, :intensity2, :bxidxblob, :bxintensity1blob, :bxintensity2blob)'''
     allbeamrows = []
-    allbxbeamrows = []
-    bxcols = ['datatagid','bxidx','beam1intensity','beam2intensity']
-    bxdt = {'datatagid':'int64','bxidx':'object','beam1intensity':'object','beam2intensity':'object'}
     #print destdatatagidmap
     with connection.begin() as trans:
         result = connection.execute(qbeam,{'lumidataid':lumidataid})
         for row in result:
             lsnum = row['lsnum']
             beamenergy = row['beamenergy']
-            bxindexblob = unpackblobstr(row['cmsbxindexblob'],'h')
-            beam1intensityblob = unpackblobstr(row['beamintensityblob_1'],'f')
-            beam2intensityblob = unpackblobstr(row['beamintensityblob_2'],'f')
-            if not bxindexblob or not beam1intensityblob or not beam2intensityblob:
+            bxidxblob = row['cmsbxindexblob']
+            beamintensity1blob = row['beamintensityblob_1']
+            beamintensity2blob = row['beamintensityblob_2']
+            if not bxidxblob or not beamintensity1blob or not beamintensity2blob:
                 continue
-            bxindex = pd.Series(bxindexblob, dtype=np.dtype("object"))
-            beam1intensity = pd.Series(beam1intensityblob, dtype=np.dtype("object"))
-            beam2intensity = pd.Series(beam2intensityblob, dtype=np.dtype("object"))
-            tot_beam1intensity = beam1intensity.sum()
-            tot_beam2intensity = beam2intensity.sum()
+            beam1intensity = row['beam1intensity']
+            beam2intensity = row['beam2intensity']
             
-            ibeamrow = {'datatagid':destdatatagidmap[lsnum],'egev':beamenergy, 'intensity1':tot_beam1intensity, 'intensity2':tot_beam2intensity } 
+            ibeamrow = {'datatagid':destdatatagidmap[lsnum],'egev':beamenergy, 'intensity1':beam1intensity, 'intensity2':beam2intensity, 'bxidxblob':bxidxblob, 'bxintensity1blob':beamintensity1blob, 'bxintensity2blob':beamintensity2blob } 
             allbeamrows.append(ibeamrow)
-            allbxbeamrows.append( {'datatagid':destdatatagidmap[lsnum],'bxidx':bxindex,'beam1intensity':beam1intensity,'beam2intensity':beam2intensity} )
     with destconnection.begin() as trans:
-        r = destconnection.execute(ibeam,allbeamrows)
-        for bxb in allbxbeamrows:
-            datatagid = bxb['datatagid']
-            for idx, bxidx_value in bxb['bxidx'].iteritems():
-                b1 = bxb['beam1intensity'].iloc[idx]
-                b2 = bxb['beam2intensity'].iloc[idx]
-                if not b1 and not b2 : continue                
-                destconnection.execute(ibeambx,{'datatagid':datatagid,'bxidx':bxidx_value,'bxintensity1':b1,'bxintensity2':b2})
-            del bxb['bxidx']
-            del bxb['beam1intensity']
-            del bxb['beam2intensity']
+        for r in allbeamrows:
+            destconnection.execute( destTable.insert(),DATATAGID=r['datatagid'],EGEV=r['egev'],INTENSITY1=r['intensity1'],INTENSITY2=r['intensity2'],BXIDXBLOB=r['bxidxblob'],BXINTENSITY1BLOB=r['bxintensity1blob'], BXINTENSITY2BLOB=r['bxintensity2blob'] )
             
 def transfer_trgdata(connection,destconnection,runnum,trgdataid,destdatatagidmap):
     '''
@@ -499,8 +486,8 @@ if __name__=='__main__':
         #transfer_ids_datatag(connection,destconnection,run,lumidataid)
         destdatatagid = datatagid_of_run(destconnection,run,datatagnameid=0)
         destdatatagid_map = datatagid_of_ls(destconnection,run,datatagnameid=0)
-        transfer_runinfo(connection,destconnection,run,trgdataid,destdatatagid)
-        #transfer_beamintensity(connection,destconnection,run,lumidataid,destdatatagid_map)
+        #transfer_runinfo(connection,destconnection,run,trgdataid,destdatatagid)
+        transfer_beamintensity(connection,destconnection,run,lumidataid,destdatatagid_map)
         #transfer_trgdata(connection,destconnection,run,trgdataid,destdatatagid_map)
         #transfer_hltdata(connection,destconnection,run,hltdataid,destdatatagid_map)
         #transfer_lumidata(connection,destconnection,run,lumidataid,destdatatagid_map)

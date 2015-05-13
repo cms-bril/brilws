@@ -53,20 +53,20 @@ sqlitetypemap={
 'timestamp':'DATETIME'
 }
 
-def unpackBlobtoArray(iblob,itemtypecode):
-    '''
-    Inputs:
-    iblob: 
-    itemtypecode: python array type code 
-    '''
-    if itemtypecode not in ['c','b','B','u','h','H','i','I','l','L','f','d']:
-        raise RuntimeError('unsupported typecode '+itemtypecode)
-    result=array.array(itemtypecode)
-    blobstr=iblob.readline()
-    if not blobstr :
-        return None
-    result.fromstring(blobstr)
-    return result
+#def unpackBlobtoArray(iblob,itemtypecode):
+#    '''
+#    Inputs:
+#    iblob: 
+#    itemtypecode: python array type code 
+#    '''
+#    if itemtypecode not in ['c','b','B','u','h','H','i','I','l','L','f','d']:
+#        raise RuntimeError('unsupported typecode '+itemtypecode)
+#    result=array.array(itemtypecode)
+#    blobstr=iblob.readline()
+#    if not blobstr :
+#        return None
+#    result.fromstring(blobstr)
+#    return result
 
 ####################
 ##    Selection API
@@ -1129,14 +1129,14 @@ class PixelLumiResult(BrilDataSource):
         self._columns = ['RUNNUM','CMSLSNUM','FILLNUM','BEAMSTATUS','ISONLINE','VALUE','AVGPU','DATATAGID','NORMTAGID']
    
 import struct,array
-def packArraytoBlob(iarray,typecode):
-    '''
-    Inputs:
-    inputarray: a python array
-    '''
-    t = typecode*len(iarray)
-    buffer = struct.pack(t,*iarray)
-    return result
+#def packArraytoBlob(iarray,typecode):
+#    '''
+#    Inputs:
+#    inputarray: a python array
+#    '''
+#    t = typecode*len(iarray)
+#    buffer = struct.pack(t,*iarray)
+#    return result
 
 def unpackBlobtoArray(iblob,itemtypecode):
     '''
@@ -1147,10 +1147,10 @@ def unpackBlobtoArray(iblob,itemtypecode):
     if itemtypecode not in ['c','b','B','u','h','H','i','I','l','L','f','d']:
         raise RuntimeError('unsupported typecode '+itemtypecode)
     result=array.array(itemtypecode)
-    blobstr=iblob.readline()
-    if not blobstr :
+    #blobstr=iblob.readline()????
+    if not iblob :
         return None
-    result.fromstring(blobstr)
+    result.fromstring(iblob)
     return result
 
 def packListstrtoCLOB(iListstr,separator=','):
@@ -1399,7 +1399,7 @@ def datatagIter(engine,datatagnameid,schemaname='',runmin=None,runmax=None,fillm
     #print q
     return pd.read_sql_query(q,engine,chunksize=chunksize,params=binddict,index_col='datatagid')
 
-def runinfoIter(engine,datatagids,schemaname='',chunksize=9999,fields=''):
+def runinfoIter(engine,datatagids,schemaname='',chunksize=9999,fields=[]):
     '''
     output: {run:datatagid}
     '''
@@ -1516,29 +1516,38 @@ def findUniqueSeed(hltPathname,l1seed):
         cleanresult.append(string.strip(r).replace('\"',''))
     return (exptype,cleanresult)
     
-def beamInfoIter(engine,datatagids,suffix,schemaname='',chunksize=9999,withBX=False):
+def beamInfoIter(engine,datatagids,suffix,schemaname='',chunksize=9999,fields=[]):
     '''
     input: datatagids []
-    output: dataframe iterator 
-         withBX=False [datatagid,fill,run,ls,timestampsec,beamstatus,amodetag,egev,intensity1,intensity2]
-         withBX=True [datatagid,fill,run,ls,bxidx,intensity1,intensity2,iscolliding]
+    output: dataframe iterator
+         [datatagid,] 
+         #withBX=False [datatagid,fill,run,ls,timestampsec,beamstatus,amodetag,egev,intensity1,intensity2]
+         #withBX=True [datatagid,fill,run,ls,bxidx,intensity1,intensity2,iscolliding]
     '''
+    allfields = ['INTENSITY1','INTENSITY1','EGEV','BXIDXBLOB','BXINTENSITY1BLOB','BXINTENSITY2BLOB','BXPATTERNBLOB']
     idtablename = 'IDS_DATATAG'
     basetablename = 'BEAM'
     tablename = '_'.join([basetablename,suffix])
-    bxtablename = 'BX_'+tablename
     if schemaname :
         idtablename = '.'.join([schemaname,idtablename])
         tablename = '.'.join([schemaname,tablename])
-        bxtablename = '.'.join([schemaname,bxtablename])
     idstrings = ','.join([str(x) for x in datatagids])
     
-    #q = '''select i.FILLNUM as fillnum,i.RUNNUM as runnum,i.LSNUM as lsnum,i.TIMESTAMPSEC as timestampsec,i.BEAMSTATUS as beamstatus, i.AMODETAG as amodetag, b.EGEV as egev,b.DATATAGID as datatagid, b.INTENSITY1 as intensity1, b.INTENSITY2 as intensity2 from %s i, %s b where i.DATATAGID=b.DATATAGID and i.DATATAGID in (%s)'''%(idtablename,tablename,idstrings)
-    q = '''select DATATAGID as datatagid,INTENSITY1 as intensity1, INTENSITY2 as intensity2, EGEV as egev from %s where DATATAGID in (%s)'''%(tablename,idstrings)
-    if withBX:
-        #q = '''select i.FILLNUM as fillnum,i.RUNNUM as runnum,i.LSNUM as lsnum,b.DATATAGID as datatagid, b.BXIDX as bxidx, b.BXINTENSITY1 as bxintensity1, b.BXINTENSITY2 as bxintensity2, b.ISCOLLIDING as iscolliding from %s i, %s b where i.DATATAGID=b.DATATAGID and i.DATATAGID in (%s)'''%(idtablename,bxtablename,idstrings)
-        q =  '''select DATATAGID as datatagid,BXIDX as bxidx,BXINTENSITY1 as bxintensity1, BXINTENSITY2 as bxintensity2, ISCOLLIDING as iscolliding from %s where DATATAGID in (%s)'''%(bxtablename,idstrings)
-    result = pd.read_sql_query(q,engine,chunksize=chunksize,params={},index_col='datatagid')
+    q = '''select DATATAGID as datatagid'''
+    if not fields: fields = allfields
+    subq = []
+    for f in fields:
+        subq.append('''%s as %s'''%(f.upper(),f.lower()))
+    if subq:
+        q = q+','+','.join(subq)
+    result = None
+    if len(datatagids)==1:
+        q = q+''' from %s where DATATAGID=:datatagid'''%(tablename)
+        result = pd.read_sql_query(q,engine,chunksize=1,params={'datatagid':datatagids[0]},index_col='datatagid')
+    else:
+        q = q+''' from %s where DATATAGID in (%s)'''%(tablename,idstrings)
+        result = pd.read_sql_query(q,engine,chunksize=chunksize,params={},index_col='datatagid')
+
     return result
 
 def lumiInfoIter(engine,datatagids,datasource,suffix,schemaname='',chunksize=9999,withBX=False):

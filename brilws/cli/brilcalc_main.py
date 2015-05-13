@@ -20,6 +20,16 @@ ch.setFormatter(logformatter)
 log.addHandler(ch)
 #log.addHandler(fh)
 
+class Unbuffered(object):
+    def __init__(self, stream):
+        self.stream = stream
+    def write(self, data):
+        self.stream.write(data)
+        self.stream.flush()
+    def __getattr__(self, attr):
+        return getattr(self.stream.attr)
+sys.stdout = Unbuffered(sys.stdout)
+
 def brilcalc_main():
     docstr='''
 
@@ -208,23 +218,23 @@ def brilcalc_main():
           ##display params
           csize = beamargs.chunksize
           withBX = beamargs.withBX
-          bxcsize = csize
           totable = beamargs.totable
           fh = None
           ptable = None
           csvwriter = None
 
           header = ['fill','run','ls','time','beamstatus','amodetag','egev','intensity1','intensity2']
-          bxheader = ['fill','run','ls','bx','bxintensity1','bxintensity2','iscolliding']
+          bxheader = ['fill','run','ls','bxintensities']
           if withBX:
-              bxcsize = csize*3564
               header = bxheader
               
           if not totable:
               fh = beamargs.ofilehandle
               print >> fh, '#'+','.join(header)
               csvwriter = csv.writer(fh)
-
+          else:
+              ptable = display.create_table(header,header=True,maxwidth=80)
+              
           datatagname = beamargs.datatagname
           datatagnameid = 0
           if not datatagname:
@@ -239,33 +249,55 @@ def brilcalc_main():
           
           nchunk = 0
 
-          it = api.datatagIter(dbengine,datatagnameid,fillmin=beamargs.fillmin,fillmax=beamargs.fillmax,runmin=beamargs.runmin,runmax=beamargs.runmax,amodetag=beamargs.amodetag,targetegev=beamargs.egev,beamstatus=beamargs.beamstatus,tssecmin=beamargs.tssecmin,tssecmax=beamargs.tssecmax,runlsselect=beamargs.runlsSeries ,chunksize=csize,slim=withBX )
+          it = api.datatagIter(dbengine,datatagnameid,fillmin=beamargs.fillmin,fillmax=beamargs.fillmax,runmin=beamargs.runmin,runmax=beamargs.runmax,amodetag=beamargs.amodetag,targetegev=beamargs.egev,beamstatus=beamargs.beamstatus,tssecmin=beamargs.tssecmin,tssecmax=beamargs.tssecmax,runlsselect=beamargs.runlsSeries ,chunksize=csize,slim=False )
+          fields = ['egev','intensity1','intensity2']
+          if withBX:
+              fields = ['bxidxblob','bxintensity1blob','bxintensity2blob']
           if not it: exit(1)
           for idchunk in it:              
-              dataids = idchunk.index              
-              for beaminfochunk in api.beamInfoIter(dbengine,dataids,'RUN1',chunksize=bxcsize,withBX=withBX):
+              dataids = idchunk.index
+              finalchunk = None
+              for beaminfochunk in api.beamInfoIter(dbengine,dataids,'RUN1',chunksize=csize,fields=fields):
                   finalchunk = idchunk.join(beaminfochunk,how='inner',on=None,lsuffix='l',rsuffix='r',sort=False)
-                  if totable:
-                      if not nchunk:
-                          ptable = display.create_table(header,header=True)
-                      else:
-                          ptable = display.create_table(header,header=False)
+                  #if totable:
+                      #if not nchunk:
+                      #    ptable = display.create_table(header,header=True)
+                      #else:
+                      #    ptable = display.create_table(header,header=False)
                   for datatagid,row in finalchunk.iterrows():
                       if not withBX:
                           timestampsec = row['timestampsec']
                           dtime = datetime.fromtimestamp(int(timestampsec)).strftime(params._datetimefm)
-                          display.add_row( [row['fillnum'],row['runnum'],row['lsnum'],dtime,row['beamstatus'],row['amodetag'],'%.2f'%(row['egev']),'%.6e'%(row['intensity1']),'%.6e'%(row['intensity2'])] , fh=fh, csvwriter=csvwriter, ptable=ptable)
+                          display.add_row( ['%d'%row['fillnum'],'%d'%row['runnum'],'%d'%row['lsnum'],dtime,row['beamstatus'],row['amodetag'],'%.2f'%(row['egev']),'%.5e'%(row['intensity1']),'%.5e'%(row['intensity2'])] , fh=fh, csvwriter=csvwriter, ptable=ptable)
                       else:
-                          display.add_row( [ row['fillnum'],row['runnum'],row['lsnum'],row['bxidx'],'%.6e'%(row['bxintensity1']),'%.6e'%(row['bxintensity2']),row['iscolliding'] ], fh=fh, csvwriter=csvwriter, ptable=ptable)
-                      
-                  display.show_table(ptable,beamargs.outputstyle)
-                  if ptable: del ptable                  
+                          bxidxblob = row['bxidxblob']
+                          bxintensity1blob = row['bxintensity1blob']                          
+                          bxintensity2blob = row['bxintensity2blob']
+                          if not bxidxblob or not bxintensity1blob or not bxintensity2blob: continue
+                          bxidxarray = np.array(api.unpackBlobtoArray(bxidxblob,'H'))
+                          intensity1array = np.array(api.unpackBlobtoArray(bxintensity1blob,'f'))
+                          intensity2array = np.array(api.unpackBlobtoArray(bxintensity2blob,'f'))
+                          if len(bxidxarray)!=len(intensity1array)!=len(intensity2array): continue
+                          perbxresult = np.array( [bxidxarray,intensity1array,intensity2array]).T
+                          perbxresult_str = ' '.join(['%d %.6e %.6e'%(idx,bi1,bi2) for [idx,bi1,bi2] in perbxresult if bi1!=0. and bi2!=0.])
+                          perbxresult_str_first ='%d %.6e %.6e'%(perbxresult[0][0],perbxresult[0][1],perbxresult[0][2]) 
+                          perbxresult_str_last ='%d %.6e %.6e'%(perbxresult[-1][0],perbxresult[-1][1],perbxresult[-1][2]) 
+                          perbxresult_str_short = perbxresult_str_first+' ... '+perbxresult_str_last
+                          if fh:
+                              display.add_row( [ row['fillnum'],row['runnum'],row['lsnum'],perbxresult_str], fh=fh, csvwriter=csvwriter, ptable=ptable)
+                          else:
+                              display.add_row( [ row['fillnum'],row['runnum'],row['lsnum'],perbxresult_str_short], fh=fh, csvwriter=csvwriter, ptable=ptable)
+
                   del finalchunk  
                   del beaminfochunk
-              del idchunk
-              nchunk = nchunk + 1                  
+                  nchunk = nchunk + 1
+              del idchunk  
+          
+          if ptable:
+              display.show_table(ptable,beamargs.outputstyle)
+              del ptable                    
           if fh and fh is not sys.stdout: fh.close()  
-        
+          
       elif args['<command>'] == 'trg':
           import brilcalc_trg
           parseresult = docopt.docopt(brilcalc_trg.__doc__,argv=cmmdargv)
@@ -474,6 +506,8 @@ def brilcalc_main():
        log.setLevel(logging.DEBUG)
        ch.setLevel(logging.DEBUG)
        log.debug('create arguments: %s',parseresult)
-
+    return
 if __name__ == '__main__':
     brilcalc_main()
+    print 'ah'
+    exit(0)
