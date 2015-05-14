@@ -1,0 +1,153 @@
+#
+# Schema for sharded tables
+#
+
+
+##### Data tables #####
+
+BEAM_&suffix:         #per ls
+   columns:
+    - datatagid: int64    
+    - egev: float
+    - intensity1: float
+    - intensity2: float
+    - bxintensity1: blob
+    - bxintensity2: blob
+   pk: [datatagid]
+
+TRG_&suffix:               #per ls, per trg bit
+   columns:
+    - datatagid: int64
+    - bitid: uint16
+    - bitnameid: uint16 #tech bit alias id is 65535
+    - prescidx: uint16
+    - prescval: uint32  
+    - counts: uint32
+   pk: [datatagid,bitnameid]
+   
+HLT_&suffix:  #per ls, per hltpath
+   columns:
+    - datatagid: int64
+    - hltpathid: uint32
+    - prescidx: uint16
+    - prescval: uint32
+    - l1pass: uint32
+    - hltaccept: uint32
+   pk: [datatagid,hltpathid]
+
+DEADTIME_&suffix:       #per ls
+   columns:
+    - datatagid: int64
+    - deadtimefrac: float
+   pk: [datatagid] 
+
+HFOC_&suffix:
+   columns:
+    - datatagid: int64
+    - rawlumi: float
+    - bxrawlumi: blob
+   pk: [ datatagid ]
+   
+HFET_&suffix:
+   columns:
+    - datatagid: int64
+    - rawlumi: float
+    - bxrawlumi: blob
+   pk: [ datatagid ]
+
+BCMF_&suffix:
+   columns:
+    - datatagid: int64
+    - rawlumi: float
+    - bxrawlumi: blob
+    - bkgplusz: float
+    - bkgminusz: float
+   pk: [ datatagid ]
+   
+PLT_&suffix: #per ls
+   columns:
+    - datatagid: int64
+    - rawlumi: float
+    - bxrawlumi: blob
+   pk: [ datatagid ]
+   
+PXL_&suffix:        #per ls
+   columns:
+    - datatagid: int64
+    - rawlumi: float
+   pk: [datatagid]
+
+##### Result tables #####
+
+HFOC_RESULT_&suffix:
+   columns:
+    - datatagid: int64
+    - normtagid: int64
+    - avglumi: float
+    - bxlumi: blob
+    - recorded: float
+    - avgpu: float
+   pk: [datatagid,normtagid]
+   
+HFET_RESULT_&suffix:
+   columns:
+    - datatagid: int64
+    - normtagid: int64
+    - avglumi: float
+    - bxlumi: blob
+    - recorded: float
+    - avgpu: float
+   pk: [datatagid,normtagid]
+   
+PLT_RESULT_&suffix:
+   columns:
+    - datatagid: int64
+    - normtagid: int64
+    - avglumi: float
+    - bxlumi: blob
+    - recorded: float
+    - avgpu: float
+   pk: [datatagid,normtagid]
+   
+BCMF_RESULT_&suffix:
+   columns:
+    - datatagid: int64
+    - normtagid: int64
+    - avglumi: float
+    - bxlumi: blob
+    - recorded: float
+    - avgpu: float
+   pk: [datatagid,normtagid]
+   
+ONLINE_RESULT_&suffix:
+   columns:
+    - runnum: uint32
+    - lsnum: uint32
+    - fillnum: uint32
+    - cmson: bool
+    - beamstatus: string
+    - delivered: float
+    - recorded: float
+    - bxdelivered: blob
+    - bxrecorded: blob
+    - avgpu: float
+    - datasource: string
+    - normtagid: int64
+   pk: [runnum,lsnum]
+
+OFFLINE_RESULT_&suffix:
+   columns:
+    - runnum: uint32
+    - lsnum: uint32
+    - fillnum: uint32
+    - cmson: bool
+    - beamstatus: string
+    - delivered: float
+    - recorded: float
+    - bxdelivered: blob
+    - bxrecorded: blob
+    - avgpu: float
+    - datasource: string
+    - datatagid: int64
+    - normtagid: int64
+   pk: [runnum,lsnum]

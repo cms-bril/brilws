@@ -1,0 +1,108 @@
+TABLESHARDS:  #table partition range registry 
+   columns:
+    - id: uint16
+    - minrun: uint32
+    - maxrun: uint32
+   pk: [id]
+
+TIMEINDEX:        #per ls
+   columns:
+    - fillnum: uint32
+    - runnum: uint32
+    - lsnum: uint32
+    - timestampsec: uint32
+    - timestampmsec: uint32
+    - timestampstr: string       #just for display. do not query
+    - weekofyear: uint16
+    - dayofyear: uint16
+    - dayofweek: uint16
+    - year: uint16
+    - month: uint16    
+   pk: [runnum,lsnum]
+
+DATATAGS:          
+   columns:
+    - datatagnameid: int64 
+    - datatagname: string
+    - creationutc: string
+    - comments: string
+   pk: [datatagnameid]
+   unique: [datatagname]
+
+IDS_DATATAG:     #per ls
+   columns:
+    - datatagnameid: int64
+    - datatagid: int64
+    - fillnum: uint32
+    - runnum: uint32
+    - lsnum: uint32
+    - timestampsec: uint32
+    - cmson: bool
+    - norb: uint32
+    - targetegev: uint16
+    - beamstatus: string
+    - amodetag: string
+   pk: [datatagid] 
+   unique: [ [datatagnameid,runnum,lsnum] ]
+   
+RUNINFO:          #per run
+   columns:       
+    - datatagid: int64
+    - runnum: uint32
+    - hltkey: string
+    - hltconfigid: uint32
+    - gt_rs_key: string
+    - trgmask1: uint32
+    - trgmask2: uint32
+    - trgmask3: uint32
+    - trgmask4: uint32
+    - trgmask5: uint32
+    - trgmask6: uint32
+    - fillscheme: string
+    - ncollidingbx: uint16
+    - bxpattern: blob
+    - nbperls: uint16
+   pk: [datatagid]
+
+##### Map tables #####
+
+TRGBITMAP:
+   columns:    #static map
+    - bitnameid: uint16            #0-63 reserved for techbits
+    - bitid: uint16                #0-127 algo, 128-191 techbits
+    - bitname: string              #alias used in l1seed expression
+   pk: [bitnameid]
+
+TRGHLTSEEDMAP:
+   columns:
+    - hltpathid: uint32
+    - hltconfigid: uint32
+    - l1seedid: uint32
+   pk: [hltpathid,hltconfigid,l1seedid]
+
+L1SEEDMAP:
+   columns:
+    - l1seedid: uint32
+    - l1seed: string
+   pk: [l1seedid]
+    
+HLTPATHMAP:    #static map
+   columns:
+    - hltpathid: uint32
+    - hltpathname: string
+   pk: [hltpathid]
+
+DATASETMAP:   #static map
+   columns:
+    - datasetid: uint32
+    - datasetname: string
+   pk: [datasetid]
+
+HLTSTREAMDATASET:  #static map , hlt stream, dataset, path map           
+   columns:
+    - hltpathid: uint32
+    - streamid: uint32
+    - streamlabel: string
+    - datasetid: uint32
+   pk: [hltpathid,streamid,datasetid]
+   
