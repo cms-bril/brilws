@@ -179,7 +179,7 @@ def transfer_beamintensity(connection,destconnection,runnum,lumidataid,destdatat
     prerequisite : ids_datatag has already entries for this run
     '''
     qbeam = '''select l.LUMILSNUM as lsnum,l.BEAMENERGY as beamenergy,l.CMSBXINDEXBLOB as cmsbxindexblob, l.BEAMINTENSITYBLOB_1 as beamintensityblob_1,l.BEAMINTENSITYBLOB_2 as beamintensityblob_2,r.BEAM1_INTENSITY as beam1intensity, r.BEAM2_INTENSITY as beam2intensity from CMS_LUMI_PROD.lumisummaryv2 l, CMS_RUNTIME_LOGGER.LUMI_SECTIONS r where l.LUMILSNUM=r.LUMISECTION and l.RUNNUM=r.RUNNUMBER and l.DATA_ID=:lumidataid'''
-    destTable = Table('BEAM_RUN1', MetaData(), Column('DATATAGID',types.BigInteger),Column('EGEV',types.Float),Column('INTENSITY1',types.Float),Column('INTENSITY2',types.Float),Column('BXIDXBLOB',types.BLOB),Column('BXINTENSITY1BLOB',types.BLOB),Column('BXINTENSITY2BLOB',types.BLOB),)
+    destTable = Table('BEAM_RUN1', MetaData(), Column('DATATAGID',types.BigInteger),Column('EGEV',types.Float),Column('INTENSITY1',types.Float),Column('INTENSITY2',types.Float),Column('BXIDXBLOB',types.BLOB),Column('BXINTENSITY1BLOB',types.BLOB),Column('BXINTENSITY2BLOB',types.BLOB))
     #ibeam = '''insert into BEAM_RUN1(DATATAGID,EGEV,INTENSITY1,INTENSITY2,BXIDXBLOB,BXINTENSITY1BLOB,BXINTENSITY2BLOB) values(:datatagid, :egev, :intensity1, :intensity2, :bxidxblob, :bxintensity1blob, :bxintensity2blob)'''
     allbeamrows = []
     #print destdatatagidmap
@@ -409,38 +409,23 @@ def transfer_lumidata(connection,destconnection,runnum,lumidataid,destdatatagidm
     '''
     prerequisite : ids_datatag has already entries for this run
     '''
-    qlumioc = '''select LUMILSNUM as lsnum, INSTLUMI as avgrawlumi, BXLUMIVALUE_OCC1 as bxlumiblob from CMS_LUMI_PROD.LUMISUMMARYV2 where DATA_ID=:lumidataid'''
-    ilumi = '''insert into HFOC_RUN1(DATATAGID,AVGRAWLUMI) values(:datatagid, :avgrawlumi)'''
-    ibxlumi = '''insert into BX_HFOC_RUN1(DATATAGID,BXIDX,BXRAWLUMI) values(:datatagid, :bxidx, :bxrawlumi) '''
-
+    qlumioc = '''select LUMILSNUM as lsnum, INSTLUMI as rawlumi, BXLUMIVALUE_OCC1 as bxrawlumiblob from CMS_LUMI_PROD.LUMISUMMARYV2 where DATA_ID=:lumidataid'''
+    #ilumi = '''insert into HFOC_RUN1(DATATAGID,RAWLUMI,BXRAWLUMIBLOB) values(:datatagid, :avgrawlumi, :bxrawlumiblob)'''
+    destTable = Table('HFOC_RUN1', MetaData(), Column('DATATAGID',types.BigInteger), Column('RAWLUMI',types.Float), Column('BXRAWLUMIBLOB',types.BLOB ) )
     allrows = []
     with connection.begin() as trans:
         lumiresult = connection.execute(qlumioc,{'lumidataid':lumidataid})
-        lumirows = []
-        lumibxrows=[]
         for row in lumiresult:
             lsnum = row['lsnum']
-            avgrawlumi = row['avgrawlumi']
-            bxrawlumiblob = unpackblobstr(row['bxlumiblob'],'f')
-            if not bxrawlumiblob:
-                continue
-            bxrawlumiS = pd.Series(bxrawlumiblob, dtype=np.dtype("object"))
-            bxrawlumi_idx = pd.Series(bxrawlumiS.nonzero()[0])
-            bxrawlumi = bxrawlumiS.loc[bxrawlumi_idx]
+            rawlumi = row['rawlumi']
+            bxrawlumiblob = row['bxrawlumiblob']            
             bxrows = []
-
-            for pos,bxidx in bxrawlumi_idx.iteritems():
-                #print bxrawlumi[pos]
-                bxrows.append( {'datatagid':destdatatagidmap[lsnum], 'bxidx':bxidx, 'bxrawlumi':bxrawlumi[bxidx] } )
-            del bxrawlumiS
-            del bxrawlumi_idx
-            allrows.append( [{'datatagid':destdatatagidmap[lsnum] , 'avgrawlumi':avgrawlumi}, bxrows])    
+            allrows.append( {'datatagid':destdatatagidmap[lsnum] , 'rawlumi':rawlumi, 'bxrawlumiblob':bxrawlumiblob})
+            
     with destconnection.begin() as trans:
-        for row in allrows:
-            l = destconnection.execute(ilumi,row[0])
-            if not row[1]: continue
-            r = destconnection.execute(ibxlumi,row[1])    
-
+        for r in allrows:
+            destconnection.execute( destTable.insert(),DATATAGID=r['datatagid'],RAWLUMI=r['rawlumi'],BXRAWLUMIBLOB=r['bxrawlumiblob'] )
+            
 def transfer_deadtime(connection,destconnection,runnum,trgdataid,destdatatagidmap):
     '''
     prerequisite : ids_datatag has already entries for this run
@@ -487,10 +472,10 @@ if __name__=='__main__':
         destdatatagid = datatagid_of_run(destconnection,run,datatagnameid=0)
         destdatatagid_map = datatagid_of_ls(destconnection,run,datatagnameid=0)
         #transfer_runinfo(connection,destconnection,run,trgdataid,destdatatagid)
-        transfer_beamintensity(connection,destconnection,run,lumidataid,destdatatagid_map)
+        #transfer_beamintensity(connection,destconnection,run,lumidataid,destdatatagid_map)
         #transfer_trgdata(connection,destconnection,run,trgdataid,destdatatagid_map)
         #transfer_hltdata(connection,destconnection,run,hltdataid,destdatatagid_map)
-        #transfer_lumidata(connection,destconnection,run,lumidataid,destdatatagid_map)
+        transfer_lumidata(connection,destconnection,run,lumidataid,destdatatagid_map)
         #transfer_deadtime(connection,destconnection,run,trgdataid,destdatatagid_map)
 
     

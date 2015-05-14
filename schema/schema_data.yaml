@@ -70,16 +70,9 @@ BEAM_&suffix:         #per ls
     - egev: float
     - intensity1: float
     - intensity2: float
+    - bxintensity1: blob
+    - bxintensity2: blob
    pk: [datatagid]
-
-BX_BEAM_&suffix:  #per ls, per bx
-   columns:
-    - datatagid: int64
-    - bxidx: uint16
-    - bxintensity1: float
-    - bxintensity2: float
-    - iscolliding: bool
-   pk: [datatagid,bxidx]
 
 TRG_&suffix:               #per ls, per trg bit
    columns:
@@ -110,61 +103,37 @@ DEADTIME_&suffix:       #per ls
 HFOC_&suffix:
    columns:
     - datatagid: int64
-    - avgrawlumi: float
+    - rawlumi: float
+    - bxrawlumi: blob
    pk: [ datatagid ]
    
-BX_HFOC_&suffix:       #per ls, per bx
-   columns:
-    - datatagid: int64
-    - bxidx: uint16
-    - bxrawlumi: float
-   pk: [datatagid,bxidx]
-
 HFET_&suffix:
    columns:
     - datatagid: int64
-    - avgrawlumi: float
+    - rawlumi: float
+    - bxrawlumi: blob
    pk: [ datatagid ]
 
-BX_HFET_&suffix:       #per ls, per bx
+BCMF_&suffix:
    columns:
     - datatagid: int64
-    - bxidx: uint16
-    - bxrawlumi: float
-   pk: [datatagid,bxidx]
-
-BCM1F_&suffix:
-   columns:
-    - datatagid: int64
-    - avgrawlumi: float
+    - rawlumi: float
+    - bxrawlumi: blob
     - bkgplusz: float
     - bkgminusz: float
    pk: [ datatagid ]
    
-BX_BCM1F_&suffix:       #per ls, per bx
-   columns:
-    - datatagid: int64
-    - bxidx: uint16
-    - bxrawlumi: float
-   pk: [datatagid,bxidx]
-
 PLT_&suffix: #per ls
    columns:
     - datatagid: int64
-    - avgrawlumi: float
+    - rawlumi: float
+    - bxrawlumi: blob
    pk: [ datatagid ]
    
-BX_PLT_&suffix:          #per ls, per bx
+PXL_&suffix:        #per ls
    columns:
     - datatagid: int64
-    - bxidx: uint16
-    - bxrawlumi: float
-   pk: [datatagid,bxidx]
-
-PIXEL_&suffix:        #per ls
-   columns:
-    - datatagid: int64
-    - avglumi: float
+    - rawlumi: float
    pk: [datatagid]
 
 ##### Result tables #####
@@ -174,65 +143,41 @@ HFOC_RESULT_&suffix:
     - datatagid: int64
     - normtagid: int64
     - avglumi: float
+    - bxlumi: blob
     - recorded: float
     - avgpu: float
    pk: [datatagid,normtagid]
    
-BX_HFOC_RESULT_&suffix:
-   columns:
-    - datatagid: int64
-    - bxidx: uint16
-    - bxlumi: float
-   pk: [datatagid,bxidx]
-
 HFET_RESULT_&suffix:
    columns:
     - datatagid: int64
     - normtagid: int64
     - avglumi: float
+    - bxlumi: blob
     - recorded: float
     - avgpu: float
    pk: [datatagid,normtagid]
    
-BX_HFET_RESULT_&suffix:
-   columns:
-    - datatagid: int64
-    - bxidx: uint16
-    - bxlumi: float
-   pk: [datatagid,bxidx]
-
 PLT_RESULT_&suffix:
    columns:
     - datatagid: int64
     - normtagid: int64
     - avglumi: float
+    - bxlumi: blob
     - recorded: float
     - avgpu: float
    pk: [datatagid,normtagid]
    
-BX_PLT_RESULT_&suffix:
-   columns:
-    - datatagid: int64
-    - bxidx: uint16
-    - bxlumi: float
-   pk: [datatagid,bxidx]
-
-BCM1F_RESULT_&suffix:
+BCMF_RESULT_&suffix:
    columns:
     - datatagid: int64
     - normtagid: int64
     - avglumi: float
+    - bxlumi: blob
     - recorded: float
     - avgpu: float
    pk: [datatagid,normtagid]
    
-BX_BCM1F_RESULT_&suffix:
-   columns:
-    - datatagid: int64
-    - bxidx: uint16
-    - bxlumi: float
-   pk: [datatagid,bxidx]
-
 ONLINE_RESULT_&suffix:
    columns:
     - runnum: uint32
@@ -242,19 +187,12 @@ ONLINE_RESULT_&suffix:
     - beamstatus: string
     - delivered: float
     - recorded: float
+    - bxdelivered: blob
+    - bxrecorded: blob
     - avgpu: float
     - datasource: string
     - normtagid: int64
    pk: [runnum,lsnum]
-
-BX_ONLINE_RESULT_&suffix:
-   columns:
-    - runnum: uint32
-    - lsnum: uint32
-    - bxidx: uint16
-    - delivered: float
-    - recorded: float
-   pk: [runnum,lsnum,bxidx]
 
 OFFLINE_RESULT_&suffix:
    columns:
@@ -265,17 +203,10 @@ OFFLINE_RESULT_&suffix:
     - beamstatus: string
     - delivered: float
     - recorded: float
+    - bxdelivered: blob
+    - bxrecorded: blob
     - avgpu: float
     - datasource: string
     - datatagid: int64
     - normtagid: int64
    pk: [runnum,lsnum]
-   
-BX_OFFLINE_RESULT_&suffix:
-   columns:
-    - runnum: uint32
-    - lsnum: uint32
-    - bxidx: uint16
-    - delivered: float
-    - recorded: float
-   pk: [runnum,lsnum,bxidx]
