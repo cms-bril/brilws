@@ -18,6 +18,15 @@ from sqlalchemy import schema, types
 dbtimefm = 'MM/DD/YY HH24:MI:SS.ff6'
 pydatetimefm = '%m/%d/%y %H:%M:%S.%f'
 
+def getshardid(connection,runnum):
+    q = '''select id from TABLESHARDS where MINRUN<:runnum and MAXRUN>:runnum'''
+    shardid = None
+    with connection.begin() as trans:
+        row = connection.execute(q,{'runnum':runnum}).fetchone()
+        if row:
+            shardid = row['id']
+    return shardid
+
 def unpack64to32(a):
     b = a & 0xffffffff
     c = a >> 32
@@ -38,9 +47,9 @@ def datatagid_of_run(connection,runnum,datatagnameid=0):
     qid = '''select datatagid as datatagid from ids_datatag where datatagnameid=:datatagnameid and runnum=:runnum and lsnum=1'''
     myid = 0
     with connection.begin() as trans:
-        idresult = connection.execute(qid,{'datatagnameid':datatagnameid,'runnum':runnum})
-        for r in idresult:
-            myid = r['datatagid']
+        row = connection.execute(qid,{'datatagnameid':datatagnameid,'runnum':runnum}).fetchone()
+        if row:
+            myid = row['datatagid']
     return myid
 
 def datatagid_of_ls(connection,runnum,datatagnameid=0):
@@ -174,13 +183,13 @@ def transfer_runinfo(connection,destconnection,runnum,trgdataid,destdatatagid):
     with destconnection.begin() as trans:
         r = destconnection.execute(i,allrows)
 
-def transfer_beamintensity(connection,destconnection,runnum,lumidataid,destdatatagidmap):
+def transfer_beamintensity(connection,destconnection,shardid,runnum,lumidataid,destdatatagidmap):
     '''
     prerequisite : ids_datatag has already entries for this run
     '''
+    
     qbeam = '''select l.LUMILSNUM as lsnum,l.BEAMENERGY as beamenergy,l.CMSBXINDEXBLOB as cmsbxindexblob, l.BEAMINTENSITYBLOB_1 as beamintensityblob_1,l.BEAMINTENSITYBLOB_2 as beamintensityblob_2,r.BEAM1_INTENSITY as beam1intensity, r.BEAM2_INTENSITY as beam2intensity from CMS_LUMI_PROD.lumisummaryv2 l, CMS_RUNTIME_LOGGER.LUMI_SECTIONS r where l.LUMILSNUM=r.LUMISECTION and l.RUNNUM=r.RUNNUMBER and l.DATA_ID=:lumidataid'''
-    destTable = Table('BEAM_RUN1', MetaData(), Column('DATATAGID',types.BigInteger),Column('EGEV',types.Float),Column('INTENSITY1',types.Float),Column('INTENSITY2',types.Float),Column('BXIDXBLOB',types.BLOB),Column('BXINTENSITY1BLOB',types.BLOB),Column('BXINTENSITY2BLOB',types.BLOB))
-    #ibeam = '''insert into BEAM_RUN1(DATATAGID,EGEV,INTENSITY1,INTENSITY2,BXIDXBLOB,BXINTENSITY1BLOB,BXINTENSITY2BLOB) values(:datatagid, :egev, :intensity1, :intensity2, :bxidxblob, :bxintensity1blob, :bxintensity2blob)'''
+    destTable = Table('BEAM_%d'%shardid, MetaData(), Column('DATATAGID',types.BigInteger),Column('EGEV',types.Float),Column('INTENSITY1',types.Float),Column('INTENSITY2',types.Float),Column('BXIDXBLOB',types.BLOB),Column('BXINTENSITY1BLOB',types.BLOB),Column('BXINTENSITY2BLOB',types.BLOB))    
     allbeamrows = []
     #print destdatatagidmap
     with connection.begin() as trans:
@@ -202,7 +211,7 @@ def transfer_beamintensity(connection,destconnection,runnum,lumidataid,destdatat
         for r in allbeamrows:
             destconnection.execute( destTable.insert(),DATATAGID=r['datatagid'],EGEV=r['egev'],INTENSITY1=r['intensity1'],INTENSITY2=r['intensity2'],BXIDXBLOB=r['bxidxblob'],BXINTENSITY1BLOB=r['bxintensity1blob'], BXINTENSITY2BLOB=r['bxintensity2blob'] )
             
-def transfer_trgdata(connection,destconnection,runnum,trgdataid,destdatatagidmap):
+def transfer_trgdata(connection,destconnection,shardid,runnum,trgdataid,destdatatagidmap):
     '''
     prerequisite : ids_datatag has already entries for this run
     '''
@@ -211,7 +220,7 @@ def transfer_trgdata(connection,destconnection,runnum,trgdataid,destdatatagidmap
     qprescidx = 'select lumi_section as lsnum, prescale_index as prescidx from CMS_GT_MON.LUMI_SECTIONS where run_number=:runnum and prescale_index!=0'
     
     qpresc = '''select cmslsnum as lsnum, prescaleblob as prescaleblob, trgcountblob as trgcountblob from CMS_LUMI_PROD.lstrg where data_id=:trgdataid'''
-    i = '''insert into TRG_RUN1(DATATAGID,BITID,BITNAMEID,PRESCIDX,PRESCVAL,COUNTS) values(:datatagid, :bitid, :bitnameid, :prescidx, :prescval, :counts)'''
+    i = '''insert into TRG_%d(DATATAGID,BITID,BITNAMEID,PRESCIDX,PRESCVAL,COUNTS) values(:datatagid, :bitid, :bitnameid, :prescidx, :prescval, :counts)'''%shardid
 
     allrows = []
     algobitalias = 128*['False']
@@ -289,7 +298,7 @@ def transfer_trgdata(connection,destconnection,runnum,trgdataid,destdatatagidmap
     with destconnection.begin() as trans:
         r = destconnection.execute(i,allrows)
 
-def transfer_hltdata(connection,destconnection,runnum,hltdataid,destdatatagidmap):
+def transfer_hltdata(connection,destconnection,shardid,runnum,hltdataid,destdatatagidmap):
     '''
     prerequisite : ids_datatag has already entries for this run
     '''
@@ -297,10 +306,10 @@ def transfer_hltdata(connection,destconnection,runnum,hltdataid,destdatatagidmap
     pathnamedf = pd.DataFrame.from_csv('hltpaths.csv',index_col=False)
     pathnamemap = {}
     for i,row in pathnamedf.iterrows():
-        n =row['HLTPATHNAME']
+        n =row['hltpathname']
         if p.match(n) is None:
             continue
-        d = row['HLTPATHID']
+        d = row['hltpathid']
         pathnamemap.setdefault(n,[]).append( int(d) )
     #print pathnamemap
     #print pathnamemap.keys()
@@ -313,7 +322,7 @@ def transfer_hltdata(connection,destconnection,runnum,hltdataid,destdatatagidmap
 
     qpathid = '''select lsnumber as lsnum, pathid as hltpathid from cms_runinfo.hlt_supervisor_triggerpaths where runnumber=:runnum'''
     
-    i = '''insert into HLT_RUN1(DATATAGID,HLTPATHID,PRESCIDX,PRESCVAL,L1PASS,HLTACCEPT) values(:datatagid, :hltpathid, :prescidx, :prescval, :l1pass, :hltaccept)'''
+    i = '''insert into HLT_%d(DATATAGID,HLTPATHID,PRESCIDX,PRESCVAL,L1PASS,HLTACCEPT) values(:datatagid, :hltpathid, :prescidx, :prescval, :l1pass, :hltaccept)'''%shardid
     
     allrows = []
     
@@ -405,13 +414,12 @@ def transfer_hltdata(connection,destconnection,runnum,hltdataid,destdatatagidmap
 
 
 
-def transfer_lumidata(connection,destconnection,runnum,lumidataid,destdatatagidmap):
+def transfer_lumidata(connection,destconnection,shardid,runnum,lumidataid,destdatatagidmap):
     '''
     prerequisite : ids_datatag has already entries for this run
     '''
     qlumioc = '''select LUMILSNUM as lsnum, INSTLUMI as rawlumi, BXLUMIVALUE_OCC1 as bxrawlumiblob from CMS_LUMI_PROD.LUMISUMMARYV2 where DATA_ID=:lumidataid'''
-    #ilumi = '''insert into HFOC_RUN1(DATATAGID,RAWLUMI,BXRAWLUMIBLOB) values(:datatagid, :avgrawlumi, :bxrawlumiblob)'''
-    destTable = Table('HFOC_RUN1', MetaData(), Column('DATATAGID',types.BigInteger), Column('RAWLUMI',types.Float), Column('BXRAWLUMIBLOB',types.BLOB ) )
+    destTable = Table('HFOC_%d'%shardid, MetaData(), Column('DATATAGID',types.BigInteger), Column('RAWLUMI',types.Float), Column('BXRAWLUMIBLOB',types.BLOB ) )
     allrows = []
     with connection.begin() as trans:
         lumiresult = connection.execute(qlumioc,{'lumidataid':lumidataid})
@@ -426,13 +434,13 @@ def transfer_lumidata(connection,destconnection,runnum,lumidataid,destdatatagidm
         for r in allrows:
             destconnection.execute( destTable.insert(),DATATAGID=r['datatagid'],RAWLUMI=r['rawlumi'],BXRAWLUMIBLOB=r['bxrawlumiblob'] )
             
-def transfer_deadtime(connection,destconnection,runnum,trgdataid,destdatatagidmap):
+def transfer_deadtime(connection,destconnection,shardid,runnum,trgdataid,destdatatagidmap):
     '''
     prerequisite : ids_datatag has already entries for this run
     '''
     q = '''select CMSLSNUM as lsnum,DEADFRAC as deadfrac from CMS_LUMI_PROD.LSTRG where DATA_ID=:trgdataid'''
 
-    i = '''insert into DEADTIME_RUN1(DATATAGID,DEADTIMEFRAC) values(:datatagid,:deadtimefrac)'''
+    i = '''insert into DEADTIME_%d(DATATAGID,DEADTIMEFRAC) values(:datatagid,:deadtimefrac)'''%shardid
     
     with connection.begin() as trans:
         allrows = []
@@ -448,34 +456,45 @@ def transfer_deadtime(connection,destconnection,runnum,trgdataid,destdatatagidma
 if __name__=='__main__':
     logging.basicConfig(level=logging.INFO,format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
     
-    connectstr = sys.argv[1]
     parser = SafeConfigParser()
     parser.read('readdb2.ini')
-    passwd = parser.get(connectstr,'pwd')
-    idx = connectstr.find('@')
-    connecturl = connectstr[:idx]+':'+passwd.decode('base64')+connectstr[idx:]
-    engine = create_engine(connecturl)
-    connection = engine.connect().execution_options(stream_results=True)
+    
+    runinfoconnectstr = 'oracle://cms_runinfo_r@cms_orcon_adg'
+    runinfopasswd = parser.get(runinfoconnectstr,'pwd')
+    idx = runinfoconnectstr.find('@')
+    runinfoconnecturl = runinfoconnectstr[:idx]+':'+runinfopasswd.decode('base64')+runinfoconnectstr[idx:]
+    runinfoengine = create_engine(runinfoconnecturl)
+    runinfoconnection = runinfoengine.connect().execution_options(stream_results=True)
+
+
+    trgconnectstr = 'oracle://cms_trg_r@cms_orcon_adg'
+    trgpasswd = parser.get(trgconnectstr,'pwd')
+    idx = trgconnectstr.find('@')
+    trgconnecturl = trgconnectstr[:idx]+':'+trgpasswd.decode('base64')+trgconnectstr[idx:]
+    trgengine = create_engine(trgconnecturl)
+    trgconnection = trgengine.connect().execution_options(stream_results=True)
+    
     desturl = 'sqlite:///test.db'
     destengine = create_engine(desturl)
-    destconnection = destengine.connect()
-
-    ids = [ [165523,279,278,269],[193091,1649,1477,1391] ]
-    #run = 165523 #193091
-    #lumidataid = 279 #1649
-    #trgdataid = 278  #1477
-    #hltdataid = 269  #1391
+    destconnection = destengine.connect()    
+    
+    ids = [ [165523,279,278,269],[193091,1649,1477,1391] ]    
     for [run,lumidataid,trgdataid,hltdataid] in ids:
+        shardid = getshardid(destconnection,run)
+        if not shardid:
+            print 'cannot find shard for run %d'%run
+            continue
+        print 'shardid: %d'%shardid
         print 'processing %d,%d,%d,%d'%(run,lumidataid,trgdataid,hltdataid)
-        #transfertimeinfo(connection,destconnection,run)
-        #transfer_ids_datatag(connection,destconnection,run,lumidataid)
+        transfertimeinfo(runinfoconnection,destconnection,run)
+        transfer_ids_datatag(runinfoconnection,destconnection,run,lumidataid)
         destdatatagid = datatagid_of_run(destconnection,run,datatagnameid=0)
         destdatatagid_map = datatagid_of_ls(destconnection,run,datatagnameid=0)
-        #transfer_runinfo(connection,destconnection,run,trgdataid,destdatatagid)
-        #transfer_beamintensity(connection,destconnection,run,lumidataid,destdatatagid_map)
-        #transfer_trgdata(connection,destconnection,run,trgdataid,destdatatagid_map)
-        #transfer_hltdata(connection,destconnection,run,hltdataid,destdatatagid_map)
-        transfer_lumidata(connection,destconnection,run,lumidataid,destdatatagid_map)
-        #transfer_deadtime(connection,destconnection,run,trgdataid,destdatatagid_map)
+        transfer_runinfo(runinfoconnection,destconnection,run,trgdataid,destdatatagid)
+        transfer_beamintensity(runinfoconnection,destconnection,shardid,run,lumidataid,destdatatagid_map)
+        transfer_trgdata(trgconnection,destconnection,shardid,run,trgdataid,destdatatagid_map)
+        transfer_hltdata(trgconnection,destconnection,shardid,run,hltdataid,destdatatagid_map)
+        transfer_lumidata(runinfoconnection,destconnection,shardid,run,lumidataid,destdatatagid_map)
+        transfer_deadtime(runinfoconnection,destconnection,shardid,run,trgdataid,destdatatagid_map)
 
     

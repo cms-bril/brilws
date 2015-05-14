@@ -11,8 +11,9 @@ BEAM_&suffix:         #per ls
     - egev: float
     - intensity1: float
     - intensity2: float
-    - bxintensity1: blob
-    - bxintensity2: blob
+    - bxidxblob: blob
+    - bxintensity1blob: blob
+    - bxintensity2blob: blob
    pk: [datatagid]
 
 TRG_&suffix:               #per ls, per trg bit
@@ -45,21 +46,21 @@ HFOC_&suffix:
    columns:
     - datatagid: int64
     - rawlumi: float
-    - bxrawlumi: blob
+    - bxrawlumiblob: blob
    pk: [ datatagid ]
    
 HFET_&suffix:
    columns:
     - datatagid: int64
     - rawlumi: float
-    - bxrawlumi: blob
+    - bxrawlumiblob: blob
    pk: [ datatagid ]
 
 BCMF_&suffix:
    columns:
     - datatagid: int64
     - rawlumi: float
-    - bxrawlumi: blob
+    - bxrawlumiblob: blob
     - bkgplusz: float
     - bkgminusz: float
    pk: [ datatagid ]
@@ -68,7 +69,7 @@ PLT_&suffix: #per ls
    columns:
     - datatagid: int64
     - rawlumi: float
-    - bxrawlumi: blob
+    - bxrawlumiblob: blob
    pk: [ datatagid ]
    
 PXL_&suffix:        #per ls
@@ -84,7 +85,7 @@ HFOC_RESULT_&suffix:
     - datatagid: int64
     - normtagid: int64
     - avglumi: float
-    - bxlumi: blob
+    - bxlumiblob: blob
     - recorded: float
     - avgpu: float
    pk: [datatagid,normtagid]
@@ -94,7 +95,7 @@ HFET_RESULT_&suffix:
     - datatagid: int64
     - normtagid: int64
     - avglumi: float
-    - bxlumi: blob
+    - bxlumiblob: blob
     - recorded: float
     - avgpu: float
    pk: [datatagid,normtagid]
@@ -104,7 +105,7 @@ PLT_RESULT_&suffix:
     - datatagid: int64
     - normtagid: int64
     - avglumi: float
-    - bxlumi: blob
+    - bxlumiblob: blob
     - recorded: float
     - avgpu: float
    pk: [datatagid,normtagid]
@@ -114,7 +115,7 @@ BCMF_RESULT_&suffix:
     - datatagid: int64
     - normtagid: int64
     - avglumi: float
-    - bxlumi: blob
+    - bxlumiblob: blob
     - recorded: float
     - avgpu: float
    pk: [datatagid,normtagid]
@@ -128,8 +129,8 @@ ONLINE_RESULT_&suffix:
     - beamstatus: string
     - delivered: float
     - recorded: float
-    - bxdelivered: blob
-    - bxrecorded: blob
+    - bxdeliveredblob: blob
+    - bxrecordedblob: blob
     - avgpu: float
     - datasource: string
     - normtagid: int64
@@ -144,8 +145,8 @@ OFFLINE_RESULT_&suffix:
     - beamstatus: string
     - delivered: float
     - recorded: float
-    - bxdelivered: blob
-    - bxrecorded: blob
+    - bxdeliveredblob: blob
+    - bxrecordedblob: blob
     - avgpu: float
     - datasource: string
     - datatagid: int64
