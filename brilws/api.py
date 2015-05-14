@@ -1251,12 +1251,15 @@ def max_datatagname(dbengine):
         result = ( row['datatagname'],row['datatagnameid'] )
     return result
 
-def datatagnameid(dbengine,datatagname):
+def datatagnameid(dbengine,datatagname,schemaname=''):
     '''
     get datatagnameid by name
     input: datatagname. 
     output: datatagnameid
     '''
+    basetablename = tablename = 'DATATAGS'
+    if schemaname:
+        tablename = '.'.join([schemaname,basetablename])
     result = None
     q = '''select DATATAGNAMEID as datatagnameid from DATATAGS where DATATAGNAME=:datatagname limit 1'''
     qresult = pd.read_sql_query(q,dbengine,params={'datatagname':datatagname})
@@ -1270,8 +1273,9 @@ def max_datatagOfRun(engine,runlist,schemaname=''):
     output: {run:datatagid}
     '''
     result = {}
-    basetablename = 'RUNINFO'
-    tablename = '.'.join([schemaname,basetablename])
+    basetablename = tablename = 'RUNINFO'
+    if schemaname:
+        tablename = '.'.join([schemaname,basetablename])
     runliststr = ','.join(runlist)
     q = '''select RUNNUM as runnum, max(DATATAGID) as datatagid from %s where RUNNUM in (%s) limit 1'''%(tablename,runliststr)
     qresult = pd.read_sql_query(q,engine,params={})
@@ -1335,16 +1339,28 @@ def rundatatagIter(engine,datatagnameid,schemaname='',runmin=None,runmax=None,fi
     #print q
     return pd.read_sql_query(q,engine,chunksize=chunksize,params=binddict,index_col='datatagid')
             
-def datatagIter(engine,datatagnameid,schemaname='',runmin=None,runmax=None,fillmin=None,tssecmin=None,tssecmax=None,fillmax=None,beamstatus=None,amodetag=None,targetegev=None,runlsselect=None,chunksize=9999,slim=False):
+def datatagIter(engine,datatagnameid,schemaname='',runmin=None,runmax=None,fillmin=None,tssecmin=None,tssecmax=None,fillmax=None,beamstatus=None,amodetag=None,targetegev=None,runlsselect=None,chunksize=9999,fields=[]):
     '''
     output: dataframe iterator, index_col='datatagid'
-        slim = False: [datatagid,fillnum,runnum,lsnum,timestampsec,beamstatus,amodetag,targetegev]
-        slim = True: [datatagid,fillnum,runnum,lsnum,timestampsec]     
     '''
-    if not slim:
-        q = '''select FILLNUM as fillnum, RUNNUM as runnum, LSNUM as lsnum, TIMESTAMPSEC as timestampsec, BEAMSTATUS as beamstatus, AMODETAG as amodetag, TARGETEGEV as targetegev, max(DATATAGID) as datatagid from IDS_DATATAG where DATATAGNAMEID<=:datatagnameid'''
-    else:
-        q = '''select FILLNUM as fillnum, RUNNUM as runnum, LSNUM as lsnum, TIMESTAMPSEC as timestampsec,max(DATATAGID) as datatagid from IDS_DATATAG where DATATAGNAMEID<=:datatagnameid'''
+    
+    basetablename = 'IDS_DATATAG'
+    tablename = basetablename
+    if schemaname:
+        tablename = '.'.join([schemaname,basetablename])
+        
+    q = '''select max(DATATAGID) as datatagid'''
+    subq = []
+    if fields:
+        for f in fields:            
+            subq.append('''%s as %s'''%(f.upper(),f.lower()))
+    if subq:
+        q = q+','+','.join(subq)
+    q = q+''' from %s where DATATAGNAMEID<=:datatagnameid'''%(tablename)
+    #if not slim:
+    #    q = '''select FILLNUM as fillnum, RUNNUM as runnum, LSNUM as lsnum, TIMESTAMPSEC as timestampsec, BEAMSTATUS as beamstatus, AMODETAG as amodetag, TARGETEGEV as targetegev, max(DATATAGID) as datatagid from IDS_DATATAG where DATATAGNAMEID<=:datatagnameid'''
+    #else:
+    #    q = '''select FILLNUM as fillnum, RUNNUM as runnum, LSNUM as lsnum, TIMESTAMPSEC as timestampsec,max(DATATAGID) as datatagid from IDS_DATATAG where DATATAGNAMEID<=:datatagnameid'''
         
     qCondition = ''
     qPieces = []
@@ -1550,28 +1566,32 @@ def beamInfoIter(engine,datatagids,suffix,schemaname='',chunksize=9999,fields=[]
 
     return result
 
-def lumiInfoIter(engine,datatagids,datasource,suffix,schemaname='',chunksize=9999,withBX=False):
+def lumiInfoIter(engine,datatagids,datasource,suffix,schemaname='',chunksize=9999,fields=[]):
     '''
     input: datatagids []
-    output: dataframe iterator 
-            [datatagid,avgrawlumi]
-            [datatagid,bxidx,bxrawlumi]
+    output: dataframe iterator            
     '''     
     basetablename = datasource.upper()
     tablename = '_'.join([basetablename,suffix]) 
-    bxtablename = 'BX_'+tablename
     if schemaname:
         tablename = '.'.join([schemaname,tablename])
-        bxtablenme = '.'.join([schemaname,bxtablename])
         
     idstrings = ','.join([str(x) for x in datatagids])
-    
-    q = '''select DATATAGID as datatagid, AVGRAWLUMI as avgrawlumi from %s where DATATAGID in (%s)'''%(tablename,idstrings)
-    if withBX:
-        q = '''select DATATAGID as datatagid, BXIDX as bxidx, BXRAWLUMI as bxrawlumi from %s where DATATAGID in (%s)'''%(bxtablename,idstrings)
-    result = pd.read_sql_query(q,engine,chunksize=chunksize,params={},index_col='datatagid')
-    return result
-
+    q = '''select DATATAGID as datatagid'''
+    subq = []
+    if fields:
+        for f in fields:            
+            subq.append('''%s as %s'''%(f.upper(),f.lower()))
+    if subq:
+        q = q+','+','.join(subq)
+    if len(datatagids)==1:
+        q = q+''' from %s where DATATAGID=:datatagid'''%(tablename)
+        result = pd.read_sql_query(q,engine,chunksize=1,params={'datatagid':datatagids[0]},index_col='datatagid')
+        return result
+    else:
+        q = q+''' from %s where DATATAGID in (%s)'''%(tablename,idstrings)
+        result = pd.read_sql_query(q,engine,chunksize=chunksize,params={},index_col='datatagid')
+        return result
 def deadtimeIter(engine,datatagids,suffix,schemaname='',chunksize=9999):
     '''
     input: datatagids []

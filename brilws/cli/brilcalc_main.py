@@ -79,19 +79,17 @@ def brilcalc_main():
           csize = lumiargs.chunksize
           withBX = lumiargs.withBX          
           byls = lumiargs.byls
-          bxcsize = csize
           totable = lumiargs.totable
           fh = None
           ptable = None
           csvwriter = None
 
-          header = summaryheader = ['fill','run','time','nls','ncms','delivered','recorded']
+          header = ['fill','run','time','nls','ncms','delivered','recorded']
           footer = ['nfill','nrun','nls','ncms','delivered','recorded']
           bylsheader = ['fill','run','ls','time','cms','delivered','recorded','avgpu','source']
-          xingheader = ['fill','run','ls','bx','delivered','recorded']
+          xingheader = ['fill','run','ls','bxlumi']
 
           if withBX:
-              bxcsize = csize*3564
               header = xingheader
           elif byls:
               header = bylsheader
@@ -100,7 +98,10 @@ def brilcalc_main():
               fh = lumiargs.ofilehandle
               print >> fh, '#'+','.join(header)
               csvwriter = csv.writer(fh)
-
+          else:
+              ptable = display.create_table(header,header=True)
+              ftable = display.create_table(footer)
+              
           datatagname = lumiargs.datatagname
           datatagnameid = 0
           if not datatagname:
@@ -114,7 +115,7 @@ def brilcalc_main():
             
           print '#Data tag : ',datatagname
           nchunk = 0
-          it = api.datatagIter(dbengine,datatagnameid,fillmin=lumiargs.fillmin,fillmax=lumiargs.fillmax,runmin=lumiargs.runmin,runmax=lumiargs.runmax,amodetag=lumiargs.amodetag,targetegev=lumiargs.egev,beamstatus=lumiargs.beamstatus,tssecmin=lumiargs.tssecmin,tssecmax=lumiargs.tssecmax,runlsselect=lumiargs.runlsSeries,chunksize=csize,slim=True)
+          it = api.datatagIter(dbengine,datatagnameid,fillmin=lumiargs.fillmin,fillmax=lumiargs.fillmax,runmin=lumiargs.runmin,runmax=lumiargs.runmax,amodetag=lumiargs.amodetag,targetegev=lumiargs.egev,beamstatus=lumiargs.beamstatus,tssecmin=lumiargs.tssecmin,tssecmax=lumiargs.tssecmax,runlsselect=lumiargs.runlsSeries,chunksize=csize,fields=['fillnum','runnum','lsnum','timestampsec'])
           if not it: exit(1)
 
           tot_nfill = 0
@@ -125,29 +126,33 @@ def brilcalc_main():
           tot_recorded = 0
           runtot = {} #{run:{'fill':fill,'time':time,'nls':nls,'':ncms,'delivered':delivered,'recorded':recorded}}
           allfills = []
-          
+          lumifields = ['rawlumi']
+          if withBX:
+              lumifields = ['bxrawlumiblob']
+              
           for idchunk in it:              
               dataids = idchunk.index
               
-              for lumichunk in api.lumiInfoIter(dbengine,dataids,'HFOC','RUN1',chunksize=csize,withBX=withBX):
+              for lumichunk in api.lumiInfoIter(dbengine,dataids,'HFOC','RUN1',chunksize=csize,fields=lumifields):
                   finalchunk = idchunk.join(lumichunk,how='inner',on=None,lsuffix='l',rsuffix='r',sort=False)
-                  if byls or withBX:
-                      if totable:
-                          if not nchunk:
-                              ptable = display.create_table(header,header=True)
-                          else:
-                              ptable = display.create_table(header,header=False)
+                  if byls or withBX:                      
                       for datatagid,row in finalchunk.iterrows():
                           timestampsec = row['timestampsec']
                           dtime = datetime.fromtimestamp(int(timestampsec)).strftime(params._datetimefm)
                           cms = 1
                           if byls:
-                              display.add_row( ['%d'%row['fillnum'],'%d'%row['runnum'],'%d'%row['lsnum'],dtime,cms,'%.4e'%(row['avgrawlumi']),'%.4e'%(row['avgrawlumi']),'%.4e'%(row['avgrawlumi']*0.5),'HFOC'] , fh=fh, csvwriter=csvwriter, ptable=ptable)
+                              display.add_row( ['%d'%row['fillnum'],'%d'%row['runnum'],'%d'%row['lsnum'],dtime,cms,'%.4e'%(row['rawlumi']),'%.4e'%(row['rawlumi']),'%.4e'%(row['rawlumi']*0.5),'HFOC'] , fh=fh, csvwriter=csvwriter, ptable=ptable)
                           else:
-                              display.add_row( ['%d'%row['fillnum'],'%d'%row['runnum'],'%d'%row['lsnum'],'%d'%row['bxidx'],'%.6e'%(row['bxrawlumi']),'%.6e'%(row['bxrawlumi'])] , fh=fh, csvwriter=csvwriter, ptable=ptable)
-                      display.show_table(ptable,lumiargs.outputstyle)                              
-                      if ptable: del ptable
-                      
+                              bxrawlumiblob = row['bxrawlumiblob']                              
+                              if not bxrawlumiblob: continue
+                              bxrawlumiarray = np.array(api.unpackBlobtoArray(bxrawlumiblob,'f'))
+                              
+                              fmt = '%.6e'
+                              if fh:                                  
+                                  bxrawlumi_str = ' '.join([fmt%(x) for x in bxrawlumiarray])  
+                              else:
+                                  bxrawlumi_str = ' ... '.join([fmt%(bxrawlumiarray[0]),fmt%(bxrawlumiarray[-1])])
+                              display.add_row( ['%d'%row['fillnum'],'%d'%row['runnum'],'%d'%row['lsnum'],bxrawlumi_str] , fh=fh, csvwriter=csvwriter, ptable=ptable)
                   if not withBX:   
                       finalchunk.reset_index()
                       rungrouped = finalchunk.groupby('runnum', as_index=False)    
@@ -165,7 +170,7 @@ def brilcalc_main():
                               runtot[run]['recorded'] = 0.
                               allfills.append(fillnum)                           
                           runtot_countls =  items['lsnum'].count()
-                          runtot_avgrawlumi = items['avgrawlumi'].sum()
+                          runtot_avgrawlumi = items['rawlumi'].sum()
                           runtot[run]['nls'] = runtot[run]['nls']+runtot_countls
                           tot_nls = tot_nls +  runtot_countls
                           runtot[run]['ncms'] = runtot[run]['ncms']+runtot_countls
@@ -183,16 +188,14 @@ def brilcalc_main():
           tot_nrun = len(runtot.keys())
           
           if not byls and not withBX: #run table
-              if totable:
-                  ptable = display.create_table(header)
               for run in sorted(runtot):
                   display.add_row(  [runtot[run]['fill'],run,runtot[run]['time'],runtot[run]['nls'],runtot[run]['ncms'],'%.3e'%(runtot[run]['delivered']),'%.3e'%(runtot[run]['recorded'])] , fh=fh, csvwriter=csvwriter, ptable=ptable)
-              display.show_table(ptable,lumiargs.outputstyle)    
+          # show main table        
+          display.show_table(ptable,lumiargs.outputstyle)    
 
           # common footer
           if not withBX:
               if totable:
-                  ftable = display.create_table(footer)
                   display.add_row( [ tot_nfill,tot_nrun,tot_nls,tot_ncms,'%.3e'%(tot_delivered),'%.3e'%(tot_recorded) ], fh=None, csvwriter=None, ptable=ftable)
                   print "#Total: "
                   display.show_table(ftable,lumiargs.outputstyle);                  
@@ -249,7 +252,7 @@ def brilcalc_main():
           
           nchunk = 0
 
-          it = api.datatagIter(dbengine,datatagnameid,fillmin=beamargs.fillmin,fillmax=beamargs.fillmax,runmin=beamargs.runmin,runmax=beamargs.runmax,amodetag=beamargs.amodetag,targetegev=beamargs.egev,beamstatus=beamargs.beamstatus,tssecmin=beamargs.tssecmin,tssecmax=beamargs.tssecmax,runlsselect=beamargs.runlsSeries ,chunksize=csize,slim=False )
+          it = api.datatagIter(dbengine,datatagnameid,fillmin=beamargs.fillmin,fillmax=beamargs.fillmax,runmin=beamargs.runmin,runmax=beamargs.runmax,amodetag=beamargs.amodetag,targetegev=beamargs.egev,beamstatus=beamargs.beamstatus,tssecmin=beamargs.tssecmin,tssecmax=beamargs.tssecmax,runlsselect=beamargs.runlsSeries ,chunksize=csize,fields=['fillnum','runnum','lsnum','timestampsec','beamstatus','amodetag'])
           fields = ['egev','intensity1','intensity2']
           if withBX:
               fields = ['bxidxblob','bxintensity1blob','bxintensity2blob']
@@ -259,11 +262,6 @@ def brilcalc_main():
               finalchunk = None
               for beaminfochunk in api.beamInfoIter(dbengine,dataids,'RUN1',chunksize=csize,fields=fields):
                   finalchunk = idchunk.join(beaminfochunk,how='inner',on=None,lsuffix='l',rsuffix='r',sort=False)
-                  #if totable:
-                      #if not nchunk:
-                      #    ptable = display.create_table(header,header=True)
-                      #else:
-                      #    ptable = display.create_table(header,header=False)
                   for datatagid,row in finalchunk.iterrows():
                       if not withBX:
                           timestampsec = row['timestampsec']
@@ -279,13 +277,14 @@ def brilcalc_main():
                           intensity2array = np.array(api.unpackBlobtoArray(bxintensity2blob,'f'))
                           if len(bxidxarray)!=len(intensity1array)!=len(intensity2array): continue
                           perbxresult = np.array( [bxidxarray,intensity1array,intensity2array]).T
-                          perbxresult_str = ' '.join(['%d %.6e %.6e'%(idx,bi1,bi2) for [idx,bi1,bi2] in perbxresult if bi1!=0. and bi2!=0.])
-                          perbxresult_str_first ='%d %.6e %.6e'%(perbxresult[0][0],perbxresult[0][1],perbxresult[0][2]) 
-                          perbxresult_str_last ='%d %.6e %.6e'%(perbxresult[-1][0],perbxresult[-1][1],perbxresult[-1][2]) 
-                          perbxresult_str_short = perbxresult_str_first+' ... '+perbxresult_str_last
+                          fmt = '%d %.6e %.6e'
                           if fh:
+                              perbxresult_str = ' '.join([fmt%(idx,bi1,bi2) for [idx,bi1,bi2] in perbxresult if bi1!=0. and bi2!=0.])
                               display.add_row( [ row['fillnum'],row['runnum'],row['lsnum'],perbxresult_str], fh=fh, csvwriter=csvwriter, ptable=ptable)
                           else:
+                              perbxresult_str_first = fmt%(perbxresult[0][0],perbxresult[0][1],perbxresult[0][2]) 
+                              perbxresult_str_last = fmt%(perbxresult[-1][0],perbxresult[-1][1],perbxresult[-1][2]) 
+                              perbxresult_str_short = perbxresult_str_first+' ... '+perbxresult_str_last
                               display.add_row( [ row['fillnum'],row['runnum'],row['lsnum'],perbxresult_str_short], fh=fh, csvwriter=csvwriter, ptable=ptable)
 
                   del finalchunk  
@@ -321,13 +320,13 @@ def brilcalc_main():
           header = ['fill','run','ls','time','deadfrac']          
           bybitheader = ['fill','run','ls','id','name','pidx','pval','counts']
           if bybit:
-              csize = csize*200
               header = bybitheader
           if not totable:
               fh = trgargs.ofilehandle
               print >> fh, '#'+','.join(header)
               csvwriter = csv.writer(fh)
-
+          else:
+              ptable = display.create_table(header,header=True)
           datatagname = trgargs.datatagname
           datatagnameid = 0
           if not datatagname:
@@ -341,45 +340,33 @@ def brilcalc_main():
           print 'data tag : ',datatagname
           
           nchunk  = 0
-          it = api.datatagIter(dbengine,datatagnameid,fillmin=trgargs.fillmin,fillmax=trgargs.fillmax,runmin=trgargs.runmin,runmax=trgargs.runmax,amodetag=trgargs.amodetag,targetegev=trgargs.egev,beamstatus=trgargs.beamstatus,tssecmin=trgargs.tssecmin,tssecmax=trgargs.tssecmax,runlsselect=trgargs.runlsSeries ,chunksize=csize, slim=True)
+          it = api.datatagIter(dbengine,datatagnameid,fillmin=trgargs.fillmin,fillmax=trgargs.fillmax,runmin=trgargs.runmin,runmax=trgargs.runmax,amodetag=trgargs.amodetag,targetegev=trgargs.egev,beamstatus=trgargs.beamstatus,tssecmin=trgargs.tssecmin,tssecmax=trgargs.tssecmax,runlsselect=trgargs.runlsSeries ,chunksize=csize,fields=['fillnum','runnum','lsnum','timestampsec'])
           if not it: exit(1)
           for idchunk in it:              
               dataids = idchunk.index
               if not bybit:
                   for deadtimechunk in api.deadtimeIter(dbengine,dataids,'RUN1',chunksize=csize):
-                      finalchunk = idchunk.join(deadtimechunk,how='inner',on=None,lsuffix='l',rsuffix='r',sort=False)
-                      if totable:
-                          if not nchunk:
-                              ptable = display.create_table(header,header=True)
-                          else:
-                              ptable = display.create_table(header,header=False)
+                      finalchunk = idchunk.join(deadtimechunk,how='inner',on=None,lsuffix='l',rsuffix='r',sort=False)                      
                       for datatagid,row in finalchunk.iterrows():
                           timestampsec = row['timestampsec']
                           dtime = datetime.fromtimestamp(int(timestampsec)).strftime(params._datetimefm)                          
                           display.add_row( ['%d'%row['fillnum'],'%d'%row['runnum'],'%d'%row['lsnum'],dtime,'%.4f'%(row['deadtimefrac']) ] , fh=fh, csvwriter=csvwriter, ptable=ptable )
                       del finalchunk
                       del deadtimechunk
-                      display.show_table(ptable,trgargs.outputstyle)
-                      if ptable: del ptable 
               else:
                   for trginfochunk in api.trgInfoIter(dbengine,dataids,'RUN1',schemaname='',bitnamepattern=trgargs.name,chunksize=csize*192):
-                      finalchunk = idchunk.join(trginfochunk,how='inner',on=None,lsuffix='l',rsuffix='r',sort=False)
-                      if totable:
-                          if not nchunk:
-                              ptable = display.create_table(header,header=True)
-                          else:
-                              ptable = display.create_table(header,header=False)
+                      finalchunk = idchunk.join(trginfochunk,how='inner',on=None,lsuffix='l',rsuffix='r',sort=False)                      
                       for datatagid,row in finalchunk.iterrows():
                           display.add_row( [ '%d'%row['fillnum'],'%d'%row['runnum'],'%d'%row['lsnum'],'%d'%row['bitid'],row['bitname'],'%d'%row['prescidx'],'%d'%row['presc'],'%d'%row['counts'] ], fh=fh, csvwriter=csvwriter, ptable=ptable )
                       del finalchunk
                       del trginfochunk
                       ptable.max_width['bitname']=20
                       ptable.align='l'
-                      display.show_table(ptable,trgargs.outputstyle)
-                      if ptable: del ptable 
               del idchunk
               nchunk = nchunk + 1
-              
+          if ptable:
+              display.show_table(ptable,trgargs.outputstyle)
+              del ptable     
           if fh and fh is not sys.stdout: fh.close()
           
       elif args['<command>'] == 'hlt':
@@ -408,7 +395,8 @@ def brilcalc_main():
               fh = hltargs.ofilehandle
               print >> fh, '#'+','.join(header)
               csvwriter = csv.writer(fh)
-              
+          else:
+              ptable = display.create_table(header,header=True)
           datatagname = hltargs.datatagname
           datatagnameid = 0
           if not datatagname:
@@ -422,44 +410,33 @@ def brilcalc_main():
           print 'data tag : ',datatagname
           
           nchunk  = 0
-
           it = None
           if hltargs.pathinfo:
-              it = api.datatagIter(dbengine,datatagnameid,fillmin=hltargs.fillmin,fillmax=hltargs.fillmax,runmin=hltargs.runmin,runmax=hltargs.runmax,amodetag=hltargs.amodetag,targetegev=hltargs.egev,beamstatus=hltargs.beamstatus,tssecmin=hltargs.tssecmin,tssecmax=hltargs.tssecmax,runlsselect=hltargs.runlsSeries ,chunksize=csize, slim=True)
+              it = api.datatagIter(dbengine,datatagnameid,fillmin=hltargs.fillmin,fillmax=hltargs.fillmax,runmin=hltargs.runmin,runmax=hltargs.runmax,amodetag=hltargs.amodetag,targetegev=hltargs.egev,beamstatus=hltargs.beamstatus,tssecmin=hltargs.tssecmin,tssecmax=hltargs.tssecmax,runlsselect=hltargs.runlsSeries,chunksize=csize,fields=['fillnum','runnum','lsnum','timestampsec'])
           else:
               it = api.rundatatagIter(dbengine,datatagnameid,fillmin=hltargs.fillmin,fillmax=hltargs.fillmax,runmin=hltargs.runmin,runmax=hltargs.runmax,amodetag=hltargs.amodetag,targetegev=hltargs.egev,tssecmin=hltargs.tssecmin,tssecmax=hltargs.tssecmax,runlsselect=hltargs.runlsSeries ,chunksize=csize)
           if not it: exit(1)
-
           
           for idchunk in it:              
               if hltargs.pathinfo:
                   dataids = idchunk.index
                   for hltchunk in api.hltInfoIter(dbengine,dataids,'RUN1',schemaname='',hltpathnamepattern=hltargs.name,chunksize=csize):
                       finalchunk = idchunk.join(hltchunk,how='inner',on=None,lsuffix='l',rsuffix='r',sort=False)
-                      if totable:
-                          if not nchunk:
-                              ptable = display.create_table(header,header=True)
-                          else:
-                              ptable = display.create_table(header,header=False)
+                      
                       for datatagid, row in finalchunk.iterrows():
                           display.add_row( [row['fillnum'],row['runnum'],row['lsnum'],row['hltpathname'],row['prescidx'],row['prescval'],row['l1pass'],row['hltaccept'] ],fh=fh, csvwriter=csvwriter, ptable=ptable )
                       nchunk = nchunk+1
                       del finalchunk
-                      if ptable:
-                          ptable.max_width = 80
-                          ptable.max_width['hltpath']=40
-                          ptable.align='l'
-                          display.show_table(ptable,hltargs.outputstyle)
-                          del ptable
+                  if ptable:
+                      ptable.max_width = 80
+                      ptable.max_width['hltpath']=40
+                      ptable.align='l'
+
               else:
                   rundataids = idchunk.index              
                   for runchunk in api.runinfoIter(dbengine,rundataids,chunksize=csize,fields=['hltconfigid','hltkey']):
                       finalchunk = idchunk.join(runchunk,how='inner',on=None,lsuffix='l',rsuffix='r',sort=False)
-                      if totable:
-                          if not nchunk:
-                              ptable = display.create_table(header,header=True)
-                          else:
-                              ptable = display.create_table(header,header=False)
+                      
                       for rundatatagid,row in finalchunk.iterrows():
                           fill = row['fillnum']
                           run = row['runnum']
@@ -485,8 +462,10 @@ def brilcalc_main():
                           ptable.max_width['hltpath']=60
                           ptable.max_width['l1seed']=20
                           ptable.align='l'
-                          display.show_table(ptable,hltargs.outputstyle)
-                      
+
+          if ptable:
+              display.show_table(ptable,hltargs.outputstyle)
+              del ptable                 
           if fh and fh is not sys.stdout: fh.close()
           
       elif args['<command>'] == 'bkg':
