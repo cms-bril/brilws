@@ -21,9 +21,9 @@ if __name__=='__main__':
     destengine = create_engine(destdbstr)
     trgmap = api.TrgBitMap()
     trgmapdf = trgmap.from_sourcedb(engine)
-    #trgmap.to_brildb(destengine,trgmapdf)
+    trgmap.to_brildb(destengine,trgmapdf)
     #print trgmapdf
-    trgmap.to_csv(outfilename,trgmapdf)
+    #trgmap.to_csv(outfilename,trgmapdf)
     
     #datatablemap = api.DatatableMap()
     #datatablemapdf = datatablemap.from_csv('../data/datatables.csv')
