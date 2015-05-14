@@ -230,10 +230,10 @@ def create_tables_sql(outfilebase,schema_def,suffix=None,dbflavor='sqlite',write
     else:
         columntypemap = sqlitetypemap
     for tname in tables:       
-        if tname.find('NEXTID')!=-1:
-            stmt=create_sequencetable_stmt(tname,dbflavor)
-            results.append(create_sequencetable_stmt(tname,dbflavor))       
-            continue      
+        #if tname.find('NEXTID')!=-1:
+        #    stmt=create_sequencetable_stmt(tname,dbflavor)
+        #    results.append(create_sequencetable_stmt(tname,dbflavor))       
+        #    continue      
         result=create_table_stmt(tname,dbflavor=dbflavor)
         cs=schema_def[tname]['columns']
         nnus=[]
@@ -256,7 +256,11 @@ def create_tables_sql(outfilebase,schema_def,suffix=None,dbflavor='sqlite',write
         if schema_def[tname].has_key('unique'):
            unqs=schema_def[tname]['unique']
            result=result+','+build_unique_stmt(tname,unqs)
-        result=result+');\n'
+        
+        result=result+')'
+        if dbflavor=='oracle' and tname.upper()=='IDS_DATATAG':
+            result = result+' partition by range(RUNNUM) (partition r1a values less than (184000), partition r1b values less than (212000), partition r2a values less than (MAXVALUE))'
+        result = result+';\n'
         if fks: fkresults.append(fk(tname,fks))
         if dbflavor=='oracle':
             result=result+grant_stmt(tname,writeraccount=writeraccount)
@@ -806,18 +810,18 @@ class HLTStreamDatasetMap(BrilDataSource):
     def from_brildb(self,engine,schema=''):
         return super(HLTStreamDatasetMap,self)._from_brildb(self,engine,schema=schema)
     
-class DatatableMap(BrilDataSource):
+class TableShards(BrilDataSource):
     def __init__(self):
-        super(DatatableMap,self).__init__()
-        self._columns = ['DATASOURCEID','DATASOURCE','SUFFIX','MINRUN','MAXRUN']
+        super(TableShards,self).__init__()
+        self._columns = ['id','minrun','maxrun']
     def to_brildb(self,engine,data,schema=''):
-        super(DatatableMap,self)._to_brildb(engine,data,schema=schema)
+        super(TableShards,self)._to_brildb(engine,data,schema=schema)
     def to_csv(self,filepath_or_buffer,data):
-        super(DatatableMap,self)._to_csv(filepath_of_buffer,data)        
+        super(TableShards,self)._to_csv(filepath_of_buffer,data)        
     def from_csv(self,filepath_or_buffer):
-        return super(DatatableMap,self)._from_csv(filepath_or_buffer)
+        return super(TableShards,self)._from_csv(filepath_or_buffer)
     def from_brildb(self,engine,schema=''):
-        return super(DatatableMap,self)._from_brildb(self,engine,schema=schema)
+        return super(TableShards,self)._from_brildb(self,engine,schema=schema)
     def from_sourcedb(self,engine):
         log.info('%s.from_sourcedb'%self.name)
         if not os.path.isfile(engine):
