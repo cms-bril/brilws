@@ -18,7 +18,7 @@ Options:
   --output-style OSTYLE        Screen output style. tab, html, csv [default: tab]
   --chunk-size CHUNKSIZE       Main data chunk size [default: 100]
   --name BITNAME               L1bit name/pattern. To use with --bybit
-  --bybit                      Show per bit info
+  --bitinfo                    Show per bit info
   --without-mask               Not considering trigger mask [default: False]
   --nowarning                  Suppress warning messages
   --debug                      Debug
