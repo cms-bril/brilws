@@ -182,9 +182,18 @@ def briltag_main():
          if updatetagname is not None and isdefault is not None:
              api.iov_updatedefault(connection,updatetagname,defaultval=isdefault)
       elif args['<command>'] == 'insertdata':
-          print 'insertdata'
+          import briltag_insertdata
+          parseresult = docopt.docopt(briltag_insertdata.__doc__,argv=cmmdargv)
+          myargs = clicommonargs.parser(parseresult)
+          dbengine = create_engine(myargs.dbconnect)
+          authpath = myargs.authpath
+          name = myargs.name
+          print name
+              
       elif args['<command>'] == 'listdata':
-          print 'listdata'
+          import briltag_listdata
+          parseresult = docopt.docopt(briltag_listdata.__doc__,argv=cmmdargv)
+          myargs = clicommonargs.parser(parseresult)
       else:
           exit("%r is not a briltag command. See 'briltag --help'."%args['<command>']) 
     except docopt.DocoptExit:

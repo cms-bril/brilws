@@ -36,31 +36,43 @@ class parser(object):
 
         self._dbconnect = self._argdict['-c']
         self._authpath = self._argdict['-p']
-        if self._argdict['-b']: self._beamstatus = self._argdict['-b'].upper()
-        self._egev = self._argdict['--beamenergy']
-        self._datatagname = self._argdict['--datatag']
-        self._amodetag = self._argdict['--amodetag']
-        self._chunksize = self._argdict['--chunk-size']
-        self._outputstyle = self._argdict['--output-style']
-        if self._argdict.has_key('--name'): self._name = self._argdict['--name']
-        if self._argdict.has_key('--xing'): self._withBX = self._argdict['--xing']
-        if self._argdict.has_key('--byls'): self._byls = self._argdict['--byls']
-        if self._argdict.has_key('--bitinfo'): self._bybit = self._argdict['--bitinfo']
-        if self._argdict.has_key('--pathinfo'): self._pathinfo = self._argdict['--pathinfo']
-        if self._argdict.has_key('--type'): self._lumitype = self._argdict['--type']
-        if self._argdict['-f'] :
+        if self._argdict.has_key('-b') and self._argdict['-b']:
+            self._beamstatus = self._argdict['-b'].upper()
+        if self._argdict.has_key('--beamenergy'):
+            self._egev = self._argdict['--beamenergy']
+        if self._argdict.has_key('--datatag'):
+            self._datatagname = self._argdict['--datatag']
+        if self._argdict.has_key('--amodetag'):
+            self._amodetag = self._argdict['--amodetag']
+        if self._argdict.has_key('--chunk-size'):
+            self._chunksize = self._argdict['--chunk-size']
+        if self._argdict.has_key('--output-style'):
+            self._outputstyle = self._argdict['--output-style']
+        if self._argdict.has_key('--name'):
+            self._name = self._argdict['--name']
+        if self._argdict.has_key('--xing'):
+            self._withBX = self._argdict['--xing']
+        if self._argdict.has_key('--byls'):
+            self._byls = self._argdict['--byls']
+        if self._argdict.has_key('--bitinfo'):
+            self._bybit = self._argdict['--bitinfo']
+        if self._argdict.has_key('--pathinfo'):
+            self._pathinfo = self._argdict['--pathinfo']
+        if self._argdict.has_key('--type'):
+            self._lumitype = self._argdict['--type']
+        if self._argdict.has_key('-f') and self._argdict['-f'] :
             self._fillmin = self._argdict['-f']
             self._fillmax = self._argdict['-f']
-        if self._argdict['-i']: # -i has precedance over -r
+        if self._argdict.has_key('-i') and self._argdict['-i']: # -i has precedance over -r
             fileorpath = self._argdict['-i']
             self._runlsSeries = api.parsecmsselectJSON(fileorpath)
-        elif self._argdict['-r'] :
+        elif self._argdict.has_key('-r') and self._argdict['-r'] :
             self._runmin = self._argdict['-r']
             self._runmax = self._argdict['-r']
         s_beg = None
         s_end = None
-        if not self._argdict['-f'] and not self._argdict['-r']:
-            if self._argdict['--begin']:
+        if self._argdict.has_key('-f') and not self._argdict['-f'] and self._argdict.has_key('-r') and not self._argdict['-r']:
+            if self._argdict.has_key('--begin') and self._argdict['--begin']:
                 s_beg = self._argdict['--begin']
                 for style,pattern in {'fill':params._fillnum_pattern,'run':params._runnum_pattern, 'time':params._time_pattern}.items():
                     if re.match(pattern,s_beg):
@@ -69,7 +81,7 @@ class parser(object):
                         self._runmin = int(s_beg)
                     elif style=='time':
                         self._tssecmin = int(time.mktime(datetime.strptime(s_beg,params._datetimefm).timetuple()))
-            if self._argdict['--end']:
+            if self._argdict.has_key('--end') and self._argdict['--end']:
                 s_end = self._argdict['--end']
                 for style,pattern in {'fill':params._fillnum_pattern,'run':params._runnum_pattern, 'time':params._time_pattern}.items():
                       if re.match(pattern,s_end):
@@ -80,7 +92,7 @@ class parser(object):
                           elif style=='time':
                               self._tssecmax = int(time.mktime(datetime.strptime(s_end,params._datetimefm).timetuple()))
         
-        if self._argdict['-o'] or self._outputstyle == 'csv':
+        if self._argdict.has_key('-o') and self._argdict['-o'] or self._outputstyle == 'csv':
             if self._argdict['-o']:
                 self._outputstyle = 'csv'                
                 self._ofilename = self._argdict['-o']
