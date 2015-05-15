@@ -119,7 +119,6 @@ def brilcalc_main():
           it = api.datatagIter(dbengine,datatagnameid,fillmin=lumiargs.fillmin,fillmax=lumiargs.fillmax,runmin=lumiargs.runmin,runmax=lumiargs.runmax,amodetag=lumiargs.amodetag,targetegev=lumiargs.egev,beamstatus=lumiargs.beamstatus,tssecmin=lumiargs.tssecmin,tssecmax=lumiargs.tssecmax,runlsselect=lumiargs.runlsSeries,chunksize=csize,fields=['fillnum','runnum','lsnum','timestampsec'])
           if not it: exit(1)
           
-          
           tot_nfill = 0
           tot_nrun = 0
           tot_nls = 0
@@ -180,8 +179,7 @@ def brilcalc_main():
                             runtot[run]['delivered'] = runtot[run]['delivered']+runtot_avgrawlumi
                             tot_delivered = tot_delivered + runtot_avgrawlumi
                             runtot[run]['recorded'] = runtot[run]['recorded']+runtot_avgrawlumi
-                            tot_recorded = tot_recorded + runtot_avgrawlumi
-                      
+                            tot_recorded = tot_recorded + runtot_avgrawlumi                      
                     del finalchunk
                     del lumichunk
               del idchunk
@@ -259,39 +257,38 @@ def brilcalc_main():
           if withBX:
               fields = ['bxidxblob','bxintensity1blob','bxintensity2blob']
           if not it: exit(1)
-          for shardid in shards:
-            for idchunk in it:              
-                dataids = idchunk.index
-                finalchunk = None
-                for beaminfochunk in api.beamInfoIter(dbengine,dataids,str(shardid),chunksize=csize,fields=fields):
-                    finalchunk = idchunk.join(beaminfochunk,how='inner',on=None,lsuffix='l',rsuffix='r',sort=False)
-                    for datatagid,row in finalchunk.iterrows():
-                        if not withBX:
-                          timestampsec = row['timestampsec']
-                          dtime = datetime.fromtimestamp(int(timestampsec)).strftime(params._datetimefm)
-                          display.add_row( ['%d'%row['fillnum'],'%d'%row['runnum'],'%d'%row['lsnum'],dtime,row['beamstatus'],row['amodetag'],'%.2f'%(row['egev']),'%.5e'%(row['intensity1']),'%.5e'%(row['intensity2'])] , fh=fh, csvwriter=csvwriter, ptable=ptable)
-                        else:
-                          bxidxblob = row['bxidxblob']
-                          bxintensity1blob = row['bxintensity1blob']                          
-                          bxintensity2blob = row['bxintensity2blob']
-                          if not bxidxblob or not bxintensity1blob or not bxintensity2blob: continue
-                          bxidxarray = np.array(api.unpackBlobtoArray(bxidxblob,'H'))
-                          intensity1array = np.array(api.unpackBlobtoArray(bxintensity1blob,'f'))
-                          intensity2array = np.array(api.unpackBlobtoArray(bxintensity2blob,'f'))
-                          if len(bxidxarray)!=len(intensity1array)!=len(intensity2array): continue
-                          perbxresult = np.array( [bxidxarray,intensity1array,intensity2array]).T
-                          fmt = '%d %.6e %.6e'
-                          if fh:
-                              perbxresult_str = ' '.join([fmt%(idx,bi1,bi2) for [idx,bi1,bi2] in perbxresult if bi1!=0. and bi2!=0.])
-                              display.add_row( [ row['fillnum'],row['runnum'],row['lsnum'],perbxresult_str], fh=fh, csvwriter=csvwriter, ptable=ptable)
+          for idchunk in it:
+              dataids = idchunk.index
+              for shardid in shards:                  
+                  for beaminfochunk in api.beamInfoIter(dbengine,dataids,str(shardid),chunksize=csize,fields=fields):
+                      finalchunk = idchunk.join(beaminfochunk,how='inner',on=None,lsuffix='l',rsuffix='r',sort=False)
+                      for datatagid,row in finalchunk.iterrows():
+                          if not withBX:
+                              timestampsec = row['timestampsec']
+                              dtime = datetime.fromtimestamp(int(timestampsec)).strftime(params._datetimefm)
+                              display.add_row( ['%d'%row['fillnum'],'%d'%row['runnum'],'%d'%row['lsnum'],dtime,row['beamstatus'],row['amodetag'],'%.2f'%(row['egev']),'%.5e'%(row['intensity1']),'%.5e'%(row['intensity2'])] , fh=fh, csvwriter=csvwriter, ptable=ptable)
                           else:
-                              perbxresult_str_first = fmt%(perbxresult[0][0],perbxresult[0][1],perbxresult[0][2]) 
-                              perbxresult_str_last = fmt%(perbxresult[-1][0],perbxresult[-1][1],perbxresult[-1][2]) 
-                              perbxresult_str_short = perbxresult_str_first+' ... '+perbxresult_str_last
-                              display.add_row( [ row['fillnum'],row['runnum'],row['lsnum'],perbxresult_str_short], fh=fh, csvwriter=csvwriter, ptable=ptable)
-                    del finalchunk  
-                    del beaminfochunk                   
-                del idchunk  
+                              bxidxblob = row['bxidxblob']
+                              bxintensity1blob = row['bxintensity1blob']                          
+                              bxintensity2blob = row['bxintensity2blob']
+                              if not bxidxblob or not bxintensity1blob or not bxintensity2blob: continue
+                              bxidxarray = np.array(api.unpackBlobtoArray(bxidxblob,'H'))
+                              intensity1array = np.array(api.unpackBlobtoArray(bxintensity1blob,'f'))
+                              intensity2array = np.array(api.unpackBlobtoArray(bxintensity2blob,'f'))
+                              if len(bxidxarray)!=len(intensity1array)!=len(intensity2array): continue
+                              perbxresult = np.array( [bxidxarray,intensity1array,intensity2array]).T
+                              fmt = '%d %.6e %.6e'
+                              if fh:
+                                  perbxresult_str = ' '.join([fmt%(idx,bi1,bi2) for [idx,bi1,bi2] in perbxresult if bi1!=0. and bi2!=0.])
+                                  display.add_row( [ row['fillnum'],row['runnum'],row['lsnum'],perbxresult_str], fh=fh, csvwriter=csvwriter, ptable=ptable)
+                              else:
+                                  perbxresult_str_first = fmt%(perbxresult[0][0],perbxresult[0][1],perbxresult[0][2]) 
+                                  perbxresult_str_last = fmt%(perbxresult[-1][0],perbxresult[-1][1],perbxresult[-1][2]) 
+                                  perbxresult_str_short = perbxresult_str_first+' ... '+perbxresult_str_last
+                                  display.add_row( [ row['fillnum'],row['runnum'],row['lsnum'],perbxresult_str_short], fh=fh, csvwriter=csvwriter, ptable=ptable)
+                      del finalchunk  
+                      del beaminfochunk                   
+              del idchunk  
           
           if ptable:
               display.show_table(ptable,beamargs.outputstyle)
@@ -341,15 +338,15 @@ def brilcalc_main():
           
           it = api.datatagIter(dbengine,datatagnameid,fillmin=trgargs.fillmin,fillmax=trgargs.fillmax,runmin=trgargs.runmin,runmax=trgargs.runmax,amodetag=trgargs.amodetag,targetegev=trgargs.egev,beamstatus=trgargs.beamstatus,tssecmin=trgargs.tssecmin,tssecmax=trgargs.tssecmax,runlsselect=trgargs.runlsSeries ,chunksize=csize,fields=['fillnum','runnum','lsnum','timestampsec'])
           if not it: exit(1)
-          for shardid in shards:
-              for idchunk in it:              
-                  dataids = idchunk.index
+          for idchunk in it:
+              dataids = idchunk.index
+              for shardid in shards:
                   if not bybit:
                       for deadtimechunk in api.deadtimeIter(dbengine,dataids,str(shardid),chunksize=csize):
-                          finalchunk = idchunk.join(deadtimechunk,how='inner',on=None,lsuffix='l',rsuffix='r',sort=False)                      
+                          finalchunk = idchunk.join(deadtimechunk,how='inner',on=None,lsuffix='l',rsuffix='r',sort=False) 
                           for datatagid,row in finalchunk.iterrows():
                               timestampsec = row['timestampsec']
-                              dtime = datetime.fromtimestamp(int(timestampsec)).strftime(params._datetimefm)                          
+                              dtime = datetime.fromtimestamp(int(timestampsec)).strftime(params._datetimefm)                   
                               display.add_row( ['%d'%row['fillnum'],'%d'%row['runnum'],'%d'%row['lsnum'],dtime,'%.4f'%(row['deadtimefrac']) ] , fh=fh, csvwriter=csvwriter, ptable=ptable )
                           del finalchunk
                           del deadtimechunk
@@ -362,7 +359,7 @@ def brilcalc_main():
                           del trginfochunk
                       ptable.max_width['bitname']=20
                       ptable.align='l'
-                  del idchunk
+              del idchunk
               
           if ptable:
               display.show_table(ptable,trgargs.outputstyle)
