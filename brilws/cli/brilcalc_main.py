@@ -142,29 +142,32 @@ def brilcalc_main():
                     rawlumichunk = idchunk.join(lumichunk,how='inner',on=None,lsuffix='l',rsuffix='r',sort=False)
                     deadtimechunk = api.deadtimeIter(dbengine,dataids,str(shardid),chunksize=csize)
                     finalchunk = rawlumichunk.join(deadtimechunk,how='outer',on=None,lsuffix='l',rsuffix='r',sort=False)
-                    
-                    if byls or withBX:                      
-                        for datatagid,row in finalchunk.iterrows():
-                            timestampsec = row['timestampsec']
-                            dtime = datetime.fromtimestamp(int(timestampsec)).strftime(params._datetimefm)
-                            cms = 1
-                            deadfrac = row['deadtimefrac']
-                            if math.isnan(deadfrac ):
-                                cms = 0                            
                             
+                    if byls or withBX:                         
+                        for datatagid,row in finalchunk.iterrows():
+                            deadfrac = 1.0
+                            if 'deadtimefrac' in row:
+                                deadfrac = row['deadtimefrac']
+                            cms = 1
+                            if math.isnan(deadfrac ):
+                                cms = 0                                 
                             if byls:
+                                timestampsec = row['timestampsec']
+                                dtime = datetime.fromtimestamp(int(timestampsec)).strftime(params._datetimefm)  
                                 delivered = row['rawlumi']
                                 recorded = (1-deadfrac)*delivered
                                 display.add_row( ['%d'%row['fillnum'],'%d'%row['runnum'],'%d'%row['lsnum'],dtime,cms,'%.4e'%(delivered),'%.4e'%(recorded),'%.4e'%(delivered*0.5),lumitype] , fh=fh, csvwriter=csvwriter, ptable=ptable)
                             else:
+                                if 'bxrawlumiblob' not in row: continue
                                 bxrawlumiblob = row['bxrawlumiblob']                              
-                                if not bxrawlumiblob: continue
+                                if bxrawlumiblob is None: continue
                                 bxrawlumiarray = np.array(api.unpackBlobtoArray(bxrawlumiblob,'f'))
                                 bxidx = np.nonzero(bxrawlumiarray)[0]
+                                if bxidx is None or bxidx.size==0: continue
                                 bxdelivered = bxrawlumiarray[bxidx]
                                 bxrecorded = bxdelivered*(1-deadfrac)
                                 bxrecorded[np.isnan(bxrecorded)] = 0
-                                bxlumi = np.array( [bxidx,bxdelivered,bxrecorded] ).T                                
+                                bxlumi = np.array( [bxidx,bxdelivered,bxrecorded] ).T
                                 del bxdelivered
                                 del bxrecorded
                                 fmt = '%d %.6e %.6e'

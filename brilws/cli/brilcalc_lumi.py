@@ -38,7 +38,7 @@ from brilws import clicommonargs
 
 def validate(optdict):
     result={}
-    argdict = clicommonargs.argvalidators
+    #argdict = clicommonargs.argvalidators
     #extract sub argdict here
     myvalidables = ['-c','-n','-f','-r','-i','-o','--amodetag','-b','--beamenergy','--datatag','--begin','--end','--output-style','--chunk-size','--siteconfpath','--type',str]
     argdict = dict((k,v) for k,v in clicommonargs.argvalidators.iteritems() if k in myvalidables)

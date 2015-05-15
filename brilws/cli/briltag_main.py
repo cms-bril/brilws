@@ -5,8 +5,7 @@ import numpy as np
 import pandas as pd
 import brilws
 from sqlalchemy import *
-from sqlalchemy import exc
-from brilws import api,display,prettytable
+from brilws import api,params,clicommonargs,display
 
 log = logging.getLogger('brilws')
 logformatter = logging.Formatter('%(levelname)s %(message)s')
@@ -18,10 +17,6 @@ ch.setFormatter(logformatter)
 log.addHandler(ch)
 #log.addHandler(fh)
 
-choice_sources = ['bhm','bcm1f','plt','hfoc','hfet','pixel']
-choice_applyto = ['lumi','bkg','daq']
-choices_ostyles = ['tab','csv','html']
-
 def briltag_main():
     docstr='''
 
@@ -32,8 +27,10 @@ def briltag_main():
       briltag <command> [<args>...]
 
     commands:
-      list  
-      insert 
+      listdata
+      listiov
+      insertdata
+      insertiov 
       
     See 'briltag <command> --help' for more information on a specific command.
 
@@ -58,8 +55,8 @@ def briltag_main():
     log.debug('command arguments: %s',cmmdargv)
     parseresult = {}
     try:      
-      if args['<command>'] == 'list':
-         import briltag_list
+      if args['<command>'] == 'listiov':
+         import briltag_listiov
          parseresult = docopt.docopt(briltag_list.__doc__,argv=cmmdargv)
          parseresult = briltag_list.validate(parseresult,sources=choice_sources,applyto=choice_applyto,ostyles=choices_ostyles)
          engine = create_engine(parseresult['-c'])
@@ -145,8 +142,8 @@ def briltag_main():
                      print(ptable.get_html_string())
                  else:
                      raise RuntimeError('Unsupported output style %s'%parseresult['--output-style'])
-      elif args['<command>'] == 'insert':
-         import briltag_insert
+      elif args['<command>'] == 'insertiov':
+         import briltag_insertiov
          parseresult = docopt.docopt(briltag_insert.__doc__,argv=cmmdargv)
          parseresult = briltag_insert.validate(parseresult)
          if parseresult['--setdefault'] and parseresult['--unsetdefault']:
@@ -184,6 +181,10 @@ def briltag_main():
              updatetagname = parseresult['--unsetdefault']
          if updatetagname is not None and isdefault is not None:
              api.iov_updatedefault(connection,updatetagname,defaultval=isdefault)
+      elif args['<command>'] == 'insertdata':
+          print 'insertdata'
+      elif args['<command>'] == 'listdata':
+          print 'listdata'
       else:
           exit("%r is not a briltag command. See 'briltag --help'."%args['<command>']) 
     except docopt.DocoptExit:
