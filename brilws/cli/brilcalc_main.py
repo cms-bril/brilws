@@ -9,7 +9,7 @@ from brilws import api,params,clicommonargs,display
 import re,time, csv
 from datetime import datetime
 from sqlalchemy import *
-
+import math
 log = logging.getLogger('brilcalc')
 logformatter = logging.Formatter('%(levelname)s %(message)s')
 ch = logging.StreamHandler()
@@ -137,23 +137,33 @@ def brilcalc_main():
           for idchunk in it:              
               dataids = idchunk.index              
               #runsinchunk = np.unique(idchunk['runnum'].values)
-              for shardid in shards:
+              for shardid in shards:                  
                 for lumichunk in api.lumiInfoIter(dbengine,dataids,lumitype.upper(),str(shardid),chunksize=csize,fields=lumifields):
-                    finalchunk = idchunk.join(lumichunk,how='inner',on=None,lsuffix='l',rsuffix='r',sort=False)
+                    rawlumichunk = idchunk.join(lumichunk,how='inner',on=None,lsuffix='l',rsuffix='r',sort=False)
+                    deadtimechunk = api.deadtimeIter(dbengine,dataids,str(shardid),chunksize=csize)
+                    finalchunk = rawlumichunk.join(deadtimechunk,how='outer',on=None,lsuffix='l',rsuffix='r',sort=False)
+                    
                     if byls or withBX:                      
                         for datatagid,row in finalchunk.iterrows():
                             timestampsec = row['timestampsec']
                             dtime = datetime.fromtimestamp(int(timestampsec)).strftime(params._datetimefm)
                             cms = 1
+                            deadfrac = row['deadtimefrac']
+                            if math.isnan(deadfrac ):
+                                cms = 0                            
+                            
                             if byls:
-                                display.add_row( ['%d'%row['fillnum'],'%d'%row['runnum'],'%d'%row['lsnum'],dtime,cms,'%.4e'%(row['rawlumi']),'%.4e'%(row['rawlumi']),'%.4e'%(row['rawlumi']*0.5),lumitype] , fh=fh, csvwriter=csvwriter, ptable=ptable)
+                                delivered = row['rawlumi']
+                                recorded = (1-deadfrac)*delivered
+                                display.add_row( ['%d'%row['fillnum'],'%d'%row['runnum'],'%d'%row['lsnum'],dtime,cms,'%.4e'%(delivered),'%.4e'%(recorded),'%.4e'%(delivered*0.5),lumitype] , fh=fh, csvwriter=csvwriter, ptable=ptable)
                             else:
                                 bxrawlumiblob = row['bxrawlumiblob']                              
                                 if not bxrawlumiblob: continue
                                 bxrawlumiarray = np.array(api.unpackBlobtoArray(bxrawlumiblob,'f'))
+                                bxrecordedarray = bxrawlumiarray*(1-deadfrac)
                                 fmt = '%.6e'
                                 if fh:                                  
-                                    bxrawlumi_str = ' '.join([fmt%(x) for x in bxrawlumiarray])  
+                                    bxrawlumi_str = ' '.join([fmt%(x) for x in bxrawlumiarray])
                                 else:
                                     bxrawlumi_str = ' ... '.join([fmt%(bxrawlumiarray[0]),fmt%(bxrawlumiarray[-1])])
                                 display.add_row( ['%d'%row['fillnum'],'%d'%row['runnum'],'%d'%row['lsnum'],bxrawlumi_str] , fh=fh, csvwriter=csvwriter, ptable=ptable)

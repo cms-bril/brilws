@@ -1592,6 +1592,7 @@ def lumiInfoIter(engine,datatagids,datasource,suffix,schemaname='',chunksize=999
         q = q+''' from %s where DATATAGID in (%s)'''%(tablename,idstrings)
         result = pd.read_sql_query(q,engine,chunksize=chunksize,params={},index_col='datatagid')
         return result
+    
 def deadtimeIter(engine,datatagids,suffix,schemaname='',chunksize=9999):
     '''
     input: datatagids []
