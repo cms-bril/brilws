@@ -24,6 +24,7 @@ class parser(object):
         self._bybit = False
         self._pathinfo = False
         self._chunksize = None
+        self._lumitype = None
         self._ofilename = '-'
         self._fh = None
         self._totable = False
@@ -46,6 +47,7 @@ class parser(object):
         if self._argdict.has_key('--byls'): self._byls = self._argdict['--byls']
         if self._argdict.has_key('--bitinfo'): self._bybit = self._argdict['--bitinfo']
         if self._argdict.has_key('--pathinfo'): self._pathinfo = self._argdict['--pathinfo']
+        if self._argdict.has_key('--type'): self._lumitype = self._argdict['--type']
         if self._argdict['-f'] :
             self._fillmin = self._argdict['-f']
             self._fillmax = self._argdict['-f']
@@ -154,7 +156,10 @@ class parser(object):
     @property
     def name(self):
         return self._name
-    
+    @property
+    def lumitype(self):
+        return self._lumitype
+
 argvalidators = {
     '--amodetag': Or(None,And(str,lambda s: s.upper() in params._amodetagChoices), error='--amodetag must be in '+str(params._amodetagChoices) ),
     '--beamenergy': Or(None,And(Use(int), lambda n: n>0), error='--beamenergy should be integer >0'),
@@ -163,6 +168,7 @@ argvalidators = {
     '--end': Or(None, And(str,Use(RegexValidator.RegexValidator(params._timeopt_pattern))), error='wrong format'),
     '--output-style': And(str,Use(str.lower), lambda s: s in params._outstyle, error='--output-style choice must be in '+str(params._outstyle) ),
     '--chunk-size':  And(Use(int), lambda n: n>0, error='--chunk-size should be integer >0'),
+    '--type': Or(None, And(str, lambda s: s.upper() in params._lumitypeChoices), error='--type must be in '+str(params._lumitypeChoices) ),
     '--siteconfpath': Or(None, str, error='--siteconfpath should be string'),
     '-c': str,
     '-p': And(os.path.exists, error='AUTHPATH should exist'),

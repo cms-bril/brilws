@@ -4,6 +4,7 @@ _runnum_pattern = '^\d{6}$'
 _time_pattern = '^\d\d/\d\d/\d\d \d\d:\d\d:\d\d$'
 _amodetagChoices = ['PROTPHYS','IONPHYS','PAPHYS','MDEV','BMSETUP']
 _beamstatusChoices = ['FLAT TOP','SQUEEZE','ADJUST','STABLE BEAMS']
+_lumitypeChoices = ['HFOC','HFET','PXL','BCMF','PLT']
 _outstyle = ['tab','html','csv']
 _dbtimefm = 'MM/DD/YY HH24:MI:SS.ff6'
 _pydatetimefm  = '%m/%d/%y %H:%M:%S.%f'

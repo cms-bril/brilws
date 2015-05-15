@@ -22,7 +22,7 @@ Options:
   --end END                     Max start time/fill/run
   --output-style OSTYLE         Screen output style. tab, html, csv [default: tab]
   --chunk-size CHUNKSIZE        Main data chunk size [default: 100]
-  --type LUMITYPE               Luminosity type or fallback order [default: PXL|BCMF|PLT|HFOC|HFET] 
+  --type LUMITYPE               Luminosity type or fallback order. hfoc,pxl,bcmf,plt,hfet. [default: hfoc] 
   --hltpath HLTPATH             HLT path name/pattern for effective luminosity
   --byls                        Show result in ls granularity
   --xing                        Show result in bx granularity
@@ -40,10 +40,10 @@ def validate(optdict):
     result={}
     argdict = clicommonargs.argvalidators
     #extract sub argdict here
-    myvalidables = ['-c','-n','-f','-r','-i','-o','--amodetag','-b','--beamenergy','--datatag','--begin','--end','--output-style','--chunk-size','--siteconfpath',str]
+    myvalidables = ['-c','-n','-f','-r','-i','-o','--amodetag','-b','--beamenergy','--datatag','--begin','--end','--output-style','--chunk-size','--siteconfpath','--type',str]
     argdict = dict((k,v) for k,v in clicommonargs.argvalidators.iteritems() if k in myvalidables)
     schema = Schema(argdict)
-    result=schema.validate(optdict)
+    result = schema.validate(optdict)
     return result
 
 if __name__ == '__main__':

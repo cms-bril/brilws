@@ -80,6 +80,9 @@ def brilcalc_main():
           withBX = lumiargs.withBX          
           byls = lumiargs.byls
           totable = lumiargs.totable
+          lumitype = lumiargs.lumitype
+          if not lumitype:
+              lumitype = 'hfoc'
           fh = None
           ptable = None
           csvwriter = None
@@ -115,7 +118,7 @@ def brilcalc_main():
               datatagnameid = api.datatagnameid(dbengine,datatagname=datatagname)
             
           print '#Data tag : ',datatagname
-          nchunk = 0
+
           it = api.datatagIter(dbengine,datatagnameid,fillmin=lumiargs.fillmin,fillmax=lumiargs.fillmax,runmin=lumiargs.runmin,runmax=lumiargs.runmax,amodetag=lumiargs.amodetag,targetegev=lumiargs.egev,beamstatus=lumiargs.beamstatus,tssecmin=lumiargs.tssecmin,tssecmax=lumiargs.tssecmax,runlsselect=lumiargs.runlsSeries,chunksize=csize,fields=['fillnum','runnum','lsnum','timestampsec'])
           if not it: exit(1)
           
@@ -135,7 +138,7 @@ def brilcalc_main():
               dataids = idchunk.index              
               #runsinchunk = np.unique(idchunk['runnum'].values)
               for shardid in shards:
-                for lumichunk in api.lumiInfoIter(dbengine,dataids,'HFOC',str(shardid),chunksize=csize,fields=lumifields):
+                for lumichunk in api.lumiInfoIter(dbengine,dataids,lumitype.upper(),str(shardid),chunksize=csize,fields=lumifields):
                     finalchunk = idchunk.join(lumichunk,how='inner',on=None,lsuffix='l',rsuffix='r',sort=False)
                     if byls or withBX:                      
                         for datatagid,row in finalchunk.iterrows():
@@ -143,7 +146,7 @@ def brilcalc_main():
                             dtime = datetime.fromtimestamp(int(timestampsec)).strftime(params._datetimefm)
                             cms = 1
                             if byls:
-                                display.add_row( ['%d'%row['fillnum'],'%d'%row['runnum'],'%d'%row['lsnum'],dtime,cms,'%.4e'%(row['rawlumi']),'%.4e'%(row['rawlumi']),'%.4e'%(row['rawlumi']*0.5),'HFOC'] , fh=fh, csvwriter=csvwriter, ptable=ptable)
+                                display.add_row( ['%d'%row['fillnum'],'%d'%row['runnum'],'%d'%row['lsnum'],dtime,cms,'%.4e'%(row['rawlumi']),'%.4e'%(row['rawlumi']),'%.4e'%(row['rawlumi']*0.5),lumitype] , fh=fh, csvwriter=csvwriter, ptable=ptable)
                             else:
                                 bxrawlumiblob = row['bxrawlumiblob']                              
                                 if not bxrawlumiblob: continue
@@ -250,8 +253,6 @@ def brilcalc_main():
               datatagnameid = api.datatagnameid(dbengine,datatagname=datatagname)
           print 'data tag : ',datatagname          
           
-          nchunk = 0
-
           it = api.datatagIter(dbengine,datatagnameid,fillmin=beamargs.fillmin,fillmax=beamargs.fillmax,runmin=beamargs.runmin,runmax=beamargs.runmax,amodetag=beamargs.amodetag,targetegev=beamargs.egev,beamstatus=beamargs.beamstatus,tssecmin=beamargs.tssecmin,tssecmax=beamargs.tssecmax,runlsselect=beamargs.runlsSeries ,chunksize=csize,fields=['fillnum','runnum','lsnum','timestampsec','beamstatus','amodetag'])
           fields = ['egev','intensity1','intensity2']
           if withBX:
