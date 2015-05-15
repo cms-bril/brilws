@@ -160,13 +160,24 @@ def brilcalc_main():
                                 bxrawlumiblob = row['bxrawlumiblob']                              
                                 if not bxrawlumiblob: continue
                                 bxrawlumiarray = np.array(api.unpackBlobtoArray(bxrawlumiblob,'f'))
-                                bxrecordedarray = bxrawlumiarray*(1-deadfrac)
-                                fmt = '%.6e'
-                                if fh:                                  
-                                    bxrawlumi_str = ' '.join([fmt%(x) for x in bxrawlumiarray])
+                                bxidx = np.nonzero(bxrawlumiarray)[0]
+                                bxdelivered = bxrawlumiarray[bxidx]
+                                bxrecorded = bxdelivered*(1-deadfrac)
+                                bxrecorded[np.isnan(bxrecorded)] = 0
+                                bxlumi = np.array( [bxidx,bxdelivered,bxrecorded] ).T                                
+                                del bxdelivered
+                                del bxrecorded
+                                fmt = '%d %.6e %.6e'
+                                bxlumi_str = ''
+                                if fh:
+                                    bxlumi_str = ' '.join([fmt%(idx,lumi1,lumi2) for [idx,lumi1,lumi2] in bxlumi] )
                                 else:
-                                    bxrawlumi_str = ' ... '.join([fmt%(bxrawlumiarray[0]),fmt%(bxrawlumiarray[-1])])
-                                display.add_row( ['%d'%row['fillnum'],'%d'%row['runnum'],'%d'%row['lsnum'],bxrawlumi_str] , fh=fh, csvwriter=csvwriter, ptable=ptable)
+                                    bxlumi_str_first = fmt%(bxlumi[0][0],bxlumi[0][1],bxlumi[0][2])
+                                    bxlumi_str_last = fmt%(bxlumi[-1][0],bxlumi[-1][1],bxlumi[-1][2])
+                                    bxlumi_str = ' ... '.join([bxlumi_str_first,bxlumi_str_last])
+                                display.add_row( ['%d'%row['fillnum'],'%d'%row['runnum'],'%d'%row['lsnum'],bxlumi_str] , fh=fh, csvwriter=csvwriter, ptable=ptable)
+                                del bxlumi
+                                del bxrawlumiarray
                     if not withBX:   
                         finalchunk.reset_index()
                         rungrouped = finalchunk.groupby('runnum', as_index=False)    
