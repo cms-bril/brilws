@@ -195,12 +195,11 @@ def briltag_main():
           import briltag_listdata
           parseresult = docopt.docopt(briltag_listdata.__doc__,argv=cmmdargv)
           myargs = clicommonargs.parser(parseresult)
-
-          ##db params
           dbengine = create_engine(myargs.dbconnect)
           authpath = myargs.authpath
-          
-          
+          name = myargs.name
+          datatagname_df = api.getDatatagName(dbengine,datatagname=name)
+          print datatagname_df
       else:
           exit("%r is not a briltag command. See 'briltag --help'."%args['<command>']) 
     except docopt.DocoptExit:

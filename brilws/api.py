@@ -1187,18 +1187,17 @@ def createDataTag(engine,datatagname,comments='',schemaname=''):
         datatagnameid = 0
     else:
         datatagnameid = next(nonsequential_key(1))
-    basetablename = 'DATATAGS'
-    tablename = basetablename
-    utcstr = datetime.now().strftime(params._datetimefm)
+    basetablename = tablename = 'DATATAGS'
     if schemaname:
         tablename = '.'.join([schemaname,basetablename])
+    utcstr = datetime.now().strftime(params._datetimefm)
     t = Table(tablename, MetaData(), Column('DATATAGNAMEID',types.BigInteger), Column('DATATAGNAME',types.Text),  Column('CREATIONUTC',types.Text), Column('COMMENTS',types.Text) )
     connection = engine.connect() 
     with connection.begin() as trans:
         connection.execute( t.insert(),DATATAGNAMEID=datatagnameid,DATATAGNAME=datatagname,CREATIONUTC=utcstr,COMMENTS=comments)
     return datatagnameid
 
-def getDatatagNameid(engine,datatagname,schemaname=None):
+def getDatatagNameid(engine,datatagname,schemaname=''):
     '''
     select datatagnameid from DATATAGS where datatagname=%datatagname    
     '''
@@ -1206,11 +1205,18 @@ def getDatatagNameid(engine,datatagname,schemaname=None):
     if datatagname=='online': return datatagnameid
     return datatagnameid
 
-def getDatatagNames(engine,schemaname=None):
+def getDatatagName(engine,schemaname='',datatagname=''):
     '''
-    select * from DATATAGS
+    output: datatags dataframe
     '''
-    return None
+    basetablename = tablename = 'DATATAGS'
+    if schemaname:
+        tablename = '.'.join([schemaname,basetablename])
+    q = '''select DATATAGNAMEID as id, DATATAGNAME as name, CREATIONUTC as creationutc, COMMENTS as comments from %s'''%(tablename)
+    if datatagname:
+        q = q+' where datatagname=:datatagname'        
+        return pd.read_sql_query(q,engine,index_col='id',params={'datatagname':datatagname})
+    return pd.read_sql_query(q,engine,index_col='id',params={})
 
 def insertDataTagEntry(engine,idtablename,datatagnameid,runnum,lsnum,fillnum=0,schemaname=None):
     '''
