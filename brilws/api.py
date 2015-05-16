@@ -1,7 +1,6 @@
 import numpy as np
 import pandas as pd
-from sqlalchemy import *
-from sqlalchemy import exc, text
+from sqlalchemy import schema,types,Table,MetaData,Column
 from datetime import datetime
 import decimal
 import os
@@ -14,6 +13,8 @@ import sys
 import ast
 import logging
 import string
+from brilws import params
+
 decimalcontext = decimal.getcontext().copy()
 decimalcontext.prec = 3
 
@@ -1173,7 +1174,7 @@ def unpackCLOBtoListstr(iStr,separator=','):
     return [i.strip() for i in iStr.strip().split(separator)]
 
 ##### Data tag ######    
-def createDataTag(engine,datatagname='online',comments='',schemaname=None):
+def createDataTag(engine,datatagname,comments='',schemaname=''):
     '''
     create a new data tag, return the datatag name id
     input:
@@ -1181,7 +1182,20 @@ def createDataTag(engine,datatagname='online',comments='',schemaname=None):
     output:
         datatagnameid  
     '''
-    datatagnameid = 0
+    datatagnameid = None
+    if datatagname == 'online':
+        datatagnameid = 0
+    else:
+        datatagnameid = next(nonsequential_key(1))
+    basetablename = 'DATATAGS'
+    tablename = basetablename
+    utcstr = datetime.now().strftime(params._datetimefm)
+    if schemaname:
+        tablename = '.'.join([schemaname,basetablename])
+    t = Table(tablename, MetaData(), Column('DATATAGNAMEID',types.BigInteger), Column('DATATAGNAME',types.Text),  Column('CREATIONUTC',types.Text), Column('COMMENTS',types.Text) )
+    connection = engine.connect() 
+    with connection.begin() as trans:
+        connection.execute( t.insert(),DATATAGNAMEID=datatagnameid,DATATAGNAME=datatagname,CREATIONUTC=utcstr,COMMENTS=comments)
     return datatagnameid
 
 def getDatatagNameid(engine,datatagname,schemaname=None):

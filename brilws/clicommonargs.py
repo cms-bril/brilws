@@ -29,6 +29,7 @@ class parser(object):
         self._fh = None
         self._totable = False
         self._name = None
+        self._comments = ''
         self._outputstyle = 'tab'
         self._parse()
         
@@ -50,6 +51,8 @@ class parser(object):
             self._outputstyle = self._argdict['--output-style']
         if self._argdict.has_key('--name'):
             self._name = self._argdict['--name']
+        if self._argdict.has_key('--comments'):
+            self._comments = self._argdict['--comments']
         if self._argdict.has_key('--xing'):
             self._withBX = self._argdict['--xing']
         if self._argdict.has_key('--byls'):
@@ -168,6 +171,9 @@ class parser(object):
     @property
     def name(self):
         return self._name
+    @property
+    def comments(self):
+        return self._comments
     @property
     def lumitype(self):
         return self._lumitype

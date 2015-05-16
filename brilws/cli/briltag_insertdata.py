@@ -6,7 +6,8 @@ Options:
       -h --help                Show this screen.
       -c CONNECT               Connect string to lumiDB [default: frontier://LumiCalc/CMS_LUMI_PROD]
       -p AUTHPATH              Path to authentication.xml 
-      --name TAGNAME           Name of the data tag
+      --name TAGNAME           Name of the data tag [default: online]
+      --comments COMMENTS      Comments on the tag
       --debug                  Debug mode
       --nowarning              Switch off warnings
 """

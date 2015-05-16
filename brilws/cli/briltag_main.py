@@ -188,12 +188,19 @@ def briltag_main():
           dbengine = create_engine(myargs.dbconnect)
           authpath = myargs.authpath
           name = myargs.name
-          print name
-              
+          if not name: raise NameError('--name cannot be empty')
+          datatagnameid = api.createDataTag(dbengine,datatagname=name,comments=myargs.comments,schemaname='')
+          print 'created %s %ul %s'%(name,datatagnameid,myargs.comments)
       elif args['<command>'] == 'listdata':
           import briltag_listdata
           parseresult = docopt.docopt(briltag_listdata.__doc__,argv=cmmdargv)
           myargs = clicommonargs.parser(parseresult)
+
+          ##db params
+          dbengine = create_engine(myargs.dbconnect)
+          authpath = myargs.authpath
+          
+          
       else:
           exit("%r is not a briltag command. See 'briltag --help'."%args['<command>']) 
     except docopt.DocoptExit:
