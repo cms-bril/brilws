@@ -1,136 +1,61 @@
 #
 # Schema for IOV data
 #
-IOVTAGS:  #format convention: table names in upper case
+IOVTAGS:
   columns:
     - tagid: int64
     - tagname: string
     - creationutc: string
-    - datadict: string   
-    - maxnitems: uint32
-    - iovdataversion: string
-    - datasource: string     #hfoc,bhm,plt,pixel
-    - applyto: string        #lumi,bkg,daq
+    - applyto: string
+    - datasource: string
     - isdefault: bool
     - comments: string
   pk: [tagid]
   unique: [tagname]
-  notnull: [tagname,creationutc,datasource,applyto,isdefault]
 
 IOVTAGDATA:
   columns:
     - tagid: int64  
-    - since: uint32      
+    - since: uint32
+    - payloaddict: string
     - payloadid: int64
     - comments: string
   pk: [tagid,since]
 
-IOVP_FLOAT32:
-  columns:
-    - payloadid: int64
-    - ifield: uint32
-    - iitem: uint32
-    - ipos: uint32
-    - iskey: bool
-    - val: float
-  pk: [payloadid,iitem,ifield,ipos,iskey]
-  notnull: [payloadid,iitem,ifield,ipos,iskey]
-
-IOVP_UINT32:
+IOVP_BLOB:
   columns:
     - payloadid: int64
     - ifield: uint16
-    - iitem: uint16
-    - ipos: uint16
-    - iskey: bool
+    - val: blob
+  pk: [payloadid,ifield]
+
+IOVP_INT:
+  columns:
+    - payloadid: int64
+    - ifield: uint16
     - val: uint32
-  pk: [payloadid,iitem,ifield,ipos,iskey]
-  notnull: [payloadid,iitem,ifield,ipos,iskey]
+  pk: [payloadid,ifield]
 
-IOVP_INT32:
+IOVP_SMALLINT:
   columns:
     - payloadid: int64
     - ifield: uint16
-    - iitem: uint16
-    - ipos: uint16
-    - iskey: bool 
-    - val: int32
-  pk: [payloadid,iitem,ifield,ipos,iskey]
-  notnull: [payloadid,iitem,ifield,ipos,iskey]
-
-IOVP_UINT16:
-  columns:
-    - payloadid: int64
-    - ifield: uint16
-    - iitem: uint16
-    - ipos: uint16
-    - iskey: bool 
     - val: uint16
-  pk: [payloadid,iitem,ifield,ipos,iskey]
-  notnull: [payloadid,iitem,ifield,ipos,iskey]
-
-IOVP_INT16:
+  pk: [payloadid,ifield]
+  
+IOVP_BOOLEAN:
   columns:
     - payloadid: int64
     - ifield: uint16
-    - iitem: uint16
-    - ipos: uint16
-    - iskey: bool
-    - val: int16
-  pk: [payloadid,iitem,ifield,ipos,iskey]
-  notnull: [payloadid,iitem,ifield,ipos,iskey]
+    - val: bool
+  pk: [payloadid,ifield]
 
-IOVP_UINT64:
+IOVP_FLOAT:
   columns:
     - payloadid: int64
     - ifield: uint16
-    - iitem: uint16
-    - ipos: uint16
-    - iskey: bool
-    - val: uint64
-  pk: [payloadid,iitem,ifield,ipos,iskey]
-  notnull: [payloadid,iitem,ifield,ipos,iskey]
+    - val: float
+  pk: [payloadid,ifield]
 
-IOVP_INT64:
-  columns:
-    - payloadid: int64
-    - ifield: uint16
-    - iitem: uint16
-    - ipos: uint16
-    - iskey: bool
-    - val: int64
-  pk: [payloadid,iitem,ifield,ipos,iskey]
-  notnull: [payloadid,iitem,ifield,ipos,iskey]
 
-IOVP_STRING:
-  columns:
-    - payloadid: int64
-    - ifield: uint16
-    - iitem: uint16
-    - ipos: uint16
-    - iskey: bool
-    - val: string
-  pk: [payloadid,iitem,ifield,ipos,iskey]
-  notnull: [payloadid,iitem,ifield,ipos,iskey]
 
-IOVP_UINT8:
-  columns:
-    - payloadid: int64
-    - ifield: uint16
-    - iitem: uint16
-    - ipos: uint16
-    - iskey: bool
-    - val: uint8
-  pk: [payloadid,iitem,ifield,ipos,iskey]
-  notnull: [payloadid,iitem,ifield,ipos,iskey]
-
-IOVP_INT8:
-  columns:
-    - payloadid: int64
-    - ifield: uint16
-    - iitem: uint16
-    - ipos: uint16
-    - iskey: bool
-    - val: int8
-  pk: [payloadid,iitem,ifield,ipos,iskey]
-  notnull: [payloadid,iitem,ifield,ipos,iskey]

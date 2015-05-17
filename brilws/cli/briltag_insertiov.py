@@ -1,34 +1,33 @@
 """    
 Usage:
-  briltag insert [options]
+  briltag insertiov [options]
 
 
 Options:
       -h --help                Show this screen.
       -c CONNECT               Connect string to DB.
-      -p AUTHPATH              Path to authentication.xml file [default: .]
+      -p AUTHPATH              Path to authentication.xml
       -i INPUTFILE             Input yaml file
-      --setdefault TAGNAME     Set tag as default of datasource, applyto 
-      --unsetdefault TAGNAME   Unset tag as default of datasource, applyto
+      --name TAGNAME           IOV tag name
+      --applyto APPLYTO        Type of correction applied. lumi,bkg,daq
+      --type DATASOURCETYPE    Data source type. bcmf,plt,pxl,hfoc,hfet        
+      --isdefault              Tag is default of datasource, applyto 
+      --comments COMMENTS      Comments on the tag
       --debug                  Debug mode
       --nowarning              Switch off warnings
 """
 
 from docopt import docopt
-from schema import Schema, And, Or, Use
+from schema import Schema
+from brilws import clicommonargs
 import os
 
 def validate(optdict):
     result = {}
-    s = Schema({
-      '-c': And(str,error='-c CONNECT is required'),
-      '-p': And(os.path.exists, error='AUTHPATH should exist'),
-      '-i': Or(None, And(os.path.exists, error='INPUTFILE should exist')), 
-      '--setdefault': Or(None,str),
-      '--unsetdefault': Or(None,str),
-      str:object # catch all
-    })
-    result = s.validate(optdict)
+    myvalidables = ['-c','-p','--name','--applyto','--type',str]
+    argdict = dict((k,v) for k,v in clicommonargs.argvalidators.iteritems() if k in myvalidables)
+    schema = Schema(argdict)
+    result = schema.validate(argdict)
     return result
 
 if __name__ == '__main__':

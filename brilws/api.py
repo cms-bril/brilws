@@ -491,50 +491,88 @@ def iov_listtags(connection,tagname=None,datasource=None,applyto=None,isdefault=
                 result[tagid]['tagcomment'] = row['tagcomment']
             result[tagid][since] = {'payloadid':row['payloadid'],'payloadcomment':row['payloadcomment']}
     return result
-    
-def iov_createtag(connection,iovdata):
-    """
-    inputs:
-        connection:  db handle
-        iovdata:     {'tagname':tagname, 'datadict':datadict, 'maxnitems':maxnitems, 'iovdataversion':iovdataversion, 'datasource':datasource, 'applyto':applyto, 'isdefault':isdefault, 'comment':comment, sincex:{'payload':[[dict or list,]],'comment':comment} }
-    output:
-        tagid
-    sql:
-        insert into IOVTAGS(TAGID,TAGNAME,CREATIONUTC,DATADICT,MAXNITEMS,DATASOURCE,APPLYTO,ISDEFAULT,COMMENT) VALUES(:tagid, :tagname, :creationutc, :datadict, :maxnitems, :datasource, :applyto, :isdefault, :comment)
-        insert into IOVTAGDATA(TAGID,SINCE,PAYLOADID,COMMENT) VALUES(:tagid, :since, :payloadid, :comment)
-        insert into %s(PAYLOADID,IITEM,IFIELD,IPOS,ISKEY,VAL) VALUES(:payloadid, :iitem, :ifield, :ipos, :iskey, :val)
-    """
 
-    tagid = next(nonsequential_key(78))
-    #print "creating iovtag %s"%iovdata['tagname']
-    sinces = sorted([x for x in iovdata.keys() if isinstance(x, int)])
-    nowstr = datetime.utcnow().strftime("%Y-%m-%d %H:%M")
-    datadict = iovdata['datadict']
-    payloaddatadict = iov_parsepayloaddatadict(datadict)
-    maxnitems = iovdata['maxnitems']
-    
-    i = """insert into IOVTAGS(TAGID,TAGNAME,CREATIONUTC,DATADICT,MAXNITEMS,DATASOURCE,APPLYTO,ISDEFAULT,COMMENT) VALUES(:tagid, :tagname, :creationutc, :datadict, :maxnitems, :datasource, :applyto, :isdefault, :comment)"""
-    ti = """insert into IOVTAGDATA(TAGID,SINCE,PAYLOADID,COMMENT) VALUES(:tagid, :since, :payloadid, :comment)"""
-    pi = """insert into %s(PAYLOADID,IITEM,IFIELD,IPOS,ISKEY,VAL) VALUES(:payloadid, :iitem, :ifield, :ipos, :iskey, :val)"""
+def createIOVTag(engine,iovtagname,applyto,isdefault=False,comments='',schemaname=''):
+    '''
+    create a new iov tag, return the iovtag id
+    '''
+    iovtagid = next(nonsequential_key(78))    
+    basetablename = tablename = 'IOVTAGS'
+    if schemaname:
+        tablename = '.'.join([schemaname,basetablename])
+    utcstr = datetime.now().strftime(params._datetimefm)
+    t = Table(tablename, MetaData(), Column('TAGID',types.BigInteger), Column('TAGNAME',types.String),Column('CREATIONUTC',types.String), Column('APPLYTO',types.String), Column('DATASOURCE',types.String), Column('ISDEFAULT',types.BOOLEAN), Column('COMMENTS',types.String) )
+    connection = engine.connect() 
     with connection.begin() as trans:
-        r = connection.execute(i,{'tagid':tagid, 'tagname':iovdata['tagname'], 'creationutc':nowstr, 'datadict':datadict, 'maxnitems':maxnitems, 'datasource':iovdata['datasource'], 'applyto':iovdata['applyto'], 'isdefault':iovdata['isdefault'], 'comment':iovdata['comment'] })
-        
-        for since in sinces:
-            payloadid = next(nonsequential_key(79))
-            payloaddata = iovdata[since]['payload']            
-            payloadcomment = ''
-            if iovdata[since].has_key('comment'):
-                payloadcomment = iovdata[since]['comment']
-            tr = connection.execute(ti, {'tagid':tagid, 'since':since, 'payloadid':payloadid, 'comment':payloadcomment })
-            rowcache = _iov_buildpayloadcache( payloadid, payloaddata, payloaddatadict, payloadcomment)
-            for ptablename, prows in rowcache.items():
-                if len(prows)==0: continue
-                try:
-                    pr = connection.execute(pi%ptablename, prows)
-                except exc.SQLAlchemyError, e:
-                    raise
-    return tagid
-    
+        connection.execute( t.insert(),TAGID=iovtagid,TAGNAME=iovtagname,CREATIONUTC=utcstr,APPLYTO=applyto,ISDEFAULT=isdefault,COMMENTS=comments)
+    return iovtagid
+
+#### IOV TAGS ####
+#def iov_createtag(connection,tagname,applyto,datasource,isdefault=False,comments=''):
+#    """
+#    inputs:
+#        connection:  db handle
+#        iovdata:     {'tagname':tagname,'datasource':datasource, 'applyto':applyto, 'isdefault':isdefault, 'comment':comment, sincex:{'payload':[[dict or list,]],'comment':comment} }
+#    output:
+#        tagid
+#    sql:
+#        insert into IOVTAGS(TAGID,TAGNAME,CREATIONUTC,DATADICT,MAXNITEMS,DATASOURCE,APPLYTO,ISDEFAULT,COMMENT) VALUES(:tagid, :tagname, :creationutc, :datadict, :maxnitems, :datasource, :applyto, :isdefault, :comment)
+#        insert into IOVTAGDATA(TAGID,SINCE,PAYLOADID,COMMENT) VALUES(:tagid, :since, :payloadid, :comment)
+#        insert into %s(PAYLOADID,IITEM,IFIELD,IPOS,ISKEY,VAL) VALUES(:payloadid, :iitem, :ifield, :ipos, :iskey, :val)
+#    """
+#    tagid = next(nonsequential_key(78))
+#    #print "creating iovtag %s"%iovdata['tagname']
+#    sinces = sorted([x for x in iovdata.keys() if isinstance(x, int)])
+#    nowstr = datetime.utcnow().strftime("%Y-%m-%d %H:%M")
+#    datadict = iovdata['datadict']
+#    payloaddatadict = iov_parsepayloaddatadict(datadict)
+#    maxnitems = iovdata['maxnitems']    
+#    i = """insert into IOVTAGS(TAGID,TAGNAME,CREATIONUTC,DATADICT,MAXNITEMS,DATASOURCE,APPLYTO,ISDEFAULT,COMMENT) VALUES(:tagid, :tagname, :creationutc, :datadict, :maxnitems, :datasource, :applyto, :isdefault, :comment)"""
+#    ti = """insert into IOVTAGDATA(TAGID,SINCE,PAYLOADID,COMMENT) VALUES(:tagid, :since, :payloadid, :comment)"""
+#    pi = """insert into %s(PAYLOADID,IITEM,IFIELD,IPOS,ISKEY,VAL) VALUES(:payloadid, :iitem, :ifield, :ipos, :iskey, :val)"""
+#    with connection.begin() as trans:
+#        r = connection.execute(i,{'tagid':tagid, 'tagname':iovdata['tagname'], 'creationutc':nowstr, 'datadict':datadict, 'maxnitems':maxnitems, 'datasource':iovdata['datasource'], 'applyto':iovdata['applyto'], 'isdefault':iovdata['isdefault'], 'comment':iovdata['comment'] })
+#        for since in sinces:
+#            payloadid = next(nonsequential_key(79))
+#            payloaddata = iovdata[since]['payload']            
+#            payloadcomment = ''
+#            if iovdata[since].has_key('comment'):
+#                payloadcomment = iovdata[since]['comment']
+#            tr = connection.execute(ti, {'tagid':tagid, 'since':since, 'payloadid':payloadid, 'comment':payloadcomment })
+#            rowcache = _iov_buildpayloadcache( payloadid, payloaddata, payloaddatadict, payloadcomment)
+#            for ptablename, prows in rowcache.items():
+#                if len(prows)==0: continue
+#                try:
+#                    pr = connection.execute(pi%ptablename, prows)
+#                except exc.SQLAlchemyError, e:
+#                    raise
+#    return tagid
+
+def getIOVTags(engine,schemaname='',iovtagname='',isdefault=False,datasource='',applyto=''):
+    '''
+    output: iovtags dataframe
+    '''
+    basetablename = tablename = 'IOVTAGS'
+    if schemaname:
+        tablename = '.'.join([schemaname,basetablename])
+    q = '''select TAGID as tagid, TAGNAME as tagname, CREATIONUTC as creationutc, APPLYTO as applyto, DATASOURCE as datasource, ISDEFAULT as isdefault, COMMENTS as comments from %s'''%(tablename)
+    qconditions = []
+    qparams = {}
+    if iovtagname:
+        qconditions.append('TAGNAME=:iovtagname')
+        qparams['iovtagname'] = iovtagname
+    if datasource:
+        qconditions.append('DATASOURCE=:datasource')
+        qparams['datasource'] = datasource
+    if applyto:
+        qconditions.append('APPLYTO=:applyto')
+        qparams['applyto'] = applyto
+    if isdefault:
+        qconditions.append('ISDEFAULT=1')
+    if qconditions:
+        q = q+' where '+' AND '.join(qconditions)
+    return pd.read_sql_query(q,engine,index_col='tagid',params=qparams)
+
 def iov_appendtotag(connection,tagid,since,payloaddata,datadict,payloadcomment):
     """
     inputs:

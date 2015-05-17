@@ -31,12 +31,14 @@ class parser(object):
         self._name = None
         self._comments = ''
         self._outputstyle = 'tab'
+        self._applyto = ''
         self._parse()
         
     def _parse(self):
 
         self._dbconnect = self._argdict['-c']
-        self._authpath = self._argdict['-p']
+        if self._argdict.has_key('-p'):
+            self._authpath = self._argdict['-p']
         if self._argdict.has_key('-b') and self._argdict['-b']:
             self._beamstatus = self._argdict['-b'].upper()
         if self._argdict.has_key('--beamenergy'):
@@ -63,6 +65,8 @@ class parser(object):
             self._pathinfo = self._argdict['--pathinfo']
         if self._argdict.has_key('--type'):
             self._lumitype = self._argdict['--type']
+        if self._argdict.has_key('--applyto'):
+            self._applyto = self._argdict['--applyto']
         if self._argdict.has_key('-f') and self._argdict['-f'] :
             self._fillmin = self._argdict['-f']
             self._fillmax = self._argdict['-f']
@@ -177,7 +181,10 @@ class parser(object):
     @property
     def lumitype(self):
         return self._lumitype
-
+    @property
+    def applyto(self):
+        return self._applyto
+    
 argvalidators = {
     '--amodetag': Or(None,And(str,lambda s: s.upper() in params._amodetagChoices), error='--amodetag must be in '+str(params._amodetagChoices) ),
     '--beamenergy': Or(None,And(Use(int), lambda n: n>0), error='--beamenergy should be integer >0'),
@@ -187,6 +194,7 @@ argvalidators = {
     '--output-style': And(str,Use(str.lower), lambda s: s in params._outstyle, error='--output-style choice must be in '+str(params._outstyle) ),
     '--chunk-size':  And(Use(int), lambda n: n>0, error='--chunk-size should be integer >0'),
     '--type': Or(None, And(str, lambda s: s.upper() in params._lumitypeChoices), error='--type must be in '+str(params._lumitypeChoices) ),
+    '--applyto': Or(None, And(str, lambda s: s.upper() in params._applytoChoices), error='--applyto must be in '+str(params._applytoChoices) ),
     '--siteconfpath': Or(None, str, error='--siteconfpath should be string'),
     '-c': str,
     '-p': And(os.path.exists, error='AUTHPATH should exist'),
