@@ -1191,7 +1191,7 @@ def createDataTag(engine,datatagname,comments='',schemaname=''):
     if schemaname:
         tablename = '.'.join([schemaname,basetablename])
     utcstr = datetime.now().strftime(params._datetimefm)
-    t = Table(tablename, MetaData(), Column('DATATAGNAMEID',types.BigInteger), Column('DATATAGNAME',types.Text),  Column('CREATIONUTC',types.Text), Column('COMMENTS',types.Text) )
+    t = Table(tablename, MetaData(), Column('DATATAGNAMEID',types.BigInteger), Column('DATATAGNAME',types.String),  Column('CREATIONUTC',types.String), Column('COMMENTS',types.String) )
     connection = engine.connect() 
     with connection.begin() as trans:
         connection.execute( t.insert(),DATATAGNAMEID=datatagnameid,DATATAGNAME=datatagname,CREATIONUTC=utcstr,COMMENTS=comments)
