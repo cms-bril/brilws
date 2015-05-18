@@ -1,188 +1,164 @@
 tagname: hfoc_norm_v2e
-
-datadict: "str16:1:amodetag uint32:1:egev uint32:1:minbias str64:1:func float32:5:params uint32-float32:10:afterglow"
-
-maxnitems: 1
-
-iovdataversion: "1.0.0"
-
 datasource: hfoc
-
 applyto: lumi
-
 isdefault: 1
-
-comment: "HFV2c plus 2013 pa,ap,pp calib v2"
+comments: "HFV2c plus 2013 pa,ap,pp calib v2"
 
 132440:
+  payloaddict: "a0:float:1 minbias:uint32:1"
   payload:
-   -
-    - PROTPHYS
-    - 3500
-    - 68000
-    - "fPoly:a0"
-    - [6.37]
-  comment: "2010"
+    - a0: 6.37
+    - minbias: 68000
+  func: "fPoly:a0"
+  comments: "2010, amodetag=PROTPHYS, egev=3500"
   
 134721:
+  payloaddict: "a0:float:1 minbias:uint32:1"
   payload:
-   -
-    - PROTPHYS
-    - 3500
-    - 68000
-    - "fPoly:a0"
-    - [16.5]
-  comment: "2010"
+    - a0: 16.5
+    - minbias: 68000
+  func: "fPoly:a0"
+  comments: "2010, amodetag=PROTPHYS, egev=450"
   
 135055:
+  payloaddict: "a0:float:1 minbias:uint32:1"
   payload:
-   -
-    - PROTPHYS
-    - 3500
-    - 68000
-    - "fPoly:a0"
-    - [6.37]
-  comment: "2010"
+    - a0: 6.37
+    - minbias: 68000
+  func: "fPoly:a0"
+  comments: "2010, amodetag=PROTPHYS, egev=3500"
   
 136290:
+  payloaddict: "a0:float:1 minbias:uint32:1"
   payload:
-   -
-    - PROTPHYS
-    - 450
-    - 68000
-    - "fPoly:a0"
-    - [16.5]
-  comment: "2010"
+    - a0: 16.5
+    - minbias: 68000
+  func: "fPoly:a0"
+  comments: "2010, amodetag=PROTPHYS, egev=450"
   
 137027:
+  payloaddict: "a0:float:1 minbias:uint32:1"
   payload:
-   -
-    - PROTPHYS
-    - 3500
-    - 68000
-    - "fPoly:a0"
-    - [6.37]
-  comment: "2010"
+    - a0: 6.37
+    - minbias: 68000
+  func: "fPoly:a0"
+  comments: "2010, amodetag=PROTPHYS, egev=3500"
   
 150431:
+  payloaddict: "a0:float:1 minbias:uint32:1"
   payload:
-   -
-    - IONPHYS
-    - 3500
-    - 68000
-    - "fPoly:a0"
-    - [2.45e-03]
-  comment: "2010"
+    - a0: 2.45e-03
+    - minbias: 68000
+  func: "fPoly:a0"
+  comments: "2010, amodetag=IONPHYS, egev=3500"
   
 160403:
+  payloaddict: "a0:float:1 a1:float:1 a2:float:1 c1:float:1 drift:float:1 minbias:uint32:1"
   payload:
-   -
-    - PROTPHYS
-    - 3500
-    - 68000
-    - "fPoly:a0,a1,a2,c1,drift"
-    - [7.268,0.063,-0.0037,6.37,0.01258]
-  comment: "2011"
+    - a0: 7.268
+    - a1: 0.063
+    - a2: -0.0037
+    - c1: 6.37
+    - drift: 0.01258
+    - minbias: 68000
+  func: "fPoly:a0,a1,a2,c1,drift"
+  comments: "2011, amodetag=PROTPHYS, egev=3500"
   
 161345:
+  payloaddict: "a0:float:1 minbias:uint32:1"
   payload:
-   -
-    - PROTPHYS
-    - 1380
-    - 68000
-    - "fPoly:a0"
-    - [10.20]
-  comment: "2011"
+    - a0: 10.20
+    - minbias: 68000
+  func: "fPoly:a0"
+  comments: "2011, amodetag=PROTPHYS, egev=1380"
   
 162518:
+  payloaddict: "a0:float:1 a1:float:1 a2:float:1 c1:float:1 drift:float:1 minbias:uint32:1"
   payload:
-   -
-    - PROTPHYS
-    - 3500
-    - 68000
-    - "fPoly:a0,a1,a2,c1,drift"
-    - [7.268,0.063,-0.0037,6.37,0.01258]
-  comment: "2011"
+    - a0: 7.268
+    - a1: 0.063
+    - a2: -0.0037
+    - c1: 6.37
+    - drift: 01258
+    - minbias: 68000
+  func: "fPoly:a0,a1,a2,c1,drift"
+  comments: "2011, amodetag=PROTPHYS, egev=3500"
   
 176697:
-  payload:
-   -
-    - PROTPHYS
-    - 3500
-    - 68000
-    - "fPoly:a0,a1,a2,c1,drift"
-    - [7.268,0.063,-0.0037,6.37,0.01258]
-    - { 213: 0.992 , 321: 0.99 , 423: 0.988 , 597: 0.985 , 700: 0.984 , 873: 0.981 , 1041: 0.979 , 1179: 0.977 , 1317: 0.975 }
-  comment: "2011"
+  payloaddict: "a0:float:1 a1:float:1 a2:float:1 c1:float:1 drift:float:1 afterglowthreshold:uint16:9 afterglowval:float:9 minbias:uint32:1"
+  payload:    
+    - a0: 7.268
+    - a1: 0.063
+    - a2: -0.0037
+    - c1: 6.37	
+    - drift: 0.01258
+    - afterglowthreshold: [213,321,423,597,700,873,1041,1179,1317]
+    - afterglowval: [0.992,0.990,0.988,0.985,0.984,0.981,0.979,0.977,0.975]
+    - minbias: 68000
+  comments: "2011, amodetag=PROTPHYS, egev=3500"
   
 181530:
+  payloaddict: "a0:float:1 minbias:uint32:1"
   payload:
-   -
-    - IONPHYS
-    - 3500
-    - 2100000
-    - "fPoly:a0"
-    - [2.45e-03]
-  comment: "2011"
+    - a0: 2.45e-03
+    - minbias: 2100000
+  func: "fPoly:a0"
+  comments: "2011, amodetag=IONPHYS, egev=3500"
 
 189924:
+  payloaddict: "a0:float:1 a1:float:1 a2:float:1 c1:float:1 afterglowthreshold:uint16:9 afterglowval:float:9 minbias:uint32:1"
   payload:
-   -
-    - PROTPHYS
-    - 4000
-    - 69300
-    - "fPoly:a0,a1,a2,c1,drift"
-    - [6.36,0.063,-0.0037,5.57,1.]
-    - { 213: 0.992 , 321: 0.99 , 423: 0.988 , 597: 0.985 , 700: 0.984 , 873: 0.981 , 1041: 0.979 , 1179: 0.977 , 1317: 0.975 }
-  comment: "2012"
+    - a0: 6.36
+    - a1: 0.063
+    - a2: -0.0037
+    - c1: 5.57
+    - afterglowthreshold: [213,321,423,597,700,873,1041,1179,1317]
+    - afterglowval: [0.992,0.99,0.988,0.985,0.984,0.981,0.979,0.977,0.975]
+    - minbias: 69300
+  func: "fPoly:a0,a1,a2,c1,afterglowthreshold,afterglowval"
+  comments: "2012, amodetag=PROTPHYS, egev=4000"
   
 202790:
+  payloaddict: "a0:float:1 minbias:uint32:1"
   payload:
-   -
-    - PROTION
-    - 4000
-    - 2100000
-    - "fPoly:a0"
-    - [0.0549]
-  comment: "2012 HFV2a_pp/115.8(CMS AN-2012/396)"
+    - a0: 0.0549
+    - minbias: 2100000
+  func: "fPoly:a0"
+  comment: "2012 HFV2a_pp/115.8(CMS AN-2012/396), amodetag=PROTION, egev=4000"
 
 202796:
+  payloaddict: "a0:float:1 a1:float:1 a2:float:1 c1:float:1 afterglowthreshold:uint16:9 afterglowval:float:9 minbias:uint32:1"
   payload:
-   -
-    - PROTPHYS
-    - 4000
-    - 69300
-    - "fPoly:a0,a1,a2,c1,drift"
-    - [6.36,0.063,-0.0037,5.57,1.]
-    - { 213: 0.992 , 321: 0.99 , 423: 0.988 , 597: 0.985 , 700: 0.984 , 873: 0.981 , 1041: 0.979 , 1179: 0.977 , 1317: 0.975 }
-  comment: "2012"
+    - a0: 6.36
+    - a1: 0.063
+    - a2: -0.0037
+    - c1: 5.57
+    - afterglowthreshold: [213,321,423,597,700,873,1041,1179,1317]
+    - afterglowval: [0.992,0.99,0.988,0.985,0.984,0.981,0.979,0.977,0.975]
+    - minbias: 69300
+  func: "fPoly:a0,a1,a2,c1,afterglowthreshold,afterglowval,minbias:uint32:1"
+  comments: "2012 amodetag=PROTPHYS, egev=4000"
 
 209630:
+  payloaddict: "a0:float:1 minbias:uint32:1"
   payload:
-   -
-    - PROTION
-    - 4000
-    - 69300
-    - "fPoly:a0"
-    - [0.06270]
-  comment: "2013 (HFV2c*1.142 CMS AN-13-270)"
+    - a0: 0.06270
+    - minbias: 69300
+  func: "fPoly:a0"
+  comments: "2013 (HFV2c*1.142 CMS AN-13-270), amodetag=PROTION, egev=4000"
   
 211313:
+  payloaddict: "a0:float:1 minbias:uint32:1"
   payload:
-   -
-    - IONPROT
-    - 4000
-    - 2100000
-    - "fPoly:a0"
-    - [0.06248]
-  comment: "2013 (HFV2c*1.138 CMS AN-13-270)"
+    - a0: 0.06248
+    - minbias: 2100000
+  func: "fPoly:a0"
+  comment: "2013 (HFV2c*1.138 CMS AN-13-270), amodetag=IONPROT, egev=4000"
   
 211678:
-  payload:
-   -
-    - PROTPHYS
-    - 1380
-    - 69300
-    - "fPoly:a0"
-    - [10.3938]
-  comment: "2013 (HFV2c*1.019 CMS AN-13-270)"
+  payloaddict: "a0:float:1 minbias:uint32:1"
+  payload: 
+    - a0: 10.3938
+    - minbias: 69300
+  func: "fPoly:a0"
+  comment: "2013 (HFV2c*1.019 CMS AN-13-270), amodetag=PROTPHYS, egev=1380"

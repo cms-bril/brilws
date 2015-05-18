@@ -19,6 +19,7 @@ IOVTAGDATA:
     - since: uint32
     - payloaddict: string
     - payloadid: int64
+    - func: string
     - comments: string
   pk: [tagid,since]
 
@@ -57,5 +58,11 @@ IOVP_FLOAT:
     - val: float
   pk: [payloadid,ifield]
 
+IOVP_STRING:
+  columns:
+    - payloadid: int64
+    - ifield: uint16
+    - val: string
+  pk: [payloadid,ifield]
 
 
