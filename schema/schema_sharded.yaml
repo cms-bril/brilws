@@ -86,8 +86,6 @@ HFOC_RESULT_&suffix:
     - normtagid: int64
     - avglumi: float
     - bxlumiblob: blob
-    - recorded: float
-    - avgpu: float
    pk: [datatagid,normtagid]
    
 HFET_RESULT_&suffix:
@@ -96,8 +94,6 @@ HFET_RESULT_&suffix:
     - normtagid: int64
     - avglumi: float
     - bxlumiblob: blob
-    - recorded: float
-    - avgpu: float
    pk: [datatagid,normtagid]
    
 PLT_RESULT_&suffix:
@@ -106,8 +102,6 @@ PLT_RESULT_&suffix:
     - normtagid: int64
     - avglumi: float
     - bxlumiblob: blob
-    - recorded: float
-    - avgpu: float
    pk: [datatagid,normtagid]
    
 BCMF_RESULT_&suffix:
@@ -116,8 +110,6 @@ BCMF_RESULT_&suffix:
     - normtagid: int64
     - avglumi: float
     - bxlumiblob: blob
-    - recorded: float
-    - avgpu: float
    pk: [datatagid,normtagid]
    
 ONLINE_RESULT_&suffix:
@@ -130,7 +122,6 @@ ONLINE_RESULT_&suffix:
     - delivered: float
     - recorded: float
     - bxdeliveredblob: blob
-    - bxrecordedblob: blob
     - avgpu: float
     - datasource: string
     - normtagid: int64
@@ -146,7 +137,6 @@ OFFLINE_RESULT_&suffix:
     - delivered: float
     - recorded: float
     - bxdeliveredblob: blob
-    - bxrecordedblob: blob
     - avgpu: float
     - datasource: string
     - datatagid: int64

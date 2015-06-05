@@ -507,6 +507,62 @@ def createIOVTag(engine,iovtagname,applyto,isdefault=False,comments='',schemanam
         connection.execute( t.insert(),TAGID=iovtagid,TAGNAME=iovtagname,CREATIONUTC=utcstr,APPLYTO=applyto,ISDEFAULT=isdefault,COMMENTS=comments)
     return iovtagid
 
+def packlistoblob(typecide,data):
+    dataarray = array.array(typecode,list(data))
+    return buffer(dataarray.tostring())
+    
+def parsepayloaddict(payloaddict):
+    '''
+    input: fieldname:fieldtype:maxlength fieldname:fieldtype:maxlength
+    output : [[fieldname,fieldtype,maxlength]]
+    '''
+    result = []
+    fields = payloaddict.split(' ')
+    for field in fields:
+        fieldinfo = field.split(':')
+        result.append(fieldinfo)            
+    return result
+
+def insertIOVData(engine,iovtagid,payloaddata,schemaname=''):
+    '''
+    payloaddata: {since:{'payloaddict':, 'func':, 'comments': }}
+    '''
+    iovdata_table = 'IOVTAGDATA'
+    iovpayload_table = 'IOVP_'
+    if schemaname:
+        iovdata_table = '.'.join([schemaname,iovdata_table])
+        iovpayload_table = '.'.join([schemaname,iovpayload_table])
+        
+    iovdataT = Table(iovdata_table, MetaData(), Column('TAGID',types.BigInteger) ,Column('SINCE',types.Integer), Column('PAYLOADDICT',types.String), Column('PAYLOADID',types.BigInteger), Column('FUNC',types.String), Column('COMMENTS',types.String) )
+    sinces = []
+    connection = engine.connection()
+    with connection.begin() as trans:
+        for since in sinces:
+            payload = payloaddata['since']['payload']
+            payloadid = next()
+            payloaddict = payloaddata[since]['payloaddict']
+            func = ''
+            if payloaddata[since].has_key('func'):
+                func = payloaddata[since]['func']
+            comments = ''
+            if payloaddata[since].has_key('comments'):
+                func = payloaddata[since]['comments']
+            payloadfields = parsepayloaddict(payloaddict)
+            
+            connection.execute( t.insert(), TAGID=iovtagid, SINCE=since, PAYLOADDICT=payloaddict, PAYLOADID=payloadid, FUNC=func, COMMENTS=comments)
+            valtype = types.Float
+            for ifield,fieldinfo in enumerate(payloadfields):
+                fieldname = fieldinfo[0]
+                fieldtype = fieldinfo[1]
+                maxlength = fieldinfo[2]
+                
+                valtype = types.Float
+                
+                ptable = Table(iovpayload_table, MetaData(), Column('PAYLOADID',types.BigInteger), Column('IFIELD',types.Integer), Column('VAL',valtype) )
+                connection.execute( ptable.insert(), PAYLOADID=payloadid, IFIELD=ifield, VAL=payloadval)
+                
+def getIOVData(engine,iovtagid,since,fields=[]):
+    pass
 #### IOV TAGS ####
 #def iov_createtag(connection,tagname,applyto,datasource,isdefault=False,comments=''):
 #    """
