@@ -67,8 +67,8 @@ RUNINFO:          #per run
 ##### Map tables #####
 
 TRGBITMAP:
-   columns:    #static map
-    - bitnameid: uint16            #0-63 reserved for techbits
+   columns:    
+    - bitnameid: uint32            #0-63 reserved for techbits
     - bitid: uint16                #0-127 algo, 128-191 techbits
     - bitname: string              #alias used in l1seed expression
    pk: [bitnameid]
