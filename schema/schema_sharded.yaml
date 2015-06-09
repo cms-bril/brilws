@@ -20,7 +20,7 @@ TRG_&suffix:               #per ls, per trg bit
    columns:
     - datatagid: int64
     - bitid: uint16
-    - bitnameid: uint16 #tech bit alias id is 65535
+    - bitnameid: uint16 
     - prescidx: uint16
     - prescval: uint32  
     - counts: uint32

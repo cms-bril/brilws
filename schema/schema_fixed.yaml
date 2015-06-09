@@ -72,7 +72,8 @@ TRGBITMAP:
     - bitid: uint16                #0-127 algo, 128-191 techbits
     - bitname: string              #alias used in l1seed expression
    pk: [bitnameid]
-
+   unique: [ bitname ]
+   
 TRGHLTSEEDMAP:
    columns:
     - hltpathid: uint32
