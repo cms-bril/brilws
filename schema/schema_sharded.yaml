@@ -83,6 +83,7 @@ PXL_&suffix:        #per ls
 HFOC_RESULT_&suffix:
    columns:
     - datatagid: int64
+    - normtag: string
     - normtagid: int64
     - avglumi: float
     - bxlumiblob: blob
@@ -91,6 +92,7 @@ HFOC_RESULT_&suffix:
 HFET_RESULT_&suffix:
    columns:
     - datatagid: int64
+    - normtag: string
     - normtagid: int64
     - avglumi: float
     - bxlumiblob: blob
@@ -99,6 +101,7 @@ HFET_RESULT_&suffix:
 PLT_RESULT_&suffix:
    columns:
     - datatagid: int64
+    - normtag: string
     - normtagid: int64
     - avglumi: float
     - bxlumiblob: blob
@@ -107,6 +110,7 @@ PLT_RESULT_&suffix:
 BCMF_RESULT_&suffix:
    columns:
     - datatagid: int64
+    - normtag: string
     - normtagid: int64
     - avglumi: float
     - bxlumiblob: blob
@@ -125,6 +129,7 @@ ONLINE_RESULT_&suffix:
     - avgpu: float
     - datasource: string
     - normtagid: int64
+    - normtag: string
    pk: [runnum,lsnum]
 
 OFFLINE_RESULT_&suffix:
