@@ -51,13 +51,7 @@ RUNINFO:          #per run
     - runnum: uint32
     - hltkey: string
     - hltconfigid: uint32
-    - gt_rs_key: string
-    - trgmask1: uint32
-    - trgmask2: uint32
-    - trgmask3: uint32
-    - trgmask4: uint32
-    - trgmask5: uint32
-    - trgmask6: uint32
+    - gt_rs_key: string    
     - fillscheme: string
     - ncollidingbx: uint16
     - bxpattern: blob
