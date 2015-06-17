@@ -5,12 +5,12 @@ import os
 from distutils.core import setup
 from setuptools import setup
 
-import versioneer
+#import versioneer
 
-versioneer.versionfile_source = 'brilws/_version.py'
-versioneer.versionfile_build = 'brilws/_version.py'
-versioneer.tag_prefix = '' # tags are like 1.2.0
-versioneer.parentdir_prefix = 'brilws' # dirname like 'myproject-1.2.0'
+#versioneer.versionfile_source = 'brilws/_version.py'
+#versioneer.versionfile_build = 'brilws/_version.py'
+#versioneer.tag_prefix = '' # tags are like 1.2.0
+#versioneer.parentdir_prefix = 'brilws' # dirname like 'myproject-1.2.0'
 
 kwds = {'scripts':[]}
 kwds['scripts'].append('bin/briltag')
@@ -18,8 +18,8 @@ kwds['scripts'].append('bin/brilcalc')
 kwds['scripts'].append('bin/brilschema')
 setup(
     name = "brilws",
-    version=versioneer.get_version(),
-    cmdclass=versioneer.get_cmdclass(),
+    #version=versioneer.get_version(),
+    #cmdclass=versioneer.get_cmdclass(),
     author = "Zhen Xie, CERN/Princeton University",
     author_email = "Zhen.Xie@cern.ch",
     url = "https://github.com/xiezhen/brilws",
