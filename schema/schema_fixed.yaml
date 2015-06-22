@@ -47,16 +47,13 @@ IDS_DATATAG:     #per ls
    
 RUNINFO:          #per run
    columns:       
-    - datatagid: int64
     - runnum: uint32
     - hltkey: string
     - hltconfigid: uint32
     - gt_rs_key: string    
     - fillscheme: string
-    - ncollidingbx: uint16
-    - bxpattern: blob
     - nbperls: uint16
-   pk: [datatagid]
+   pk: [runnum]
 
 ##### Map tables #####
 

@@ -14,6 +14,12 @@ BEAM_&suffix:         #per ls
     - bxidxblob: blob
     - bxintensity1blob: blob
     - bxintensity2blob: blob
+    - ncollidingbx: uint16
+    - bxpattern: blob
+    - bxconfig1blob: blob
+    - bxconfig2blob: blob
+    - ncollidables: uint16
+    - collidables: blob
    pk: [datatagid]
 
 TRG_&suffix:               #per ls, per trg bit
