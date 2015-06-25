@@ -1,4 +1,5 @@
 import sys,logging
+import os
 import docopt
 import schema
 import brilws
@@ -10,15 +11,12 @@ import re,time, csv
 from datetime import datetime
 from sqlalchemy import *
 import math
-log = logging.getLogger('brilcalc')
-logformatter = logging.Formatter('%(levelname)s %(message)s')
+log = logging.getLogger('brilws')
+logformatter = logging.Formatter('%(levelname)s %(name)s %(message)s')
+log.setLevel(logging.ERROR)
 ch = logging.StreamHandler()
-ch.setLevel(logging.WARNING)
-#fh = logging.FileHandler('/tmp/brilcalc.log')
 ch.setFormatter(logformatter)
-#fh.setFormatter(logformatter)
 log.addHandler(ch)
-#log.addHandler(fh)
 
 class Unbuffered(object):
     def __init__(self, stream):
@@ -35,28 +33,27 @@ def brilcalc_main():
 
     usage:
       brilcalc (-h|--help) 
-      brilcalc --version
-      brilcalc --checkforupdate
-      brilcalc [--debug|--nowarning] <command> [<args>...]
+      brilcalc [--debug|--warn] <command> [<args>...]
 
     commands:
       lumi Luminosity
       beam Beam       
       trg  L1 trigger
       hlt  HLT
-      bkg  Background
-      
+      bkg  Background 
     See 'brilcalc <command> --help' for more information on a specific command.
 
     '''
     args = {}
     argv = sys.argv[1:]
-    args = docopt.docopt(docstr,argv,help=True,version=brilws.__version__,options_first=True)
+    #args = docopt.docopt(docstr,argv,help=True,version=brilws.__version__,options_first=True)
+    args = docopt.docopt(docstr,argv,help=True,version='0.0.1',options_first=True)
     
-    if '--debug' in sys.argv:
-       log.setLevel(logging.DEBUG)
-       ch.setLevel(logging.DEBUG)
-    if args['--version'] : print brilws.__version__
+    if args['--debug']:
+        log.setLevel(logging.DEBUG)
+    elif args['--warn']:
+       log.setLevel(logging.WARNING)
+        
     log.debug('global arguments: %s',args)
     cmmdargv = [args['<command>']] + args['<args>']
 
@@ -72,9 +69,12 @@ def brilcalc_main():
           lumiargs = clicommonargs.parser(parseresult)
 
           ##db params
-          dbengine = create_engine(lumiargs.dbconnect)
-          authpath = lumiargs.authpath          
-
+          dbschema = ''
+          log.debug('dbconnect: %s, authpath: %s'%(lumiargs.dbconnect,lumiargs.authpath))
+          if not os.path.isfile(lumiargs.dbconnect):
+              connecturl = api.build_connecturl(lumiargs.dbconnect,lumiargs.authpath)
+              dbschema = 'cms_lumi_prod'
+          dbengine = create_engine(connecturl)
           ##display params
           csize = lumiargs.chunksize
           withBX = lumiargs.withBX          
@@ -82,7 +82,7 @@ def brilcalc_main():
           totable = lumiargs.totable
           lumitype = lumiargs.lumitype
           if not lumitype:
-              lumitype = 'hfoc'
+              lumitype = 'result'
           fh = None
           ptable = None
           csvwriter = None
@@ -91,8 +91,8 @@ def brilcalc_main():
           footer = ['nfill','nrun','nls','ncms','delivered','recorded']
           bylsheader = ['fill','run','ls','time','cms','delivered','recorded','avgpu','source']
           xingheader = ['fill','run','ls','bxlumi']
-          #shardmap = api.loadshardmap(dbengine,schemaname='')
-          shards = [1,2]
+          
+          shards = [1,2,3]
           if withBX:
               header = xingheader
           elif byls:
@@ -108,20 +108,54 @@ def brilcalc_main():
               
           datatagname = lumiargs.datatagname
           datatagnameid = 0
-          if not datatagname:
-              r = api.max_datatagname(dbengine)
+          if datatagname:
+              datatagnameid = api.datatagnameid(dbengine,datatagname=datatagname,schemaname=dbschema)
+          else:
+              r = api.max_datatagname(dbengine,schemaname=dbschema)
               if not r:
-                  raise 'no tag found'
+                  raise RuntimeError('no tag found')
+
               datatagname = r[0]
               datatagnameid = r[1]
-          else:
-              datatagnameid = api.datatagnameid(dbengine,datatagname=datatagname)
+          log.debug('datatagname: %s'%datatagname)
+
             
           print '#Data tag : ',datatagname
-
-          it = api.datatagIter(dbengine,datatagnameid,fillmin=lumiargs.fillmin,fillmax=lumiargs.fillmax,runmin=lumiargs.runmin,runmax=lumiargs.runmax,amodetag=lumiargs.amodetag,targetegev=lumiargs.egev,beamstatus=lumiargs.beamstatus,tssecmin=lumiargs.tssecmin,tssecmax=lumiargs.tssecmax,runlsselect=lumiargs.runlsSeries,chunksize=csize,fields=['fillnum','runnum','lsnum','timestampsec'])
-          if not it: exit(1)
+          if datatagnameid==0:
+              rfields = ['fillnum','runnum','lsnum','timestampsec','cmson','beamstatus','delivered','recorded','avgpu','datasource']
+              if withBX:
+                  rfields = ['bxdeliveredblob']
+              for shard in shards:
+                  tablename = 'online_result_'+str(shard)
+                  shardexists = api.table_exists(dbengine,tablename,schemaname=dbschema)
+                  if shardexists:
+                      onlineit = api.online_resultIter(dbengine,tablename,schemaname=dbschema,fillmin=lumiargs.fillmin,fillmax=lumiargs.fillmax,runmin=lumiargs.runmin,runmax=lumiargs.runmax,amodetag=lumiargs.amodetag,targetegev=lumiargs.egev,beamstatus=lumiargs.beamstatus,tssecmin=lumiargs.tssecmin,tssecmax=lumiargs.tssecmax,runlsselect=lumiargs.runlsSeries,chunksize=csize,fields=rfields)
+                      if byls or withBX:     
+                          for rchunk in onlineit:
+                              for rowidx,row in rchunk.iterrows():
+                                  if byls:
+                                      timestampsec = row['timestampsec']
+                                      dtime = datetime.fromtimestamp(int(timestampsec)).strftime(params._datetimefm)
+                                      delivered = row['delivered']
+                                      recorded = row['recorded']
+                                      avgpu =row['avgpu']
+                                      datasource = row['datasource']
+                                      display.add_row( ['%d'%row['fillnum'],'%d'%row['runnum'],'%d'%row['lsnum'],dtime,True,'%.4e'%(delivered*23.31),'%.4e'%(recorded*23.31),'%.2e'%(avgpu),datasource] , fh=fh, csvwriter=csvwriter, ptable=ptable)
+                                  else:
+                                      continue
+                          del rchunk
+          if ptable:
+              display.show_table(ptable,lumiargs.outputstyle)
+              del ptable                    
+          if fh and fh is not sys.stdout: fh.close() 
+          sys.exit(0)
+          it = api.datatagIter(dbengine,datatagnameid,schemaname=dbschema,fillmin=lumiargs.fillmin,fillmax=lumiargs.fillmax,runmin=lumiargs.runmin,runmax=lumiargs.runmax,amodetag=lumiargs.amodetag,targetegev=lumiargs.egev,beamstatus=lumiargs.beamstatus,tssecmin=lumiargs.tssecmin,tssecmax=lumiargs.tssecmax,runlsselect=lumiargs.runlsSeries,chunksize=csize,fields=['fillnum','runnum','lsnum','timestampsec'])
+          #if not it:
+          #    print 'no result found'
+          #    exit(1)
           
+          
+          '''
           tot_nfill = 0
           tot_nrun = 0
           tot_nls = 0
@@ -232,7 +266,7 @@ def brilcalc_main():
                   print >> fh, '#'+','.join(footer)
                   print >> fh, '#'+','.join( [ '%d'%tot_nfill,'%d'%tot_nrun,'%d'%tot_nls,'%d'%tot_ncms,'%.3e'%(tot_delivered),'%.3e'%(tot_recorded) ] )
           if fh and fh is not sys.stdout: fh.close()
-
+'''
       elif args['<command>'] == 'beam':
           import brilcalc_beam
 
@@ -257,7 +291,7 @@ def brilcalc_main():
           header = ['fill','run','ls','time','beamstatus','amodetag','egev','intensity1','intensity2']
           if withBX:
               header = ['fill','run','ls','bxintensities']
-          shards = [1,2]
+          shards = [3]
           if not totable:
               fh = beamargs.ofilehandle
               print >> fh, '#'+','.join(header)
@@ -321,6 +355,7 @@ def brilcalc_main():
           if fh and fh is not sys.stdout: fh.close()  
           
       elif args['<command>'] == 'trg':
+          raise NotImplementedError           
           import brilcalc_trg
           parseresult = docopt.docopt(brilcalc_trg.__doc__,argv=cmmdargv)
           parseresult = brilcalc_trg.validate(parseresult)
@@ -392,6 +427,7 @@ def brilcalc_main():
           if fh and fh is not sys.stdout: fh.close()
           
       elif args['<command>'] == 'hlt':
+          raise NotImplementedError
           import brilcalc_hlt
           parseresult = docopt.docopt(brilcalc_hlt.__doc__,argv=cmmdargv)
           parseresult = brilcalc_hlt.validate(parseresult)
@@ -489,7 +525,7 @@ def brilcalc_main():
           if fh and fh is not sys.stdout: fh.close()
           
       elif args['<command>'] == 'bkg':
-          exit("bkg is not implemented")
+          raise NotImplementedError
       else:
           exit("%r is not a brilcalc command. See 'brilcalc --help'."%args['<command>'])
     except docopt.DocoptExit:
@@ -497,14 +533,15 @@ def brilcalc_main():
     except schema.SchemaError as e:
       exit(e)
 
-    if not parseresult['--debug'] :
-       if parseresult['--nowarning']:
-          log.setLevel(logging.ERROR)
-          ch.setLevel(logging.ERROR)
-    else:
-       log.setLevel(logging.DEBUG)
-       ch.setLevel(logging.DEBUG)
-       log.debug('create arguments: %s',parseresult)
+    #if not parseresult['--debug'] :
+    #    pass
+       #if parseresult['--nowarning']:
+       #   log.setLevel(logging.ERROR)
+       #   ch.setLevel(logging.ERROR)
+    #else:
+    #   log.setLevel(logging.DEBUG)
+       #ch.setLevel(logging.DEBUG)
+    #   log.debug('create arguments: %s',parseresult)
     return
 
 if __name__ == '__main__':
