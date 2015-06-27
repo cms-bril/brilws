@@ -1539,7 +1539,7 @@ def online_resultIter(engine,tablename,schemaname='',runmin=None,runmax=None,fil
         if runmax:
             qPieces.append('RUNNUM<=:runmax')
             binddict['runmax'] = runmax
-    print 'c'    
+
     if not qPieces: return None # at least one piece of selection is required
     qCondition = ' where '+' and '.join(qPieces)+' order by runnum,lsnum'
     q = q + qCondition

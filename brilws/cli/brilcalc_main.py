@@ -81,14 +81,16 @@ def brilcalc_main():
           byls = lumiargs.byls
           totable = lumiargs.totable
           lumitype = lumiargs.lumitype
+          datatagname = lumiargs.datatagname
           if not lumitype:
               lumitype = 'result'
           fh = None
           ptable = None
+          ftable = None
           csvwriter = None
 
           header = ['fill','run','time','nls','ncms','delivered','recorded']
-          footer = ['nfill','nrun','nls','ncms','delivered','recorded']
+          footer = ['nfill','nrun','nls','ncms','totdelivered','totrecorded','maxdelivered','maxrecorded']
           bylsheader = ['fill','run','ls','time','cms','beamstatus','delivered','recorded','avgpu','source']
           
           if withBX:
@@ -97,16 +99,6 @@ def brilcalc_main():
               header = bylsheader
               
           shards = [1,2,3]
-          
-          if not totable:
-              fh = lumiargs.ofilehandle
-              print >> fh, '#'+','.join(header)
-              csvwriter = csv.writer(fh)
-          else:
-              ptable = display.create_table(header,header=True)
-              ftable = display.create_table(footer)
-              
-          datatagname = lumiargs.datatagname
           datatagnameid = 0
           if datatagname:
               datatagnameid = api.datatagnameid(dbengine,datatagname=datatagname,schemaname=dbschema)
@@ -117,23 +109,21 @@ def brilcalc_main():
 
               datatagname = r[0]
               datatagnameid = r[1]
-          log.debug('datatagname: %s'%datatagname)
-
-            
-          print '#Data tag : ',datatagname
-          
+          log.debug('datatagname: %s'%datatagname)                     
+          if not totable:
+              fh = lumiargs.ofilehandle
+              print >> fh, '#Data tag : ',datatagname
+              print >> fh, '#'+','.join(header)
+              csvwriter = csv.writer(fh)
+          else:
+              ptable = display.create_table(header,header=True)
+              ftable = display.create_table(footer)
+              
           if datatagnameid==0:
               rfields = ['fillnum','runnum','lsnum','timestampsec','cmson','beamstatus','delivered','recorded','avgpu','datasource']
               if withBX:
-                  rfields = rfields+['bxdeliveredblob']
-              tot_nfill = 0
-              tot_nrun = 0
-              tot_nls = 0
-              tot_ncms = 0
-              tot_delivered = 0
-              tot_recorded = 0
-              runtot = {}#{run:['fill','time','nls','ncms','delivered','recorded']}
-              allfills = []    
+                  rfields = rfields+['bxdeliveredblob']             
+              runtot = {}#{run:{'fill':,'time':,'nls':,'ncms':,'delivered':,'recorded':}}
               for shard in shards:
                   tablename = 'online_result_'+str(shard)
                   shardexists = api.table_exists(dbengine,tablename,schemaname=dbschema)
@@ -145,8 +135,8 @@ def brilcalc_main():
                           lsnum = row['lsnum']                          
                           timestampsec = row['timestampsec']
                           dtime = datetime.fromtimestamp(int(timestampsec)).strftime(params._datetimefm)
-                          delivered = row['delivered']
-                          recorded = row['recorded']
+                          delivered = row['delivered']*23.31
+                          recorded = row['recorded']*23.31
                           avgpu = row['avgpu']
                           datasource = row['datasource']
                           cmson = row['cmson']
@@ -154,12 +144,12 @@ def brilcalc_main():
                           livefrac = 0.                          
                           if delivered: livefrac = np.divide(recorded,delivered)
                           if runtot.has_key(runnum):#accumulate
-                              runtot[runnum][2] += 1
-                              if cmson: runtot[runnum][3] += 1
-                              runtot[runnum][4] += delivered
-                              runtot[runnum][5] += recorded
+                              runtot[runnum]['nls'] += 1
+                              if cmson: runtot['ncms'][3] += 1
+                              runtot[runnum]['delivered'] += delivered
+                              runtot[runnum]['recorded'] += recorded
                           else:
-                              runtot[runnum] = [fillnum,dtime,1,int(cmson),delivered,recorded]
+                              runtot[runnum] = {'fill':fillnum,'time':dtime,'nls':1,'ncms':int(cmson),'delivered':delivered,'recorded':recorded}
                           if withBX:
                               bxlumi = None
                               bxlumistr = '[]'
@@ -180,11 +170,35 @@ def brilcalc_main():
            
           if not byls and not withBX: #run table
               for run in sorted(runtot):
-                  display.add_row( [runtot[run][0],run,runtot[run][1],runtot[run][2],runtot[run][3],'%.3f'%(runtot[run][4]),'%.3f'%(runtot[run][5])] , fh=fh, csvwriter=csvwriter, ptable=ptable)
-          if ptable:
-              display.show_table(ptable,lumiargs.outputstyle)
-              del ptable
-              
+                  display.add_row( [runtot[run]['fill'],run,runtot[run]['time'],runtot[run]['nls'],runtot[run]['ncms'],'%.3f'%(runtot[run]['delivered']),'%.3f'%(runtot[run]['recorded'])] , fh=fh, csvwriter=csvwriter, ptable=ptable)
+
+        
+          df_runtot = pd.DataFrame.from_dict(runtot,orient='index')
+          nruns = len(df_runtot.index)
+          nfills = df_runtot['fill'].nunique()
+          nls = df_runtot['nls'].sum()
+          ncmsls = df_runtot['ncms'].sum()
+          totdelivered = df_runtot['delivered'].sum()
+          totrecorded = df_runtot['recorded'].sum()
+          peakdelivered = df_runtot['delivered'].max()
+          peakrecorded = df_runtot['recorded'].max()
+
+          if totable:
+              display.add_row( [ nfills,nruns,nls,ncmsls,'%.3e'%(totdelivered),'%.3e'%(totrecorded),'%.3e'%(peakdelivered),'%.3e'%(peakrecorded)], fh=None, csvwriter=None, ptable=ftable)
+              if ptable:
+                  print '#Data tag : ',datatagname
+                  display.show_table(ptable,lumiargs.outputstyle)
+                  del ptable
+              if ftable:
+                  print "#Summary: "
+                  display.show_table(ftable,lumiargs.outputstyle)
+                  del ftable
+          else:
+              print >> fh, '#Summary:'                  
+              print >> fh, '#'+','.join(footer)
+              print >> fh, '#'+','.join( [ '%d'%nfills,'%d'%nruns,'%d'%nls,'%d'%ncmsls,'%.3e'%(totdelivered),'%.3e'%(totrecorded), '%.3e'%(peakdelivered),'%.3e'%(peakrecorded)] )
+                  
+          
           if fh and fh is not sys.stdout: fh.close()        
           sys.exit(0)
 
