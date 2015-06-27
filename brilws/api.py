@@ -1539,13 +1539,24 @@ def online_resultIter(engine,tablename,schemaname='',runmin=None,runmax=None,fil
         if runmax:
             qPieces.append('RUNNUM<=:runmax')
             binddict['runmax'] = runmax
-        
+    print 'c'    
     if not qPieces: return None # at least one piece of selection is required
     qCondition = ' where '+' and '.join(qPieces)+' order by runnum,lsnum'
-    q = q + qCondition    
+    q = q + qCondition
     log.debug(q)
-    return pd.read_sql_query(q,engine,params=binddict,chunksize=chunksize,index_col=None)
+    connection = engine.connect()
+    result = connection.execution_options(stream_result=True).execute(q,binddict)
     
+    '''
+    try:
+        print 4
+        result = pd.read_sql_query(q,engine,params=binddict,chunksize=chunksize,index_col=None)
+        print 5
+    except sqlalchemy.exc.ResourceClosedError, e:
+        print 'ola'
+    print 6
+    '''
+    return iter(result)
         
 def datatagIter(engine,datatagnameid,schemaname='',runmin=None,runmax=None,fillmin=None,tssecmin=None,tssecmax=None,fillmax=None,beamstatus=None,amodetag=None,targetegev=None,runlsselect=None,chunksize=9999,fields=[]):
     '''

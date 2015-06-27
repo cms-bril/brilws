@@ -6,7 +6,7 @@ import brilws
 import prettytable
 import pandas as pd
 import numpy as np
-from brilws import api,params,clicommonargs,display
+from brilws import api,params,clicommonargs,display,formatter
 import re,time, csv
 from datetime import datetime
 from sqlalchemy import *
@@ -89,15 +89,15 @@ def brilcalc_main():
 
           header = ['fill','run','time','nls','ncms','delivered','recorded']
           footer = ['nfill','nrun','nls','ncms','delivered','recorded']
-          bylsheader = ['fill','run','ls','time','cms','delivered','recorded','avgpu','source']
-          xingheader = ['fill','run','ls','bxlumi']
+          bylsheader = ['fill','run','ls','time','cms','beamstatus','delivered','recorded','avgpu','source']
           
-          shards = [1,2,3]
           if withBX:
-              header = xingheader
+              header = bylsheader+['[bxidx bxdelivered bxrecorded]']
           elif byls:
               header = bylsheader
-
+              
+          shards = [1,2,3]
+          
           if not totable:
               fh = lumiargs.ofilehandle
               print >> fh, '#'+','.join(header)
@@ -121,34 +121,74 @@ def brilcalc_main():
 
             
           print '#Data tag : ',datatagname
+          
           if datatagnameid==0:
               rfields = ['fillnum','runnum','lsnum','timestampsec','cmson','beamstatus','delivered','recorded','avgpu','datasource']
               if withBX:
-                  rfields = ['bxdeliveredblob']
+                  rfields = rfields+['bxdeliveredblob']
+              tot_nfill = 0
+              tot_nrun = 0
+              tot_nls = 0
+              tot_ncms = 0
+              tot_delivered = 0
+              tot_recorded = 0
+              runtot = {}#{run:['fill','time','nls','ncms','delivered','recorded']}
+              allfills = []    
               for shard in shards:
                   tablename = 'online_result_'+str(shard)
                   shardexists = api.table_exists(dbengine,tablename,schemaname=dbschema)
                   if shardexists:
                       onlineit = api.online_resultIter(dbengine,tablename,schemaname=dbschema,fillmin=lumiargs.fillmin,fillmax=lumiargs.fillmax,runmin=lumiargs.runmin,runmax=lumiargs.runmax,amodetag=lumiargs.amodetag,targetegev=lumiargs.egev,beamstatus=lumiargs.beamstatus,tssecmin=lumiargs.tssecmin,tssecmax=lumiargs.tssecmax,runlsselect=lumiargs.runlsSeries,chunksize=csize,fields=rfields)
-                      if byls or withBX:     
-                          for rchunk in onlineit:
-                              for rowidx,row in rchunk.iterrows():
-                                  if byls:
-                                      timestampsec = row['timestampsec']
-                                      dtime = datetime.fromtimestamp(int(timestampsec)).strftime(params._datetimefm)
-                                      delivered = row['delivered']
-                                      recorded = row['recorded']
-                                      avgpu =row['avgpu']
-                                      datasource = row['datasource']
-                                      display.add_row( ['%d'%row['fillnum'],'%d'%row['runnum'],'%d'%row['lsnum'],dtime,True,'%.4e'%(delivered*23.31),'%.4e'%(recorded*23.31),'%.2e'%(avgpu),datasource] , fh=fh, csvwriter=csvwriter, ptable=ptable)
-                                  else:
-                                      continue
-                          del rchunk
+                      for row in onlineit:
+                          fillnum = row['fillnum']
+                          runnum = row['runnum']
+                          lsnum = row['lsnum']                          
+                          timestampsec = row['timestampsec']
+                          dtime = datetime.fromtimestamp(int(timestampsec)).strftime(params._datetimefm)
+                          delivered = row['delivered']
+                          recorded = row['recorded']
+                          avgpu = row['avgpu']
+                          datasource = row['datasource']
+                          cmson = row['cmson']
+                          beamstatus = row['beamstatus']
+                          livefrac = 0.                          
+                          if delivered: livefrac = np.divide(recorded,delivered)
+                          if runtot.has_key(runnum):#accumulate
+                              runtot[runnum][2] += 1
+                              if cmson: runtot[runnum][3] += 1
+                              runtot[runnum][4] += delivered
+                              runtot[runnum][5] += recorded
+                          else:
+                              runtot[runnum] = [fillnum,dtime,1,int(cmson),delivered,recorded]
+                          if withBX:
+                              bxlumi = None
+                              bxlumistr = '[]'
+                              if row.has_key('bxdeliveredblob'):
+                                  bxdeliveredarray = np.array(api.unpackBlobtoArray(row['bxdeliveredblob'],'f'))
+                                  bxidx = np.nonzero(bxdeliveredarray)
+                                  if bxidx[0].size>0:
+                                      bxdelivered = bxdeliveredarray[bxidx]*23.31
+                                      bxlumi = np.transpose( np.array([bxidx[0],bxdelivered,bxdelivered*livefrac]) )
+                                  del bxdeliveredarray
+                                  del bxidx
+                              if bxlumi is not None:
+                                  a = np.apply_along_axis(formatter.bxlumi,1,bxlumi)
+                                  bxlumistr = '['+' '.join(a)+']'
+                              display.add_row( ['%d'%fillnum,'%d'%runnum,'%d'%lsnum,dtime,int(cmson),beamstatus,'%.3f'%(delivered),'%.3f'%(recorded),'%.2f'%(avgpu),datasource,'%s'%bxlumistr] , fh=fh, csvwriter=csvwriter, ptable=ptable)
+                          elif byls:
+                              display.add_row( ['%d'%fillnum,'%d'%runnum,'%d'%lsnum,dtime,int(cmson),beamstatus,'%.3f'%(delivered),'%.3f'%(recorded),'%.2f'%(avgpu),datasource] , fh=fh, csvwriter=csvwriter, ptable=ptable)          
+           
+          if not byls and not withBX: #run table
+              for run in sorted(runtot):
+                  display.add_row( [runtot[run][0],run,runtot[run][1],runtot[run][2],runtot[run][3],'%.3f'%(runtot[run][4]),'%.3f'%(runtot[run][5])] , fh=fh, csvwriter=csvwriter, ptable=ptable)
           if ptable:
               display.show_table(ptable,lumiargs.outputstyle)
-              del ptable                    
-          if fh and fh is not sys.stdout: fh.close() 
+              del ptable
+              
+          if fh and fh is not sys.stdout: fh.close()        
           sys.exit(0)
+
+          
           it = api.datatagIter(dbengine,datatagnameid,schemaname=dbschema,fillmin=lumiargs.fillmin,fillmax=lumiargs.fillmax,runmin=lumiargs.runmin,runmax=lumiargs.runmax,amodetag=lumiargs.amodetag,targetegev=lumiargs.egev,beamstatus=lumiargs.beamstatus,tssecmin=lumiargs.tssecmin,tssecmax=lumiargs.tssecmax,runlsselect=lumiargs.runlsSeries,chunksize=csize,fields=['fillnum','runnum','lsnum','timestampsec'])
           #if not it:
           #    print 'no result found'
