@@ -6,11 +6,13 @@ import brilws
 import prettytable
 import pandas as pd
 import numpy as np
-from brilws import api,params,clicommonargs,display,formatter
+from brilws import api,params,clicommonargs,display,formatter,lumiParameters
 import re,time, csv
 from datetime import datetime
 from sqlalchemy import *
 import math
+from dateutil import tz
+
 log = logging.getLogger('brilws')
 logformatter = logging.Formatter('%(levelname)s %(name)s %(message)s')
 log.setLevel(logging.ERROR)
@@ -28,7 +30,14 @@ class Unbuffered(object):
         return getattr(self.stream.attr)
 sys.stdout = Unbuffered(sys.stdout)
 
+lumip = lumiParameters.ParametersObject()
+lslengthsec= lumip.lslengthsec()
+
+utctmzone = tz.gettz('UTC')
+cerntmzone = tz.gettz('CEST')
+
 def brilcalc_main():
+
     docstr='''
 
     usage:
@@ -82,6 +91,10 @@ def brilcalc_main():
           totable = lumiargs.totable
           lumitype = lumiargs.lumitype
           datatagname = lumiargs.datatagname
+          scalefactor = lumiargs.scalefactor
+          totz=utctmzone
+          if lumiargs.cerntime: totz=cerntmzone
+          
           if not lumitype:
               lumitype = 'result'
           fh = None
@@ -89,15 +102,18 @@ def brilcalc_main():
           ftable = None
           csvwriter = None
 
-          header = ['fill','run','time','nls','ncms','delivered','recorded']
-          footer = ['nfill','nrun','nls','ncms','totdelivered','totrecorded','maxdelivered','maxrecorded']
-          bylsheader = ['fill','run','ls','time','cms','beamstatus','delivered','recorded','avgpu','source']
+          vfunc_lumiunit = np.vectorize(formatter.lumiunit)
+          header = ['fill','run','time','nls','ncms','delivered(/ub)','recorded(/ub)']
+          footer = ['nfill','nrun','nls','ncms','totdelivered','totrecorded(/ub)','maxdelivered(/ub)','maxrecorded(/ub)']
+          bylsheader = ['fill','run','ls','time','cms','beamstatus','delivered(/ub)','recorded(/ub)','avgpu','source']
           
           if withBX:
-              header = bylsheader+['[bxidx bxdelivered bxrecorded]']
+              header = bylsheader+['[bxidx bxdelivered(/ub) bxrecorded(/ub)]']
           elif byls:
               header = bylsheader
-              
+          header = vfunc_lumiunit(header,scalefactor).tolist()
+          footer = vfunc_lumiunit(footer,scalefactor).tolist()
+          
           shards = [1,2,3]
           datatagnameid = 0
           if datatagname:
@@ -134,9 +150,11 @@ def brilcalc_main():
                           runnum = row['runnum']
                           lsnum = row['lsnum']                          
                           timestampsec = row['timestampsec']
-                          dtime = datetime.fromtimestamp(int(timestampsec)).strftime(params._datetimefm)
-                          delivered = row['delivered']*23.31
-                          recorded = row['recorded']*23.31
+                          d = datetime.fromtimestamp(int(timestampsec))
+                          d = d.replace(tzinfo=utctmzone)
+                          dtime = d.astimezone(totz).strftime(params._datetimefm)
+                          delivered = row['delivered']*lslengthsec/scalefactor
+                          recorded = row['recorded']*lslengthsec/scalefactor
                           avgpu = row['avgpu']
                           datasource = row['datasource']
                           cmson = row['cmson']
@@ -157,21 +175,17 @@ def brilcalc_main():
                                   bxdeliveredarray = np.array(api.unpackBlobtoArray(row['bxdeliveredblob'],'f'))
                                   bxidx = np.nonzero(bxdeliveredarray)
                                   if bxidx[0].size>0:
-                                      bxdelivered = bxdeliveredarray[bxidx]*23.31
+                                      bxdelivered = bxdeliveredarray[bxidx]*lslengthsec/scalefactor
                                       bxlumi = np.transpose( np.array([bxidx[0],bxdelivered,bxdelivered*livefrac]) )
                                   del bxdeliveredarray
                                   del bxidx
                               if bxlumi is not None:
                                   a = np.apply_along_axis(formatter.bxlumi,1,bxlumi)
                                   bxlumistr = '['+' '.join(a)+']'
-                              display.add_row( ['%d'%fillnum,'%d'%runnum,'%d'%lsnum,dtime,int(cmson),beamstatus,'%.3f'%(delivered),'%.3f'%(recorded),'%.2f'%(avgpu),datasource,'%s'%bxlumistr] , fh=fh, csvwriter=csvwriter, ptable=ptable)
+                              
+                              display.add_row( ['%d'%fillnum,'%d'%runnum,'%d'%lsnum,dtime,int(cmson),beamstatus,'%.3f'%(delivered),'%.3f'%(recorded),'%.1f'%(avgpu),datasource,'%s'%bxlumistr] , fh=fh, csvwriter=csvwriter, ptable=ptable)
                           elif byls:
-                              display.add_row( ['%d'%fillnum,'%d'%runnum,'%d'%lsnum,dtime,int(cmson),beamstatus,'%.3f'%(delivered),'%.3f'%(recorded),'%.2f'%(avgpu),datasource] , fh=fh, csvwriter=csvwriter, ptable=ptable)          
-           
-          if not byls and not withBX: #run table
-              for run in sorted(runtot):
-                  display.add_row( [runtot[run]['fill'],run,runtot[run]['time'],runtot[run]['nls'],runtot[run]['ncms'],'%.3f'%(runtot[run]['delivered']),'%.3f'%(runtot[run]['recorded'])] , fh=fh, csvwriter=csvwriter, ptable=ptable)
-
+                              display.add_row( ['%d'%fillnum,'%d'%runnum,'%d'%lsnum,dtime,int(cmson),beamstatus,'%.3f'%(delivered),'%.3f'%(recorded),'%.1f'%(avgpu),datasource] , fh=fh, csvwriter=csvwriter, ptable=ptable)                     
         
           df_runtot = pd.DataFrame.from_dict(runtot,orient='index')
           nruns = len(df_runtot.index)
@@ -183,21 +197,22 @@ def brilcalc_main():
           peakdelivered = df_runtot['delivered'].max()
           peakrecorded = df_runtot['recorded'].max()
 
-          if totable:
-              display.add_row( [ nfills,nruns,nls,ncmsls,'%.3e'%(totdelivered),'%.3e'%(totrecorded),'%.3e'%(peakdelivered),'%.3e'%(peakrecorded)], fh=None, csvwriter=None, ptable=ftable)
-              if ptable:
-                  print '#Data tag : ',datatagname
-                  display.show_table(ptable,lumiargs.outputstyle)
-                  del ptable
-              if ftable:
-                  print "#Summary: "
-                  display.show_table(ftable,lumiargs.outputstyle)
-                  del ftable
-          else:
+          display.add_row( [ nfills,nruns,nls,ncmsls,'%.3f'%(totdelivered),'%.3f'%(totrecorded),'%.3f'%(peakdelivered),'%.3f'%(peakrecorded)], fh=None, csvwriter=None, ptable=ftable)
+          if not byls and not withBX: #run table
+              for run in sorted(runtot):
+                  display.add_row( [runtot[run]['fill'],run,runtot[run]['time'],runtot[run]['nls'],runtot[run]['ncms'],'%.3f'%(runtot[run]['delivered']),'%.3f'%(runtot[run]['recorded'])] , fh=fh, csvwriter=csvwriter, ptable=ptable)
+        
+          if totable:              
+              print '#Data tag : ',datatagname
+              display.show_table(ptable,lumiargs.outputstyle)
+              print "#Summary: "
+              display.show_table(ftable,lumiargs.outputstyle)
+              del ptable
+              del ftable
+          else:              
               print >> fh, '#Summary:'                  
               print >> fh, '#'+','.join(footer)
-              print >> fh, '#'+','.join( [ '%d'%nfills,'%d'%nruns,'%d'%nls,'%d'%ncmsls,'%.3e'%(totdelivered),'%.3e'%(totrecorded), '%.3e'%(peakdelivered),'%.3e'%(peakrecorded)] )
-                  
+              print >> fh, '#'+','.join( [ '%d'%nfills,'%d'%nruns,'%d'%nls,'%d'%ncmsls,'%.3f'%(totdelivered),'%.3f'%(totrecorded), '%.3f'%(peakdelivered),'%.3f'%(peakrecorded)] )
           
           if fh and fh is not sys.stdout: fh.close()        
           sys.exit(0)

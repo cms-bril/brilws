@@ -25,6 +25,7 @@ Options:
   --hltpath HLTPATH             HLT path name/pattern for effective luminosity
   --byls                        Show result in ls granularity
   --xing                        Show result in bx granularity
+  --cerntime                    Show time in CERN local time
 
 """
 

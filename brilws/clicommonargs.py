@@ -32,6 +32,8 @@ class parser(object):
         self._comments = ''
         self._outputstyle = 'tab'
         self._applyto = ''
+        self._scalefactor = 1.
+        self._cerntime = False
         self._parse()
         
     def _parse(self):
@@ -40,7 +42,7 @@ class parser(object):
         if self._argdict.has_key('-p'):
             self._authpath = self._argdict['-p']
         if self._argdict.has_key('-b') and self._argdict['-b']:
-            self._beamstatus = self._argdict['-b'].upper()
+            self._beamstatus = self._argdict['-b'].upper()            
         if self._argdict.has_key('--beamenergy'):
             self._egev = self._argdict['--beamenergy']
         if self._argdict.has_key('--datatag'):
@@ -67,6 +69,10 @@ class parser(object):
             self._lumitype = self._argdict['--type']
         if self._argdict.has_key('--applyto'):
             self._applyto = self._argdict['--applyto']
+        if self._argdict.has_key('-n'):
+            self._scalefactor = self._argdict['-n']
+        if self._argdict.has_key('--cerntime'):
+            self._cerntime = self._argdict['--cerntime']
         if self._argdict.has_key('-f') and self._argdict['-f'] :
             self._fillmin = self._argdict['-f']
             self._fillmax = self._argdict['-f']
@@ -184,7 +190,12 @@ class parser(object):
     @property
     def applyto(self):
         return self._applyto
-    
+    @property
+    def scalefactor(self):
+        return self._scalefactor
+    @property
+    def cerntime(self):
+        return self._cerntime
 argvalidators = {
     '--amodetag': Or(None,And(str,lambda s: s.upper() in params._amodetagChoices), error='--amodetag must be in '+str(params._amodetagChoices) ),
     '--beamenergy': Or(None,And(Use(int), lambda n: n>0), error='--beamenergy should be integer >0'),

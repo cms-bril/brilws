@@ -1,21 +1,23 @@
-import pandas as pd
+#import pandas as pd
 import numpy as np
 import prettytable
 
 _floatformatter='{:,.3f}'.format
 
-pd.set_option('display.max_columns', 4)
-pd.set_option('display.max_colwidth', 200)
-pd.set_option('display.max_rows', 1000)
-pd.set_option('display.width', 200)
-pd.set_option('display.float_format',_floatformatter)
+#pd.set_option('display.max_columns', 4)
+#pd.set_option('display.max_colwidth', 200)
+#pd.set_option('display.max_rows', 1000)
+#pd.set_option('display.width', 200)
+#pd.set_option('display.float_format',_floatformatter)
+
 
 
 _prettytable_style={
     'withheader':True,
     'align':'l',
     'maxwidth':80
-}
+}    
+
 
 def add_row(row,fh=None,csvwriter=None,ptable=None):
     '''
@@ -106,9 +108,9 @@ if __name__=='__main__':
         mydf['tagname'][i]='ab'
         mydf['tagid'][i]=i
         mydf['value'][i]=0.5*i
-    df = pd.DataFrame.from_records(mydf,index=None,columns=rowdef.names)
-    print rowdef.names
-    listdf(df,npp=30,formatters=myformatter,columns=['tagid','tagname'])
+    #df = pd.DataFrame.from_records(mydf,index=None,columns=rowdef.names)
+    #print rowdef.names
+    #listdf(df,npp=30,formatters=myformatter,columns=['tagid','tagname'])
 
     
     create_table(['a','b'],border = True,align='l')
