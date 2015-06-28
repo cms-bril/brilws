@@ -1,1 +1,3 @@
-include versioneer.py
+include README.md
+recursive-include brilws/data *
+recursive-include brilws/dbschema *
