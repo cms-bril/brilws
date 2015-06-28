@@ -2,15 +2,14 @@
 
 options:
   -h,  --help                  Show this screen.
-  -c CONNECT                   Connect string to DB [default: frontier://LumiCalc/CMS_LUMI_PROD]
-  -p AUTHPATH                  Path to authentication.xml file [default: .]
+  -c CONNECT                   DB Service name [default: cms_orcon_adg]
+  -p AUTHPATH                  Path to authentication.xml file [default: readdb2.ini]
   -n SCALEFACTOR               Scale factor on results [default: 1.0]
   -f FILL                      Fill number
   -r RUN                       Run number
   -i INPUTFILE                 Input selection file
   -o OUTPUTFILE                Output csv file. Special file '-' for stdout.
   -b BEAMSTATUS                 Beam mode. FLAT TOP,SQUEEZE,ADJUST,STABLE BEAMS
-  --siteconfpath SITECONFPATH  Path to SITECONF/local/JobConfig/site-local-config.xml [default: $CMS_PATH] 
   --amodetag AMODETAG          Accelerator mode 
   --beamenergy BEAMENERGY      Target single beam energy in GeV  
   --datatag DATATAG            Data tag name
@@ -33,7 +32,7 @@ def validate(optdict):
     result={}
     argdict = clicommonargs.argvalidators
     #extract sub argdict here
-    myvalidables = ['-c','-n','-f','-r','-i','-o','--amodetag','-b','--beamenergy','--datatag','--begin','--end','--output-style','--chunk-size','--siteconfpath',str]
+    myvalidables = ['-c','-n','-f','-r','-i','-o','--amodetag','-b','--beamenergy','--datatag','--begin','--end','--output-style','--chunk-size',str]
     argdict = dict((k,v) for k,v in clicommonargs.argvalidators.iteritems() if k in myvalidables)
     schema = Schema(argdict)
     result = schema.validate(optdict)
