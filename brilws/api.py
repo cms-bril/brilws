@@ -1709,7 +1709,7 @@ def build_joinwithdatatagid_query(datatablename,suffix,datafields,idcondition,sc
     idfields = ['fillnum','runnum','lsnum','timestampsec','beamstatus']
     data_fieldstr = ','.join([ '%s%s as %s'%('b.',f,f) for f in datafields ])
     id_fieldstr = ','.join([ '%s%s as %s'%('a.',f,f) for f in idfields ])
-    q = '''select a.datatagid as datatagid, %s, %s from %s b,'''%(id_fieldstr,data_fieldstr,tablename)
+    q = '''select a.datatagid as datatagid, %s, %s from %s b,'''%(data_fieldstr,id_fieldstr,tablename)
     id_fieldstr = groupbystr = ','.join( [str(f) for f in idfields] )
     q = q+'''(select max(datatagid) as datatagid, %s from %s where %s group by %s) a where a.datatagid=b.datatagid'''%(id_fieldstr,idtablename,idcondition,groupbystr)
     if sorted:

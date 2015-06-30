@@ -196,6 +196,13 @@ class parser(object):
     @property
     def cerntime(self):
         return self._cerntime
+    @property
+    def connecturl(self):
+        if not os.path.isfile(self._dbconnect):
+            return api.build_connecturl(self._dbconnect,self._authpath)
+        else:
+            return self._dbconnect
+        
 argvalidators = {
     '--amodetag': Or(None,And(str,lambda s: s.upper() in params._amodetagChoices), error='--amodetag must be in '+str(params._amodetagChoices) ),
     '--beamenergy': Or(None,And(Use(int), lambda n: n>0), error='--beamenergy should be integer >0'),

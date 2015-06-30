@@ -36,6 +36,22 @@ lslengthsec= lumip.lslengthsec()
 utctmzone = tz.gettz('UTC')
 cerntmzone = tz.gettz('CEST')
 
+def findtagname(dbengine,datatagname,dbschema):
+    '''
+    output: (datatagname,datatagnameid)
+    '''
+    datatagnameid=0
+    if datatagname:
+        datatagnameid = api.datatagnameid(dbengine,datatagname=datatagname,schemaname=dbschema)
+    else:
+        r = api.max_datatagname(dbengine,schemaname=dbschema)
+        if not r:
+            raise RuntimeError('no tag found')
+        datatagname = r[0]
+        datatagnameid = r[1]
+    return (datatagname,datatagnameid)
+
+          
 def brilcalc_main():
 
     docstr='''
@@ -75,28 +91,13 @@ def brilcalc_main():
           parseresult = docopt.docopt(brilcalc_lumi.__doc__,argv=cmmdargv)
           parseresult = brilcalc_lumi.validate(parseresult)
           ##parse selection params
-          lumiargs = clicommonargs.parser(parseresult)
-
-          ##db params
+          pargs = clicommonargs.parser(parseresult)
           dbschema = ''
-          log.debug('dbconnect: %s, authpath: %s'%(lumiargs.dbconnect,lumiargs.authpath))
-          if not os.path.isfile(lumiargs.dbconnect):
-              connecturl = api.build_connecturl(lumiargs.dbconnect,lumiargs.authpath)
-              dbschema = 'cms_lumi_prod'
-          dbengine = create_engine(connecturl)
-          ##display params
-          csize = lumiargs.chunksize
-          withBX = lumiargs.withBX          
-          byls = lumiargs.byls
-          totable = lumiargs.totable
-          lumitype = lumiargs.lumitype
-          datatagname = lumiargs.datatagname
-          scalefactor = lumiargs.scalefactor
+          if not os.path.isfile(pargs.dbconnect): dbschema = 'cms_lumi_prod'
+          dbengine = create_engine(pargs.connecturl)          
           totz=utctmzone
-          if lumiargs.cerntime: totz=cerntmzone
+          if pargs.cerntime: totz=cerntmzone
           
-          if not lumitype:
-              lumitype = 'result'
           fh = None
           ptable = None
           ftable = None
@@ -107,27 +108,18 @@ def brilcalc_main():
           footer = ['nfill','nrun','nls','ncms','totdelivered(/ub)','totrecorded(/ub)']
           bylsheader = ['fill','run','ls','time','cms','beamstatus','delivered(/ub)','recorded(/ub)','avgpu','source']
           runtot = {}#{run:{'fill':,'time':,'nls':,'ncms':,'delivered':,'recorded':}}
-          if withBX:
+          if pargs.withBX:
               header = bylsheader+['[bxidx bxdelivered(/ub) bxrecorded(/ub)]']
-          elif byls:
+          elif pargs.byls:
               header = bylsheader
-          header = vfunc_lumiunit(header,scalefactor).tolist()
-          footer = vfunc_lumiunit(footer,scalefactor).tolist()
+          header = vfunc_lumiunit(header,pargs.scalefactor).tolist()
+          footer = vfunc_lumiunit(footer,pargs.scalefactor).tolist()
           
-          shards = [1,2,3]
-          datatagnameid = 0
-          if datatagname:
-              datatagnameid = api.datatagnameid(dbengine,datatagname=datatagname,schemaname=dbschema)
-          else:
-              r = api.max_datatagname(dbengine,schemaname=dbschema)
-              if not r:
-                  raise RuntimeError('no tag found')
-
-              datatagname = r[0]
-              datatagnameid = r[1]
-          log.debug('datatagname: %s'%datatagname)                     
-          if not totable:
-              fh = lumiargs.ofilehandle
+          shards = [3]
+          (datatagname,datatagnameid) = findtagname(dbengine,pargs.datatagname,dbschema)
+          
+          if not pargs.totable:
+              fh = pargs.ofilehandle
               print >> fh, '#Data tag : ',datatagname
               print >> fh, '#'+','.join(header)
               csvwriter = csv.writer(fh)
@@ -136,14 +128,14 @@ def brilcalc_main():
               ftable = display.create_table(footer)
               
           rfields = ['fillnum','runnum','lsnum','timestampsec','cmson','beamstatus','delivered','recorded','avgpu','datasource']
-          if withBX: rfields = rfields+['bxdeliveredblob']  
+          if pargs.withBX: rfields = rfields+['bxdeliveredblob']  
           if datatagnameid==0:
               basetablename = 'online_result'                
               for shard in shards:
                   tablename = basetablename+'_'+str(shard)
                   shardexists = api.table_exists(dbengine,tablename,schemaname=dbschema)
                   if not shardexists: continue
-                  onlineit = api.online_resultIter(dbengine,tablename,schemaname=dbschema,fillmin=lumiargs.fillmin,fillmax=lumiargs.fillmax,runmin=lumiargs.runmin,runmax=lumiargs.runmax,amodetag=lumiargs.amodetag,targetegev=lumiargs.egev,beamstatus=lumiargs.beamstatus,tssecmin=lumiargs.tssecmin,tssecmax=lumiargs.tssecmax,runlsselect=lumiargs.runlsSeries,chunksize=csize,fields=rfields,sorted=True)
+                  onlineit = api.online_resultIter(dbengine,tablename,schemaname=dbschema,fillmin=pargs.fillmin,fillmax=pargs.fillmax,runmin=pargs.runmin,runmax=pargs.runmax,amodetag=pargs.amodetag,targetegev=pargs.egev,beamstatus=pargs.beamstatus,tssecmin=pargs.tssecmin,tssecmax=pargs.tssecmax,runlsselect=pargs.runlsSeries,chunksize=None,fields=rfields,sorted=True)
                   if not onlineit: continue
                   for row in onlineit:
                       fillnum = row['fillnum']
@@ -151,32 +143,30 @@ def brilcalc_main():
                       lsnum = row['lsnum']                          
                       timestampsec = row['timestampsec']
                       d = datetime.fromtimestamp(int(timestampsec))
-                      d = d.replace(tzinfo=utctmzone)
-                      dtime = d.astimezone(totz).strftime(params._datetimefm)
-                      delivered = row['delivered']*lslengthsec/scalefactor
-                      recorded = row['recorded']*lslengthsec/scalefactor                      
+                      dtime = d.replace(tzinfo=utctmzone).astimezone(totz).strftime(params._datetimefm)
+                      delivered = row['delivered']*lslengthsec/pargs.scalefactor
+                      recorded = row['recorded']*lslengthsec/pargs.scalefactor                      
                       avgpu = row['avgpu']
                       datasource = row['datasource']
                       cmson = row['cmson']
                       beamstatus = row['beamstatus']
                       livefrac = 0.                          
                       if delivered: livefrac = np.divide(recorded,delivered)
-                      if runtot.has_key(runnum):#accumulate
-                          
+                      if runtot.has_key(runnum):#accumulate                          
                           runtot[runnum]['nls'] += 1
                           if cmson: runtot[runnum]['ncms'][3] += 1
                           runtot[runnum]['delivered'] += delivered
                           runtot[runnum]['recorded'] += recorded
                       else:
                           runtot[runnum] = {'fill':fillnum,'time':dtime,'nls':1,'ncms':int(cmson),'delivered':delivered,'recorded':recorded}
-                      if withBX:
+                      if pargs.withBX:
                           bxlumi = None
                           bxlumistr = '[]'
                           if row.has_key('bxdeliveredblob'):
                               bxdeliveredarray = np.array(api.unpackBlobtoArray(row['bxdeliveredblob'],'f'))
                               bxidx = np.nonzero(bxdeliveredarray)
                               if bxidx[0].size>0:
-                                  bxdelivered = bxdeliveredarray[bxidx]*lslengthsec/scalefactor
+                                  bxdelivered = bxdeliveredarray[bxidx]*lslengthsec/pargs.scalefactor
                                   bxlumi = np.transpose( np.array([bxidx[0],bxdelivered,bxdelivered*livefrac]) )
                               del bxdeliveredarray
                               del bxidx
@@ -185,7 +175,7 @@ def brilcalc_main():
                               bxlumistr = '['+' '.join(a)+']'
                               
                           display.add_row( ['%d'%fillnum,'%d'%runnum,'%d'%lsnum,dtime,int(cmson),beamstatus,'%.3f'%(delivered),'%.3f'%(recorded),'%.1f'%(avgpu),datasource,'%s'%bxlumistr] , fh=fh, csvwriter=csvwriter, ptable=ptable)
-                      elif byls:
+                      elif pargs.byls:
                           display.add_row( ['%d'%fillnum,'%d'%runnum,'%d'%lsnum,dtime,int(cmson),beamstatus,'%.3f'%(delivered),'%.3f'%(recorded),'%.1f'%(avgpu),datasource] , fh=fh, csvwriter=csvwriter, ptable=ptable)                     
           if runtot:              
               df_runtot = pd.DataFrame.from_dict(runtot,orient='index')
@@ -197,15 +187,15 @@ def brilcalc_main():
               totrecorded = df_runtot['recorded'].sum()
               display.add_row( [ nfills,nruns,nls,ncmsls,'%.3f'%(totdelivered),'%.3f'%(totrecorded)], fh=None, csvwriter=None, ptable=ftable)
               del df_runtot
-              if not byls and not withBX: #run table
+              if not pargs.byls and not pargs.withBX: #run table
                   for run in sorted(runtot):
                       display.add_row( [runtot[run]['fill'],run,runtot[run]['time'],runtot[run]['nls'],runtot[run]['ncms'],'%.3f'%(runtot[run]['delivered']),'%.3f'%(runtot[run]['recorded'])] , fh=fh, csvwriter=csvwriter, ptable=ptable)
         
-              if totable:              
+              if pargs.totable:              
                   print '#Data tag : ',datatagname
-                  display.show_table(ptable,lumiargs.outputstyle)
+                  display.show_table(ptable,pargs.outputstyle)
                   print "#Summary: "
-                  display.show_table(ftable,lumiargs.outputstyle)
+                  display.show_table(ftable,pargs.outputstyle)
                   del ptable
                   del ftable
               else:              
@@ -214,7 +204,7 @@ def brilcalc_main():
                   print >> fh, '#'+','.join( [ '%d'%nfills,'%d'%nruns,'%d'%nls,'%d'%ncmsls,'%.3f'%(totdelivered),'%.3f'%(totrecorded)] )
           
               if fh and fh is not sys.stdout: fh.close()
-          #it = api.datatagidIter(dbengine,datatagnameid,schemaname=dbschema,fillmin=lumiargs.fillmin,fillmax=lumiargs.fillmax,runmin=lumiargs.runmin,runmax=lumiargs.runmax,amodetag=lumiargs.amodetag,targetegev=lumiargs.egev,beamstatus=lumiargs.beamstatus,tssecmin=lumiargs.tssecmin,tssecmax=lumiargs.tssecmax,runlsselect=lumiargs.runlsSeries)
+          #it = api.datatagidIter(dbengine,datatagnameid,schemaname=dbschema,fillmin=pargs.fillmin,fillmax=pargs.fillmax,runmin=pargs.runmin,runmax=pargs.runmax,amodetag=pargs.amodetag,targetegev=pargs.egev,beamstatus=pargs.beamstatus,tssecmin=pargs.tssecmin,tssecmax=pargs.tssecmax,runlsselect=pargs.runlsSeries)
           #df = pd.DataFrame(it)
           #print df
           sys.exit(0)
@@ -223,60 +213,78 @@ def brilcalc_main():
 
           parseresult = docopt.docopt(brilcalc_beam.__doc__,argv=cmmdargv)
           parseresult = brilcalc_beam.validate(parseresult)
-          
           ##parse selection params
-          beamargs = clicommonargs.parser(parseresult)
+          pargs = clicommonargs.parser(parseresult)
 
           ##db params
           dbschema = ''
-          log.debug('dbconnect: %s, authpath: %s'%(beamargs.dbconnect,beamargs.authpath))
-          if not os.path.isfile(beamargs.dbconnect):
-              connecturl = api.build_connecturl(beamargs.dbconnect,beamargs.authpath)
-              dbschema = 'cms_lumi_prod'
-          dbengine = create_engine(connecturl)
-                    
-          ##display params
-          csize = beamargs.chunksize
-          withBX = beamargs.withBX
-          totable = beamargs.totable
+          if not os.path.isfile(pargs.dbconnect): dbschema = 'cms_lumi_prod'
+          dbengine = create_engine(pargs.connecturl)
+          totz=utctmzone
+          if pargs.cerntime: totz=cerntmzone          
+          ##display params          
           fh = None
           ptable = None
           csvwriter = None
 
-          header = ['fill','run','ls','time','beamstatus','amodetag','egev','intensity1','intensity2']
-          if withBX:
-              header = ['fill','run','ls','[bxidx intensity1 intensity2]']
-          if not totable:
-              fh = beamargs.ofilehandle
+          (datatagname,datatagnameid) = findtagname(dbengine,pargs.datatagname,dbschema)
+          log.debug('datatagname: %s, datatagnameid: %d'%(datatagname,datatagnameid))    
+          header = ['fill','run','ls','time','egev','intensity1','intensity2']
+          if pargs.withBX:
+              header = ['fill','run','ls','time','[bxidx intensity1 intensity2]']
+          if not pargs.totable:
+              fh = pargs.ofilehandle
+              print >> fh, '#Data tag : ',datatagname
               print >> fh, '#'+','.join(header)
               csvwriter = csv.writer(fh)
           else:
-              ptable = display.create_table(header,header=True,maxwidth=80)
-              
-          datatagname = beamargs.datatagname
-          datatagnameid = 0
-          if datatagname:
-              datatagnameid = api.datatagnameid(dbengine,datatagname=datatagname,schemaname=dbschema)
-          else:
-              r = api.max_datatagname(dbengine,schemaname=dbschema)
-              if not r:
-                  raise RuntimeError('no tag found')
-              datatagname = r[0]
-              datatagnameid = r[1]
-         
-          print 'data tag : ',datatagname                    
+              ptable = display.create_table(header,header=True,maxwidth=80)                        
+
           fields = ['egev','intensity1','intensity2']
-          if withBX:
+          if pargs.withBX:
               fields = ['bxidxblob','bxintensity1blob','bxintensity2blob']
-          beamIt = api.beamInfoIter(dbengine,3,fields=fields,schemaname=dbschema,fillmin=beamargs.fillmin,fillmax=beamargs.fillmax,runmin=beamargs.runmin,runmax=beamargs.runmax,amodetag=beamargs.amodetag,targetegev=beamargs.egev,beamstatus=beamargs.beamstatus,tssecmin=beamargs.tssecmin,tssecmax=beamargs.tssecmax,runlsselect=beamargs.runlsSeries)
+          beamIt = api.beamInfoIter(dbengine,3,fields=fields,schemaname=dbschema,fillmin=pargs.fillmin,fillmax=pargs.fillmax,runmin=pargs.runmin,runmax=pargs.runmax,amodetag=pargs.amodetag,targetegev=pargs.egev,beamstatus=pargs.beamstatus,tssecmin=pargs.tssecmin,tssecmax=pargs.tssecmax,runlsselect=pargs.runlsSeries)
           if not beamIt: sys.exit(0)
           for row in beamIt:
-              print row
+              fillnum = row['fillnum']
+              runnum = row['runnum']
+              lsnum = row['lsnum']                          
+              timestampsec = row['timestampsec']
+              d = datetime.fromtimestamp(int(timestampsec))
+              dtime = d.replace(tzinfo=utctmzone).astimezone(totz).strftime(params._datetimefm)              
+              if pargs.withBX:
+                  bxintensity = None
+                  bxintensitystr = '[]'
+                  if row.has_key('bxidxblob') and row['bxidxblob'] is not None:
+                      bxidxarray = np.array(api.unpackBlobtoArray(row['bxidxblob'],'H'))
+                      bxintensity1array =  np.array(api.unpackBlobtoArray(row['bxintensity1blob'],'f'))
+                      bxintensity2array =  np.array(api.unpackBlobtoArray(row['bxintensity2blob'],'f'))
+                      if bxidxarray.size>0:
+                          bxintensity = np.transpose( np.array([bxidxarray,bxintensity1array,bxintensity2array]) )                      
+                      if bxintensity is not None:
+                          a = np.apply_along_axis(formatter.bxintensity,1,bxintensity)
+                          bxintensitystr = '['+' '.join(a)+']'
+                  display.add_row( ['%d'%fillnum,'%d'%runnum,'%d'%lsnum,dtime,'%s'%bxintensitystr], fh=fh, csvwriter=csvwriter, ptable=ptable )
+                  del bxidxarray
+                  del bxintensity1array
+                  del bxintensity2array
+              else:
+                  egev = row['egev']
+                  intensity1 = row['intensity1']/pargs.scalefactor
+                  intensity2 = row['intensity2']/pargs.scalefactor
+                  display.add_row( ['%d'%fillnum,'%d'%runnum,'%d'%lsnum,dtime,'%.1f'%egev,'%.4e'%intensity1,'%.4e'%intensity2], fh=fh, csvwriter=csvwriter, ptable=ptable)
 
+          if pargs.totable:
+              print '#Data tag : ',datatagname
+              display.show_table(ptable,pargs.outputstyle)
+              del ptable
+          if fh and fh is not sys.stdout: fh.close()    
+          sys.exit(0)    
       elif args['<command>'] == 'trg':
           raise NotImplementedError           
-          import brilcalc_trg
-          parseresult = docopt.docopt(brilcalc_trg.__doc__,argv=cmmdargv)
+      """
+      import brilcalc_trg
+      parseresult = docopt.docopt(brilcalc_trg.__doc__,argv=cmmdargv)
           parseresult = brilcalc_trg.validate(parseresult)
           
           ##parse selection params
@@ -344,9 +352,10 @@ def brilcalc_main():
               display.show_table(ptable,trgargs.outputstyle)
               del ptable     
           if fh and fh is not sys.stdout: fh.close()
-          
-      elif args['<command>'] == 'hlt':
-          raise NotImplementedError
+      """     
+      #elif args['<command>'] == 'hlt':
+      #    raise NotImplementedError
+      """
           import brilcalc_hlt
           parseresult = docopt.docopt(brilcalc_hlt.__doc__,argv=cmmdargv)
           parseresult = brilcalc_hlt.validate(parseresult)
@@ -447,20 +456,11 @@ def brilcalc_main():
           raise NotImplementedError
       else:
           exit("%r is not a brilcalc command. See 'brilcalc --help'."%args['<command>'])
+          """
     except docopt.DocoptExit:
       raise docopt.DocoptExit('Error: incorrect input format for '+args['<command>'])            
     except schema.SchemaError as e:
-      exit(e)
-
-    #if not parseresult['--debug'] :
-    #    pass
-       #if parseresult['--nowarning']:
-       #   log.setLevel(logging.ERROR)
-       #   ch.setLevel(logging.ERROR)
-    #else:
-    #   log.setLevel(logging.DEBUG)
-       #ch.setLevel(logging.DEBUG)
-    #   log.debug('create arguments: %s',parseresult)
+      exit(e)    
     return
 
 if __name__ == '__main__':

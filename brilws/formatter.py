@@ -2,7 +2,7 @@ import numpy as np
 def bxlumi(x):
     return '%d %.3f %.3f'%(x[0],x[1],x[2])
 def bxintensity(x):
-    return '%d %.5e %.5e'%(x[0],x[1],x[2])
+    return '%d %.4e %.4e'%(x[0],x[1],x[2])
 
 def lumiunit(x,scalefactor):
     '''
