@@ -21,10 +21,11 @@ Options:
   --end END                     Max start time/fill/run
   --output-style OSTYLE         Screen output style. tab, html, csv [default: tab]
   --chunk-size CHUNKSIZE        Main data chunk size [default: 100]
-  --type LUMITYPE               Luminosity type or fallback order. hfoc,pxl,bcmf,plt,hfet. [default: hfoc] 
+  --type LUMITYPE               Luminosity type. hfoc,pxl,bcmf,plt,pltzero,hfet.  
   --hltpath HLTPATH             HLT path name/pattern for effective luminosity
   --byls                        Show result in ls granularity
   --xing                        Show result in bx granularity
+  --without-correction          Show raw data without calibration
   --cerntime                    Show time in CERN local time
 
 """
