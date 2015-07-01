@@ -1480,7 +1480,7 @@ def rundatatagIter(engine,datatagnameid,schemaname='',runmin=None,runmax=None,fi
 def table_exists(engine,tablename,schemaname=None):   
     return engine.dialect.has_table(engine.connect(),tablename,schema=schemaname)
 
-def build_query_condition(runmin=None,runmax=None,fillmin=None,tssecmin=None,tssecmax=None,fillmax=None,beamstatus=None,amodetag=None,targetegev=None,runlsselect=None):
+def build_query_condition(runmin=None,runmax=None,fillmin=None,tssecmin=None,tssecmax=None,fillmax=None,beamstatus=None,beamstatusid=None,amodetag=None,amodetagid=None,targetegev=None,runlsselect=None):
     qCondition = ''
     qPieces = []
     binddict = {}
@@ -1495,13 +1495,21 @@ def build_query_condition(runmin=None,runmax=None,fillmin=None,tssecmin=None,tss
         binddict['tssecmin'] = tssecmin
     if tssecmax:
         qPieces.append('timestampsec<=:tssecmax')
-        binddict['tssecmax'] = tssecmax        
-    if beamstatus:
-        qPieces.append('beamstatus=:beamstatus')
-        binddict['beamstatus'] = beamstatus
-    if amodetag:
-        qPieces.append('amodetag=:amodetag')
-        binddict['amodetag'] = amodetag
+        binddict['tssecmax'] = tssecmax
+    if beamstatusid is not None:
+        qPieces.append('beamstatusid=:beamstatusid')
+        binddict['beamstatusid'] = beamstatusid
+    else:
+        if beamstatus:
+            qPieces.append('beamstatus=:beamstatus')
+            binddict['beamstatus'] = beamstatus
+    if amodetagid is not None:
+        qPieces.append('amodetagid=:amodetagid')
+        binddict['amodetagid'] = amodetagid
+    else:
+        if amodetag:
+            qPieces.append('amodetag=:amodetag')
+            binddict['amodetag'] = amodetag
     if targetegev:
         qPieces.append('targetegev=:targetegev')
         binddict['targetegev'] = targetegev
@@ -1531,13 +1539,13 @@ def build_query_condition(runmin=None,runmax=None,fillmin=None,tssecmin=None,tss
     qCondition = ' and '.join(qPieces)
     return (qCondition,binddict)
     
-def online_resultIter(engine,tablename,schemaname='',runmin=None,runmax=None,fillmin=None,tssecmin=None,tssecmax=None,fillmax=None,beamstatus=None,amodetag=None,targetegev=None,runlsselect=None,chunksize=9999,fields=[],sorted=False):
+def online_resultIter(engine,tablename,schemaname='',runmin=None,runmax=None,fillmin=None,tssecmin=None,tssecmax=None,fillmax=None,beamstatus=None,beamstatusid=None,amodetag=None,amodetagid=None,targetegev=None,runlsselect=None,chunksize=9999,fields=[],sorted=False):
     '''
     get list of run/ls of the online tag
     '''
     t = tablename
     if schemaname: t=schemaname+'.'+t
-    (qCondition,binddict) = build_query_condition(runmin=runmin,runmax=runmax,fillmin=fillmin,fillmax=fillmax,tssecmin=tssecmin,tssecmax=tssecmax,beamstatus=beamstatus,amodetag=amodetag,targetegev=targetegev,runlsselect=runlsselect)
+    (qCondition,binddict) = build_query_condition(runmin=runmin,runmax=runmax,fillmin=fillmin,fillmax=fillmax,tssecmin=tssecmin,tssecmax=tssecmax,beamstatus=beamstatus,beamstatusid=beamstatusid,amodetag=amodetag,amodetagid=amodetagid,targetegev=targetegev,runlsselect=runlsselect)
     if not qCondition: return None
     if not fields:
         fields = ['runnum','lsnum']
@@ -1685,17 +1693,17 @@ def findUniqueSeed(hltPathname,l1seed):
         cleanresult.append(string.strip(r).replace('\"',''))
     return (exptype,cleanresult)
     
-def beamInfoIter(engine,suffix,fields=[],schemaname='',runmin=None,runmax=None,fillmin=None,tssecmin=None,tssecmax=None,fillmax=None,beamstatus=None,amodetag=None,targetegev=None,runlsselect=None,sorted=False):
+def beamInfoIter(engine,suffix,datafields=[],idfields=[],schemaname='',runmin=None,runmax=None,fillmin=None,tssecmin=None,tssecmax=None,fillmax=None,beamstatus=None,beamstatusid=None,amodetag=None,amodetagid=None,targetegev=None,runlsselect=None,sorted=False):
     '''
     output: iterator
     select b.egev as egev, a.datatagid as datatagid, a.runnum as run from cms_lumi_prod.beam_3 b,(select max(datatagid) as datatagid, runnum from cms_lumi_prod.ids_datatag group by runnum) a where a.datatagid=b.datatagid
     '''
-    if not fields: return None
-    (qCondition,binddict) = build_query_condition(runmin=runmin,runmax=runmax,fillmin=fillmin,fillmax=fillmax,tssecmin=tssecmin,tssecmax=tssecmax,beamstatus=beamstatus,amodetag=amodetag,targetegev=targetegev,runlsselect=runlsselect)
+    if not datafields: return None
+    (qCondition,binddict) = build_query_condition(runmin=runmin,runmax=runmax,fillmin=fillmin,fillmax=fillmax,tssecmin=tssecmin,tssecmax=tssecmax,beamstatus=beamstatus,beamstatusid=beamstatusid,amodetag=amodetag,amodetagid=amodetagid,targetegev=targetegev,runlsselect=runlsselect)
     if not qCondition: return None
     basetablename = 'beam'
-    idfields = ['fillnum','runnum','lsnum','timestampsec','beamstatus']
-    q = build_joinwithdatatagid_query(basetablename,suffix,fields,idfields,qCondition,schemaname=schemaname,sorted=sorted)
+    #idfields = ['fillnum','runnum','lsnum','timestampsec','beamstatusid']
+    q = build_joinwithdatatagid_query(basetablename,suffix,datafields,idfields,qCondition,schemaname=schemaname,sorted=sorted)
     log.debug(q)
     connection = engine.connect()
     result = connection.execution_options(stream_result=True).execute(q,binddict)
@@ -1707,7 +1715,6 @@ def build_joinwithdatatagid_query(datatablename,suffix,datafields,idfields,idcon
     if schemaname:
         tablename = '.'.join([schemaname,tablename])
         idtablename = '.'.join([schemaname,idtablename])
-    #idfields = ['fillnum','runnum','lsnum','timestampsec','beamstatus']
     data_fieldstr = ','.join([ '%s%s as %s'%('b.',f,f) for f in datafields ])
     id_fieldstr = ','.join([ '%s%s as %s'%('a.',f,f) for f in idfields ])
     q = '''select a.datatagid as datatagid, %s, %s from %s b,'''%(data_fieldstr,id_fieldstr,tablename)    
@@ -1718,32 +1725,31 @@ def build_joinwithdatatagid_query(datatablename,suffix,datafields,idfields,idcon
         q = q+' order by runnum,lsnum'
     return q
 
-def resultDataIter(engine,datasource,suffix,datafields=[],idfields=[],schemaname='',runmin=None,runmax=None,fillmin=None,tssecmin=None,tssecmax=None,fillmax=None,beamstatus=None,amodetag=None,targetegev=None,runlsselect=None,sorted=False):
+def resultDataIter(engine,datasource,suffix,datafields=[],idfields=[],schemaname='',runmin=None,runmax=None,fillmin=None,tssecmin=None,tssecmax=None,fillmax=None,beamstatus=None,beamstatusid=None,amodetag=None,amodetagid=None,targetegev=None,runlsselect=None,sorted=False):
     '''
     output: iterator
     select b.avglumi as avglumi, b.bxlumiblob as bxlumiblob, b.normtag as normtag, b.datatagid as datatagid, a.runnum as run from cms_lumi_prod._3 b,(select max(datatagid) as datatagid, runnum from cms_lumi_prod.ids_datatag group by runnum) a where a.datatagid=b.datatagid
     '''
     if not datafields: return None
-    (qCondition,binddict) = build_query_condition(runmin=runmin,runmax=runmax,fillmin=fillmin,fillmax=fillmax,tssecmin=tssecmin,tssecmax=tssecmax,beamstatus=beamstatus,amodetag=amodetag,targetegev=targetegev,runlsselect=runlsselect)
+    (qCondition,binddict) = build_query_condition(runmin=runmin,runmax=runmax,fillmin=fillmin,fillmax=fillmax,tssecmin=tssecmin,tssecmax=tssecmax,beamstatus=beamstatus,beamstatusid=beamstatusid,amodetag=amodetag,amodetagid=amodetagid,targetegev=targetegev,runlsselect=runlsselect)
     if not qCondition: return None
     basetablename = datasource+'_result'
-    idfields = ['fillnum','runnum','lsnum','timestampsec','beamstatus','cmson']
     q = build_joinwithdatatagid_query(basetablename,suffix,datafields,idfields,qCondition,schemaname=schemaname,sorted=sorted)
     log.debug(q)
     connection = engine.connect()
     result = connection.execution_options(stream_result=True).execute(q,binddict)
     return iter(result)
 
-def rawDataIter(engine,datasource,suffix,datafields=[],idfields=[],schemaname='',runmin=None,runmax=None,fillmin=None,tssecmin=None,tssecmax=None,fillmax=None,beamstatus=None,amodetag=None,targetegev=None,runlsselect=None,sorted=False):
+def rawDataIter(engine,datasource,suffix,datafields=[],idfields=[],schemaname='',runmin=None,runmax=None,fillmin=None,tssecmin=None,tssecmax=None,fillmax=None,beamstatus=None,beamstatusid=None,amodetag=None,amodetagid=None,targetegev=None,runlsselect=None,sorted=False):
     '''
     output: iterator
     select b.rawlumi as rawlumi, b.bxrawlumiblob as bxrawlumiblob, b.datatagid as datatagid, a.runnum as run from cms_lumi_prod._3 b,(select max(datatagid) as datatagid, runnum from cms_lumi_prod.ids_datatag group by runnum) a where a.datatagid=b.datatagid
     '''
     if not datafields: return None
-    (qCondition,binddict) = build_query_condition(runmin=runmin,runmax=runmax,fillmin=fillmin,fillmax=fillmax,tssecmin=tssecmin,tssecmax=tssecmax,beamstatus=beamstatus,amodetag=amodetag,targetegev=targetegev,runlsselect=runlsselect)
+    (qCondition,binddict) = build_query_condition(runmin=runmin,runmax=runmax,fillmin=fillmin,fillmax=fillmax,tssecmin=tssecmin,tssecmax=tssecmax,beamstatus=beamstatus,beamstatusid=beamstatusid,amodetag=amodetag,amodetagid=amodetagid,targetegev=targetegev,runlsselect=runlsselect)
     if not qCondition: return None
     basetablename = datasource
-    idfields = ['fillnum','runnum','lsnum','timestampsec','beamstatus','cmson']
+    idfields = ['fillnum','runnum','lsnum','timestampsec','beamstatusid','cmson','deadtimefrac']
     q = build_joinwithdatatagid_query(basetablename,suffix,datafields,idfields,qCondition,schemaname=schemaname,sorted=sorted)
     log.debug(q)
     connection = engine.connect()

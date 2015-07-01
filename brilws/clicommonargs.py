@@ -128,6 +128,10 @@ class parser(object):
     def beamstatus(self):
         return self._beamstatus
     @property
+    def beamstatusid(self):
+        if not self._beamstatus: return None
+        return params._beamstatustoid[self._beamstatus]
+    @property
     def egev(self):
         return self._egev
     @property
@@ -136,6 +140,10 @@ class parser(object):
     @property
     def amodetag(self):
         return self._amodetag
+    @property
+    def amodetagid(self):
+        if not self._amodetag: return None
+        return params._amodetagtoid[self._amodetag]
     @property
     def fillmin(self):
         return self._fillmin

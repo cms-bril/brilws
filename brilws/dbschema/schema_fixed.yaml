@@ -1,8 +1,12 @@
 TABLESHARDS:  #table partition range registry 
    columns:
     - id: uint16
+    - mintimestampsec: uint32
+    - maxtimestampsec: uint32
     - minrun: uint32
     - maxrun: uint32
+    - minfill: uint32
+    - maxfill: uint32
    pk: [id]
 
 TIMEINDEX:        #per ls
@@ -37,16 +41,19 @@ IDS_DATATAG:     #per ls
     - runnum: uint32
     - lsnum: uint32
     - timestampsec: uint32
-    - cmson: bool
     - norb: uint32
+    - cmson: bool
     - targetegev: uint16
     - beamstatus: string
+    - beamstatusid: uint16
     - amodetag: string
+    - deadtimefrac: float 
    pk: [datatagid] 
    unique: [ [datatagnameid,runnum,lsnum] ]
    
 RUNINFO:          #per run
-   columns:       
+   columns:
+    - fillnum: uint32
     - runnum: uint32
     - hltkey: string
     - hltconfigid: uint32

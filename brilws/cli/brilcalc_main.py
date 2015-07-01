@@ -137,18 +137,19 @@ def brilcalc_main():
                   if not shardexists: continue
                   onlineit = None
                   if source == 'best':
-                      rfields = ['fillnum','runnum','lsnum','timestampsec','cmson','beamstatus','delivered','recorded','avgpu','datasource']
+                      rfields = ['fillnum','runnum','lsnum','timestampsec','cmson','beamstatusid','delivered','recorded','avgpu','datasource']
                       if pargs.withBX: rfields = rfields+['bxdeliveredblob'] 
-                      onlineit = api.online_resultIter(dbengine,tablename,schemaname=dbschema,fillmin=pargs.fillmin,fillmax=pargs.fillmax,runmin=pargs.runmin,runmax=pargs.runmax,amodetag=pargs.amodetag,targetegev=pargs.egev,beamstatus=pargs.beamstatus,tssecmin=pargs.tssecmin,tssecmax=pargs.tssecmax,runlsselect=pargs.runlsSeries,chunksize=None,fields=rfields,sorted=True)
+                      onlineit = api.online_resultIter(dbengine,tablename,schemaname=dbschema,fillmin=pargs.fillmin,fillmax=pargs.fillmax,runmin=pargs.runmin,runmax=pargs.runmax,amodetagid=pargs.amodetagid,targetegev=pargs.egev,beamstatusid=pargs.beamstatusid,tssecmin=pargs.tssecmin,tssecmax=pargs.tssecmax,runlsselect=pargs.runlsSeries,chunksize=None,fields=rfields,sorted=True)
                   else:
                       if pargs.withoutcorrection:
                           rfields = ['rawlumi']
                           if pargs.withBX: rfields = rfields+['bxrawlumiblob'] 
-                          onlineit = api.rawDataIter(dbengine,source,shard,datafields=rfields,idfields=[],schemaname=dbschema,fillmin=pargs.fillmin,fillmax=pargs.fillmax,runmin=pargs.runmin,runmax=pargs.runmax,amodetag=pargs.amodetag,targetegev=pargs.egev,beamstatus=pargs.beamstatus,tssecmin=pargs.tssecmin,tssecmax=pargs.tssecmax,runlsselect=pargs.runlsSeries,sorted=True)
+                          onlineit = api.rawDataIter(dbengine,source,shard,datafields=rfields,idfields=[],schemaname=dbschema,fillmin=pargs.fillmin,fillmax=pargs.fillmax,runmin=pargs.runmin,runmax=pargs.runmax,amodetagid=pargs.amodetagid,targetegev=pargs.egev,beamstatusid=pargs.beamstatusid,tssecmin=pargs.tssecmin,tssecmax=pargs.tssecmax,runlsselect=pargs.runlsSeries,sorted=True)
                       else:
                           rfields = ['avglumi']
+                          idfields = ['fillnum','runnum','lsnum','timestampsec','beamstatusid','cmson','deadtimefrac']
                           if pargs.withBX: rfields = rfields+['bxlumiblob']
-                          onlineit = api.resultDataIter(dbengine,source,shard,datafields=rfields,idfields=[],schemaname=dbschema,fillmin=pargs.fillmin,fillmax=pargs.fillmax,runmin=pargs.runmin,runmax=pargs.runmax,amodetag=pargs.amodetag,targetegev=pargs.egev,beamstatus=pargs.beamstatus,tssecmin=pargs.tssecmin,tssecmax=pargs.tssecmax,runlsselect=pargs.runlsSeries,sorted=True)
+                          onlineit = api.resultDataIter(dbengine,source,shard,datafields=rfields,idfields=idfields,schemaname=dbschema,fillmin=pargs.fillmin,fillmax=pargs.fillmax,runmin=pargs.runmin,runmax=pargs.runmax,amodetagid=pargs.amodetagid,targetegev=pargs.egev,beamstatusid=pargs.beamstatusid,tssecmin=pargs.tssecmin,tssecmax=pargs.tssecmax,runlsselect=pargs.runlsSeries,sorted=True)
                   if not onlineit: continue
                   for row in onlineit:
                       fillnum = row['fillnum']
@@ -156,7 +157,8 @@ def brilcalc_main():
                       lsnum = row['lsnum']                          
                       timestampsec = row['timestampsec']
                       cmson = row['cmson']
-                      beamstatus = row['beamstatus']
+                      beamstatusid = row['beamstatusid']
+                      beamstatus = params._idtobeamstatus[beamstatusid]
                       d = datetime.fromtimestamp(int(timestampsec))
                       dtime = d.replace(tzinfo=utctmzone).astimezone(totz).strftime(params._datetimefm)
                       delivered = recorded = avgpu = 0.
@@ -188,17 +190,17 @@ def brilcalc_main():
                       else:  #with lumi source
                           datasource = source.upper()
                           livefrac = 0. 
-                          if row['beamstatus'] not in ['FLAT TOP','STABLE BEAMS','SQUEEZE','ADJUST']: continue
+                          if beamstatus not in ['FLAT TOP','STABLE BEAMS','SQUEEZE','ADJUST']: continue
+                          if row.has_key('deadtimefrac'):
+                              livefrac = 1.-row['deadtimefrac']
                           if  pargs.withoutcorrection:
                               delivered = row['rawlumi']*lslengthsec/pargs.scalefactor
-                              recorded = delivered
                           else:
                               delivered = row['avglumi']*lslengthsec/pargs.scalefactor
-                              recorded = delivered                         
+                          recorded = delivered*livefrac  
                           if pargs.withBX:
                               bxlumi = None
                               bxlumistr = '[]'
-                              if delivered: livefrac = np.divide(recorded,delivered)
                               if row.has_key('bxlumiblob') or row.has_key('bxrawlumiblob') :
                                   if pargs.withoutcorrection:
                                       bxdeliveredarray = np.array(api.unpackBlobtoArray(row['bxrawlumiblob'],'f'))
@@ -288,10 +290,11 @@ def brilcalc_main():
           else:
               ptable = display.create_table(header,header=True,maxwidth=80)                        
 
+          idfields = ['fillnum','runnum','lsnum','timestampsec','beamstatusid']    
           fields = ['egev','intensity1','intensity2']
           if pargs.withBX:
               fields = ['bxidxblob','bxintensity1blob','bxintensity2blob']
-          beamIt = api.beamInfoIter(dbengine,3,fields=fields,schemaname=dbschema,fillmin=pargs.fillmin,fillmax=pargs.fillmax,runmin=pargs.runmin,runmax=pargs.runmax,amodetag=pargs.amodetag,targetegev=pargs.egev,beamstatus=pargs.beamstatus,tssecmin=pargs.tssecmin,tssecmax=pargs.tssecmax,runlsselect=pargs.runlsSeries)
+          beamIt = api.beamInfoIter(dbengine,3,datafields=fields,idfields=idfields,schemaname=dbschema,fillmin=pargs.fillmin,fillmax=pargs.fillmax,runmin=pargs.runmin,runmax=pargs.runmax,amodetagid=pargs.amodetagid,targetegev=pargs.egev,beamstatusid=pargs.beamstatusid,tssecmin=pargs.tssecmin,tssecmax=pargs.tssecmax,runlsselect=pargs.runlsSeries)
           if not beamIt: sys.exit(0)
           for row in beamIt:
               fillnum = row['fillnum']
