@@ -53,7 +53,7 @@ HLT_&suffix:  #per ls, per hltpath
     - hltaccept: uint32
    pk: [datatagid,hltpathid]
 
-HFOC_&suffix:
+HFOC_RAW_&suffix:
    columns:
     - datatagid: int64
     - fillnum: uint32
@@ -64,7 +64,7 @@ HFOC_&suffix:
     - bxlumiblob: blob
    pk: [ datatagid ]
    
-HFET_&suffix:
+HFET_RAW_&suffix:
    columns:
     - datatagid: int64
     - fillnum: uint32
@@ -160,7 +160,7 @@ PLT_RESULT_&suffix:
     - bxlumiblob: blob
    pk: [datatagid,normtagid]
    
-BCMF_RESULT_&suffix:
+BCM1F_RESULT_&suffix:
    columns:
     - datatagid: int64
     - fillnum: uint32

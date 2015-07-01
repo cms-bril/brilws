@@ -47,6 +47,7 @@ IDS_DATATAG:     #per ls
     - beamstatus: string
     - beamstatusid: uint16
     - amodetag: string
+    - amodetagid: uint16
     - deadtimefrac: float 
    pk: [datatagid] 
    unique: [ [datatagnameid,runnum,lsnum] ]
