@@ -178,6 +178,7 @@ ONLINE_RESULT_&suffix:
     - runnum: uint32
     - lsnum: uint32
     - fillnum: uint32
+    - timestampsec: uint32
     - cmson: bool
     - beamstatusid: uint16
     - beamstatus: string
