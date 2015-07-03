@@ -115,8 +115,9 @@ def brilcalc_main():
           footer = vfunc_lumiunit(footer,pargs.scalefactor).tolist()
           
           shards = [3]
+          #print pargs.datatagname
           (datatagname,datatagnameid) = findtagname(dbengine,pargs.datatagname,dbschema)
-          
+          #print datatagname,datatagnameid
           if not pargs.totable:
               fh = pargs.ofilehandle
               print >> fh, '#Data tag : ',datatagname
@@ -126,7 +127,7 @@ def brilcalc_main():
               ptable = display.create_table(header,header=True)
               ftable = display.create_table(footer)
                          
-          if datatagnameid==0:
+          if datatagnameid==1:
               basetablename = 'online_result'
               source = 'best'
               if pargs.lumitype:
@@ -294,7 +295,7 @@ def brilcalc_main():
           fields = ['egev','intensity1','intensity2']
           if pargs.withBX:
               fields = ['bxidxblob','bxintensity1blob','bxintensity2blob']
-          beamIt = api.beamInfoIter(dbengine,3,datafields=fields,idfields=idfields,schemaname=dbschema,fillmin=pargs.fillmin,fillmax=pargs.fillmax,runmin=pargs.runmin,runmax=pargs.runmax,amodetagid=pargs.amodetagid,targetegev=pargs.egev,beamstatusid=pargs.beamstatusid,tssecmin=pargs.tssecmin,tssecmax=pargs.tssecmax,runlsselect=pargs.runlsSeries)
+          beamIt = api.beamInfoIter(dbengine,3,datafields=fields,idfields=idfields,schemaname=dbschema,fillmin=pargs.fillmin,fillmax=pargs.fillmax,runmin=pargs.runmin,runmax=pargs.runmax,amodetagid=pargs.amodetagid,targetegev=pargs.egev,beamstatusid=pargs.beamstatusid,tssecmin=pargs.tssecmin,tssecmax=pargs.tssecmax,runlsselect=pargs.runlsSeries,sorted=True)
           if not beamIt: sys.exit(0)
           for row in beamIt:
               fillnum = row['fillnum']
