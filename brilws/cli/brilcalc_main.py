@@ -36,6 +36,7 @@ lslengthsec= lumip.lslengthsec()
 utctmzone = tz.gettz('UTC')
 cerntmzone = tz.gettz('CEST')
 
+
 def findtagname(dbengine,datatagname,dbschema):
     '''
     output: (datatagname,datatagnameid)
@@ -57,7 +58,7 @@ def brilcalc_main():
     docstr='''
 
     usage:
-      brilcalc (-h|--help) 
+      brilcalc (-h|--help|--version) 
       brilcalc [--debug|--warn] <command> [<args>...]
 
     commands:
@@ -68,9 +69,8 @@ def brilcalc_main():
     '''
     args = {}
     argv = sys.argv[1:]
-    #args = docopt.docopt(docstr,argv,help=True,version=brilws.__version__,options_first=True)
-    args = docopt.docopt(docstr,argv,help=True,version='0.0.1',options_first=True)
-    
+    args = docopt.docopt(docstr,argv,help=True,version=brilws.__version__,options_first=True)
+
     if args['--debug']:
         log.setLevel(logging.DEBUG)
     elif args['--warn']:
@@ -252,9 +252,6 @@ def brilcalc_main():
                   print >> fh, '#'+','.join( [ '%d'%nfills,'%d'%nruns,'%d'%nls,'%d'%ncmsls,'%.3f'%(totdelivered),'%.3f'%(totrecorded)] )
           
               if fh and fh is not sys.stdout: fh.close()
-          #it = api.datatagidIter(dbengine,datatagnameid,schemaname=dbschema,fillmin=pargs.fillmin,fillmax=pargs.fillmax,runmin=pargs.runmin,runmax=pargs.runmax,amodetag=pargs.amodetag,targetegev=pargs.egev,beamstatus=pargs.beamstatus,tssecmin=pargs.tssecmin,tssecmax=pargs.tssecmax,runlsselect=pargs.runlsSeries)
-          #df = pd.DataFrame(it)
-          #print df
           sys.exit(0)
       elif args['<command>'] == 'beam':
           import brilcalc_beam
