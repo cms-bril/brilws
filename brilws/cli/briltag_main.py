@@ -5,7 +5,8 @@ import numpy as np
 import pandas as pd
 import brilws
 from sqlalchemy import *
-from brilws import api,params,clicommonargs,display
+from brilws import api,params,display
+from brilws.cli import clicommonargs
 
 log = logging.getLogger('brilws')
 logformatter = logging.Formatter('%(levelname)s %(message)s')

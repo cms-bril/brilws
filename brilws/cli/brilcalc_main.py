@@ -6,7 +6,8 @@ import brilws
 import prettytable
 import pandas as pd
 import numpy as np
-from brilws import api,params,clicommonargs,display,formatter,lumiParameters
+from brilws import api,params,display,formatter,lumiParameters
+from brilws.cli import clicommonargs
 import re,time, csv
 from datetime import datetime
 from sqlalchemy import *

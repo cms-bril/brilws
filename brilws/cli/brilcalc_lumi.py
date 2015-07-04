@@ -31,7 +31,7 @@ Options:
 import os
 from docopt import docopt
 from schema import Schema
-from brilws import clicommonargs
+from brilws.cli import clicommonargs
 
 def validate(optdict):
     result={}
