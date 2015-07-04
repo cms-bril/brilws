@@ -14,3 +14,4 @@ _beamstatustoid = {'NO BEAM':0,'SETUP':1,'ABORT':2,'INJECTION PROBE BEAM':3,'INJ
 _idtobeamstatus = dict( (v,k) for k,v in _beamstatustoid.items() )
 _amodetagtoid = {'UNKNOWN':0,'PROTPHYS':1,'IONPHYS':2,'PAPHYS':3,'APPHYS':4,'TOTEMPHYS':5}
 _idtoamodetag = dict( (v,k) for k,v in _amodetagtoid.items() )
+

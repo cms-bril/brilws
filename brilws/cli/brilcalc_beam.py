@@ -2,8 +2,8 @@
 
 options:
   -h,  --help                  Show this screen.
-  -c CONNECT                   DB Service name [default: cms_orcon_adg]
-  -p AUTHPATH                  Path to authentication.xml file [default: readdb2.ini]
+  -c CONNECT                   DB Service name [default: offline]
+  -p AUTHPATH                  Path to authentication.xml file [default: data/readdb3.ini]
   -n SCALEFACTOR               Scale factor on results [default: 1.0]
   -f FILL                      Fill number
   -r RUN                       Run number
@@ -19,8 +19,6 @@ options:
   --chunk-size CHUNKSIZE       Main data chunk size [default: 100]
   --xing                       Show result in bx granularity
   --cerntime                   Show time in CERN local time
-  --nowarning                  Suppress warning messages 
-  --debug                      Debug
  
 """
 

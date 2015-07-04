@@ -14,7 +14,7 @@ import ast
 import logging
 import string
 from brilws import params
-from ConfigParser import SafeConfigParser
+#from ConfigParser import SafeConfigParser
 
 decimalcontext = decimal.getcontext().copy()
 decimalcontext.prec = 3
@@ -69,16 +69,6 @@ sqlitetypemap={
 #        return None
 #    result.fromstring(blobstr)
 #    return result
-
-def build_connecturl(dbservice,authfile):
-    connectstr = 'oracle://cms_runinfo_r@%s'%dbservice.lower()
-    parser = SafeConfigParser()
-    parser.read(authfile)
-    passwd = parser.get(connectstr,'pwd')
-    idx = connectstr.find('@')
-    connecturl = connectstr[:idx]+':'+passwd.decode('base64')+connectstr[idx:]
-    log.debug(connecturl)
-    return connecturl
 
 ####################
 ##    Selection API

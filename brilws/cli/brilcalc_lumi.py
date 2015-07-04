@@ -4,8 +4,8 @@ Usage:
 
 Options:
   -h, --help                    Show this screen
-  -c CONNECT                    DB Service name [default: cms_orcon_adg]
-  -p AUTHPATH                   Path to authentication file [default: readdb2.ini]
+  -c CONNECT                    Service name [default: offline]
+  -p AUTHPATH                   Path to authentication file [default: data/readdb3.ini]
   -n SCALEFACTOR                Scale factor to results [default: 1.0]
   -f FILLNUM                    Fill number
   -r RUNNUMBER                  Run number
@@ -22,7 +22,6 @@ Options:
   --output-style OSTYLE         Screen output style. tab, html, csv [default: tab]
   --chunk-size CHUNKSIZE        Main data chunk size [default: 100]
   --type LUMITYPE               Luminosity type. hfoc,pxl,bcm1f,plt,pltzero,hfet.  
-  --hltpath HLTPATH             HLT path name/pattern for effective luminosity
   --byls                        Show result in ls granularity
   --xing                        Show result in bx granularity
   --without-correction          Show raw data without calibration

@@ -3,6 +3,24 @@ import re,time,os,sys
 from datetime import datetime
 from schema import And, Or, Use
 
+from ConfigParser import SafeConfigParser
+
+def parseservicemap(authfile):
+    '''
+    parse service config ini file
+    output: {servicealias:[protocol,user,passwd,descriptor]}
+    '''
+    result={}
+    parser = SafeConfigParser()
+    parser.read(authfile)
+    for s in parser.sections():
+        protocol = parser.get(s,'protocol')
+        user = parser.get(s,'user')
+        passwd = parser.get(s,'pwd')
+        descriptor = parser.get(s,'descriptor')
+        result[s] = [protocol,user,passwd,descriptor]
+    return result
+
 class parser(object):
     def __init__(self,argdict):
         self._argdict = argdict
@@ -35,6 +53,7 @@ class parser(object):
         self._scalefactor = 1.
         self._cerntime = False
         self._withoutcorrection = False
+        self._servicemap = {}
         self._parse()
         
     def _parse(self):
@@ -42,6 +61,8 @@ class parser(object):
         self._dbconnect = self._argdict['-c']
         if self._argdict.has_key('-p'):
             self._authpath = self._argdict['-p']
+            if self._authpath:
+                self._servicemap = parseservicemap(self._authpath)
         if self._argdict.has_key('-b') and self._argdict['-b']:
             self._beamstatus = self._argdict['-b'].upper()            
         if self._argdict.has_key('--beamenergy'):
@@ -213,7 +234,14 @@ class parser(object):
     @property
     def connecturl(self):
         if not os.path.isfile(self._dbconnect):
-            return api.build_connecturl(self._dbconnect,self._authpath)
+            if not self._servicemap.has_key(self._dbconnect): raise ValueError('service %s is not defined'%self._dbconnect)
+            protocol = self._servicemap[self._dbconnect][0]
+            if protocol!='oracle': raise ValueError('protocol %s is not supported'%protocol)
+            user = self._servicemap[self._dbconnect][1]
+            passwd = self._servicemap[self._dbconnect][2].decode('base64')
+            descriptor = self._servicemap[self._dbconnect][3]
+            connecturl = 'oracle+cx_oracle://%s:%s@%s'%(user,passwd,descriptor)
+            return connecturl
         else:
             return self._dbconnect
         

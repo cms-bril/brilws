@@ -63,9 +63,6 @@ def brilcalc_main():
     commands:
       lumi Luminosity
       beam Beam       
-      trg  L1 trigger
-      hlt  HLT
-      bkg  Background 
     See 'brilcalc <command> --help' for more information on a specific command.
 
     '''
@@ -93,7 +90,7 @@ def brilcalc_main():
           ##parse selection params
           pargs = clicommonargs.parser(parseresult)
           dbschema = ''
-          if not os.path.isfile(pargs.dbconnect): dbschema = 'cms_lumi_prod'
+          if not pargs.dbconnect.find('oracle')!=-1: dbschema = 'cms_lumi_prod'
           dbengine = create_engine(pargs.connecturl)          
           totz=utctmzone
           if pargs.cerntime: totz=cerntmzone
@@ -269,7 +266,7 @@ def brilcalc_main():
 
           ##db params
           dbschema = ''
-          if not os.path.isfile(pargs.dbconnect): dbschema = 'cms_lumi_prod'
+          if not pargs.dbconnect.find('oracle')!=-1: dbschema = 'cms_lumi_prod'
           dbengine = create_engine(pargs.connecturl)
           totz=utctmzone
           if pargs.cerntime: totz=cerntmzone          
