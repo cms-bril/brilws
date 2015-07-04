@@ -70,6 +70,7 @@ sqlitetypemap={
 #    result.fromstring(blobstr)
 #    return result
 
+    
 ####################
 ##    Selection API
 ####################

@@ -28,7 +28,7 @@ Options:
 
 """
 
-import os
+import os,sys
 from docopt import docopt
 from schema import Schema
 from brilws.cli import clicommonargs
@@ -40,7 +40,10 @@ def validate(optdict):
     myvalidables = ['-c','-n','-f','-r','-i','-o','--amodetag','-b','--beamenergy','--datatag','--begin','--end','--output-style','--type',str]
     argdict = dict((k,v) for k,v in clicommonargs.argvalidators.iteritems() if k in myvalidables)
     schema = Schema(argdict)
-    result = schema.validate(optdict)
+    result = schema.validate(optdict)    
+    if not result['-i'] and not result['-f'] and not result['-r'] and not result['--begin']:
+        print 'Error: at least one time selection option in %s is required'%(','.join(['-i','-f','-r','--begin']))
+        sys.exit(0)
     return result
 
 if __name__ == '__main__':

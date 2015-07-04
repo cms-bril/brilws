@@ -188,6 +188,8 @@ ONLINE_RESULT_&suffix:
     - datasource: string
     - normtagid: int64
     - normtag: string
+    - amodetagid: uint16
+    - targetegev: uint16
    pk: [runnum,lsnum]
 
 OFFLINE_RESULT_&suffix:

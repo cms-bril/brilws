@@ -113,11 +113,12 @@ class parser(object):
                 s_beg = self._argdict['--begin']
                 for style,pattern in {'fill':params._fillnum_pattern,'run':params._runnum_pattern, 'time':params._time_pattern}.items():
                     if re.match(pattern,s_beg):
-                        self._fillmin = int(s_beg)
-                    elif style=='run':
-                        self._runmin = int(s_beg)
-                    elif style=='time':
-                        self._tssecmin = int(time.mktime(datetime.strptime(s_beg,params._datetimefm).timetuple()))
+                        if style=='fill':
+                            self._fillmin = int(s_beg)
+                        elif style=='run':
+                            self._runmin = int(s_beg)
+                        elif style=='time':
+                            self._tssecmin = int(time.mktime(datetime.strptime(s_beg,params._datetimefm).timetuple()))
             if self._argdict.has_key('--end') and self._argdict['--end']:
                 s_end = self._argdict['--end']
                 for style,pattern in {'fill':params._fillnum_pattern,'run':params._runnum_pattern, 'time':params._time_pattern}.items():
