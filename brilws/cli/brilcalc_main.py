@@ -180,7 +180,7 @@ def brilcalc_main():
                                   del bxdeliveredarray
                                   del bxidx
                               if bxlumi is not None:
-                                  a = np.apply_along_axis(formatter.bxlumi,1,bxlumi)
+                                  a = map(formatter.bxlumi,bxlumi)  
                                   bxlumistr = '['+' '.join(a)+']'                              
                               display.add_row( ['%d'%fillnum,'%d'%runnum,'%d'%lsnum,dtime,int(cmson),beamstatus,'%.3f'%(delivered),'%.3f'%(recorded),'%.1f'%(avgpu),datasource,'%s'%bxlumistr] , fh=fh, csvwriter=csvwriter, ptable=ptable)
                               del bxlumi
@@ -190,7 +190,7 @@ def brilcalc_main():
                           datasource = source.upper()
                           livefrac = 0. 
                           if beamstatus not in ['FLAT TOP','STABLE BEAMS','SQUEEZE','ADJUST']: continue
-                          if row.has_key('deadtimefrac'):
+                          if row.has_key('deadtimefrac') and row['deadtimefrac'] is not None:
                               livefrac = 1.-row['deadtimefrac']
                           if  pargs.withoutcorrection:
                               delivered = row['rawlumi']*lslengthsec/pargs.scalefactor
@@ -212,7 +212,7 @@ def brilcalc_main():
                                   del bxdeliveredarray
                                   del bxidx
                               if bxlumi is not None:
-                                  a = np.apply_along_axis(formatter.bxlumi,1,bxlumi)
+                                  a = map(formatter.bxlumi,bxlumi)  
                                   bxlumistr = '['+' '.join(a)+']'                              
                               display.add_row( ['%d'%fillnum,'%d'%runnum,'%d'%lsnum,dtime,int(cmson),beamstatus,'%.3f'%(delivered),'%.3f'%(recorded),'%.1f'%(avgpu),datasource,'%s'%bxlumistr] , fh=fh, csvwriter=csvwriter, ptable=ptable)
                               del bxlumi
@@ -309,8 +309,8 @@ def brilcalc_main():
                       if bxidxarray is not None and bxidxarray.size>0:
                           bxintensity1array =  np.array(api.unpackBlobtoArray(row['bxintensity1blob'],'f'))
                           bxintensity2array =  np.array(api.unpackBlobtoArray(row['bxintensity2blob'],'f'))
-                          bxintensity = np.transpose( np.array([bxidxarray,bxintensity1array,bxintensity2array]) )     
-                          a = np.apply_along_axis(formatter.bxintensity,1,bxintensity)
+                          bxintensity = np.transpose( np.array([bxidxarray,bxintensity1array,bxintensity2array]) )
+                          a = map(formatter.bxintensity,bxintensity)                          
                           bxintensitystr = '['+' '.join(a)+']'
                           del bxintensity1array
                           del bxintensity2array
