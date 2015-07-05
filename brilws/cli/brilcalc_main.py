@@ -220,7 +220,8 @@ def brilcalc_main():
                               display.add_row( ['%d'%fillnum,'%d'%runnum,'%d'%lsnum,dtime,int(cmson),beamstatus,'%.3f'%(delivered),'%.3f'%(recorded),'%.1f'%(avgpu),datasource] , fh=fh, csvwriter=csvwriter, ptable=ptable)
                       if runtot.has_key(runnum):#accumulate                          
                           runtot[runnum]['nls'] += 1
-                          if cmson: runtot[runnum]['ncms'][3] += 1
+                          if cmson:
+                              runtot[runnum]['ncms'] += 1
                           runtot[runnum]['delivered'] += delivered
                           runtot[runnum]['recorded'] += recorded
                       else:
@@ -303,18 +304,18 @@ def brilcalc_main():
                   bxintensity = None
                   bxintensitystr = '[]'
                   if row.has_key('bxidxblob') and row['bxidxblob'] is not None:
-                      bxidxarray = np.array(api.unpackBlobtoArray(row['bxidxblob'],'H'))
-                      bxintensity1array =  np.array(api.unpackBlobtoArray(row['bxintensity1blob'],'f'))
-                      bxintensity2array =  np.array(api.unpackBlobtoArray(row['bxintensity2blob'],'f'))
-                      if bxidxarray.size>0:
-                          bxintensity = np.transpose( np.array([bxidxarray,bxintensity1array,bxintensity2array]) )                      
-                      if bxintensity is not None:
+                      bxidxarray = np.array(api.unpackBlobtoArray(row['bxidxblob'],'H'))                            
+                      bxidxarray = bxidxarray[bxidxarray!=np.array(None)]
+                      if bxidxarray is not None and bxidxarray.size>0:
+                          bxintensity1array =  np.array(api.unpackBlobtoArray(row['bxintensity1blob'],'f'))
+                          bxintensity2array =  np.array(api.unpackBlobtoArray(row['bxintensity2blob'],'f'))
+                          bxintensity = np.transpose( np.array([bxidxarray,bxintensity1array,bxintensity2array]) )     
                           a = np.apply_along_axis(formatter.bxintensity,1,bxintensity)
                           bxintensitystr = '['+' '.join(a)+']'
-                  display.add_row( ['%d'%fillnum,'%d'%runnum,'%d'%lsnum,dtime,'%s'%bxintensitystr], fh=fh, csvwriter=csvwriter, ptable=ptable )
-                  del bxidxarray
-                  del bxintensity1array
-                  del bxintensity2array
+                          del bxintensity1array
+                          del bxintensity2array
+                      del bxidxarray
+                      display.add_row( ['%d'%fillnum,'%d'%runnum,'%d'%lsnum,dtime,'%s'%bxintensitystr], fh=fh, csvwriter=csvwriter, ptable=ptable )
               else:
                   egev = row['egev']
                   intensity1 = row['intensity1']/pargs.scalefactor
