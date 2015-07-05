@@ -162,10 +162,18 @@ def brilcalc_main():
                       dtime = d.replace(tzinfo=utctmzone).astimezone(totz).strftime(params._datetimefm)
                       delivered = recorded = avgpu = 0.
                       if source == 'best':
-                          delivered = row['delivered']*lslengthsec/pargs.scalefactor
-                          recorded = row['recorded']*lslengthsec/pargs.scalefactor                      
-                          avgpu = row['avgpu']
-                          datasource = row['datasource']
+                          delivered = 0.
+                          if row.has_key('delivered') and row['delivered']:
+                              delivered = row['delivered']*lslengthsec/pargs.scalefactor
+                          recorded = 0.
+                          if delivered>0 and row.has_key('recorded') and row['recorded']:
+                              recorded = row['recorded']*lslengthsec/pargs.scalefactor
+                          avgpu = 0.
+                          if delivered>0 and row.has_key('avgpu') and row['avgpu']:
+                              avgpu = row['avgpu']
+                          datasource = 'UNKNOWN'
+                          if row.has_key('datasource') and row['datasource']:
+                              datasource = row['datasource']
                           livefrac = 0.                          
                           if delivered: livefrac = np.divide(recorded,delivered)
                           if pargs.withBX:
