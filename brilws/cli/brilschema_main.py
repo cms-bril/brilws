@@ -19,7 +19,7 @@ log.addHandler(ch)
 #log.addHandler(fh)
 
 
-def brilschema_main():
+def brilschema_main(progname=sys.argv[0]):
     docstr='''
 
 

@@ -54,7 +54,7 @@ def findtagname(dbengine,datatagname,dbschema):
     return (datatagname,datatagnameid)
 
           
-def brilcalc_main():
+def brilcalc_main(progname=sys.argv[0]):
 
     docstr='''
 

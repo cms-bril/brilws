@@ -18,7 +18,7 @@ ch.setFormatter(logformatter)
 log.addHandler(ch)
 #log.addHandler(fh)
 
-def briltag_main():
+def briltag_main(progname=sys.argv[0]):
     docstr='''
 
     usage:
