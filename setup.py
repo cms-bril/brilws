@@ -19,6 +19,8 @@ setup(
     author = "Zhen Xie, CERN/Princeton University",
     author_email = "Zhen.Xie@cern.ch",
     url = "https://github.com/xiezhen/brilws",
+    download_url = 'https://github.com/xiezhen/brilws/tarball/'+version,
+    classifiers = [],
     license = "MIT",
     version = version,
     description = "bril analysis workspace",

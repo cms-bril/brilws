@@ -1,4 +1,7 @@
-### Install
+### BRIL Work Suite
+python package for working with BRIL data 
+
+#### Install
 
 #### into brilconda virtual environment
 pip install brilws
