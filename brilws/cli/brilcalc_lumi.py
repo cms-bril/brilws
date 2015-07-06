@@ -5,7 +5,7 @@ Usage:
 Options:
   -h, --help                    Show this screen
   -c CONNECT                    Service name [default: offline]
-  -p AUTHPATH                   Path to authentication file [default: data/readdb3.ini]
+  -p AUTHPATH                   Authentication file
   -n SCALEFACTOR                Scale factor to results [default: 1.0]
   -f FILLNUM                    Fill number
   -r RUNNUMBER                  Run number

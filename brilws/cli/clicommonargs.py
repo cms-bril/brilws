@@ -61,8 +61,10 @@ class parser(object):
         self._dbconnect = self._argdict['-c']
         if self._argdict.has_key('-p'):
             self._authpath = self._argdict['-p']
-            if self._authpath:
-                self._servicemap = parseservicemap(self._authpath)
+            if not self._authpath:
+                self._authpath = os.path.dirname(os.path.abspath(__file__))
+                self._authpath = os.path.join(os.path.sep,self._authpath,'../data/readdb3.ini')
+            self._servicemap = parseservicemap(self._authpath)
         if self._argdict.has_key('-b') and self._argdict['-b']:
             self._beamstatus = self._argdict['-b'].upper()            
         if self._argdict.has_key('--beamenergy'):

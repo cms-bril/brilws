@@ -3,7 +3,7 @@
 options:
   -h,  --help                  Show this screen.
   -c CONNECT                   DB Service name [default: offline]
-  -p AUTHPATH                  Path to authentication.xml file [default: data/readdb3.ini]
+  -p AUTHPATH                  Authentication file
   -n SCALEFACTOR               Scale factor on results [default: 1.0]
   -f FILL                      Fill number
   -r RUN                       Run number
