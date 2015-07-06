@@ -3,7 +3,7 @@ import sys
 import os
 import re
 
-#from distutils.core import setup
+from distutils.core import setup
 from setuptools import setup
 with open("README.md", "rb") as f:
     long_desc = f.read().decode('utf-8')
@@ -16,14 +16,13 @@ print version
 
 setup(
     name = "brilws",
-    author = "Zhen Xie, CERN/Princeton University",
+    author = "Zhen Xie",
     author_email = "Zhen.Xie@cern.ch",
     url = "https://github.com/xiezhen/brilws",
     download_url = 'https://github.com/xiezhen/brilws/tarball/'+version,
-    classifiers = [],
     license = "MIT",
     version = version,
-    description = "bril analysis workspace",
+    description = "bril worksuite",
     long_description = long_desc,
     packages = ['brilws', 'brilws.cli'],
     entry_points = {
@@ -31,7 +30,5 @@ setup(
         },
     package_data = {'data':['brilws/data/'],'dbschema':['brilws/dbschema/*.yaml']},
     include_package_data=True,
-    install_requires = [''],
-
 )
 
