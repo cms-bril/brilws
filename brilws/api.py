@@ -1739,7 +1739,7 @@ def rawDataIter(engine,datasource,suffix,datafields=[],idfields=[],schemaname=''
     if not datafields: return None
     (qCondition,binddict) = build_query_condition(runmin=runmin,runmax=runmax,fillmin=fillmin,fillmax=fillmax,tssecmin=tssecmin,tssecmax=tssecmax,beamstatus=beamstatus,beamstatusid=beamstatusid,amodetag=amodetag,amodetagid=amodetagid,targetegev=targetegev,runlsselect=runlsselect)
     if not qCondition: return None
-    basetablename = datasource
+    basetablename = datasource+'_raw'
     idfields = ['fillnum','runnum','lsnum','timestampsec','beamstatusid','cmson','deadtimefrac']
     q = build_joinwithdatatagid_query(basetablename,suffix,datafields,idfields,qCondition,schemaname=schemaname,sorted=sorted)
     log.debug(q)

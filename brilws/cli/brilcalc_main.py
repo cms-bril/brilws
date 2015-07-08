@@ -140,15 +140,10 @@ def brilcalc_main(progname=sys.argv[0]):
                       if pargs.withBX: rfields = rfields+['bxdeliveredblob'] 
                       onlineit = api.online_resultIter(dbengine,tablename,schemaname=dbschema,fillmin=pargs.fillmin,fillmax=pargs.fillmax,runmin=pargs.runmin,runmax=pargs.runmax,amodetagid=pargs.amodetagid,targetegev=pargs.egev,beamstatusid=pargs.beamstatusid,tssecmin=pargs.tssecmin,tssecmax=pargs.tssecmax,runlsselect=pargs.runlsSeries,chunksize=None,fields=rfields,sorted=True)
                   else:
-                      if pargs.withoutcorrection:
-                          rfields = ['rawlumi']
-                          if pargs.withBX: rfields = rfields+['bxrawlumiblob'] 
-                          onlineit = api.rawDataIter(dbengine,source,shard,datafields=rfields,idfields=[],schemaname=dbschema,fillmin=pargs.fillmin,fillmax=pargs.fillmax,runmin=pargs.runmin,runmax=pargs.runmax,amodetagid=pargs.amodetagid,targetegev=pargs.egev,beamstatusid=pargs.beamstatusid,tssecmin=pargs.tssecmin,tssecmax=pargs.tssecmax,runlsselect=pargs.runlsSeries,sorted=True)
-                      else:
-                          rfields = ['avglumi']
-                          idfields = ['fillnum','runnum','lsnum','timestampsec','beamstatusid','cmson','deadtimefrac']
-                          if pargs.withBX: rfields = rfields+['bxlumiblob']
-                          onlineit = api.resultDataIter(dbengine,source,shard,datafields=rfields,idfields=idfields,schemaname=dbschema,fillmin=pargs.fillmin,fillmax=pargs.fillmax,runmin=pargs.runmin,runmax=pargs.runmax,amodetagid=pargs.amodetagid,targetegev=pargs.egev,beamstatusid=pargs.beamstatusid,tssecmin=pargs.tssecmin,tssecmax=pargs.tssecmax,runlsselect=pargs.runlsSeries,sorted=True)
+                      rfields = ['avglumi']
+                      idfields = ['fillnum','runnum','lsnum','timestampsec','beamstatusid','cmson','deadtimefrac']
+                      if pargs.withBX: rfields = rfields+['bxlumiblob']
+                      onlineit = api.resultDataIter(dbengine,source,shard,datafields=rfields,idfields=idfields,schemaname=dbschema,fillmin=pargs.fillmin,fillmax=pargs.fillmax,runmin=pargs.runmin,runmax=pargs.runmax,amodetagid=pargs.amodetagid,targetegev=pargs.egev,beamstatusid=pargs.beamstatusid,tssecmin=pargs.tssecmin,tssecmax=pargs.tssecmax,runlsselect=pargs.runlsSeries,sorted=True)
                   if not onlineit: continue
                   for row in onlineit:
                       fillnum = row['fillnum']
@@ -200,19 +195,13 @@ def brilcalc_main(progname=sys.argv[0]):
                           if beamstatus not in ['FLAT TOP','STABLE BEAMS','SQUEEZE','ADJUST']: continue
                           if row.has_key('deadtimefrac') and row['deadtimefrac'] is not None:
                               livefrac = 1.-row['deadtimefrac']
-                          if  pargs.withoutcorrection:
-                              delivered = row['rawlumi']*lslengthsec/pargs.scalefactor
-                          else:
-                              delivered = row['avglumi']*lslengthsec/pargs.scalefactor
+                          delivered = row['avglumi']*lslengthsec/pargs.scalefactor
                           recorded = delivered*livefrac  
                           if pargs.withBX:
                               bxlumi = None
                               bxlumistr = '[]'
-                              if row.has_key('bxlumiblob') or row.has_key('bxrawlumiblob') :
-                                  if pargs.withoutcorrection:
-                                      bxdeliveredarray = np.array(api.unpackBlobtoArray(row['bxrawlumiblob'],'f'))
-                                  else:
-                                      bxdeliveredarray = np.array(api.unpackBlobtoArray(row['bxlumiblob'],'f'))
+                              if row.has_key('bxlumiblob'):                                  
+                                  bxdeliveredarray = np.array(api.unpackBlobtoArray(row['bxlumiblob'],'f'))
                                   bxidx = np.nonzero(bxdeliveredarray)
                                   if bxidx[0].size>0:
                                       bxdelivered = bxdeliveredarray[bxidx]*lslengthsec/pargs.scalefactor
