@@ -101,9 +101,9 @@ def brilcalc_main(progname=sys.argv[0]):
           ftable = None
           csvwriter = None
           vfunc_lumiunit = np.vectorize(formatter.lumiunit)
-          header = ['fill','run','time','nls','ncms','delivered(/ub)','recorded(/ub)']
+          header = ['run:fill','time','nls','ncms','delivered(/ub)','recorded(/ub)']
           footer = ['nfill','nrun','nls','ncms','totdelivered(/ub)','totrecorded(/ub)']
-          bylsheader = ['fill','run','ls','time','cms','beamstatus','delivered(/ub)','recorded(/ub)','avgpu','source']
+          bylsheader = ['run:fill','ls','time','beamstatus','E(GeV)','delivered(/ub)','recorded(/ub)','avgpu','source']
           runtot = {}#{run:{'fill':,'time':,'nls':,'ncms':,'delivered':,'recorded':}}
           if pargs.withBX:
               header = bylsheader+['[bxidx bxdelivered(/ub) bxrecorded(/ub)]']
@@ -136,23 +136,27 @@ def brilcalc_main(progname=sys.argv[0]):
                   if not shardexists: continue
                   onlineit = None
                   if source == 'best':
-                      rfields = ['fillnum','runnum','lsnum','timestampsec','cmson','beamstatusid','delivered','recorded','avgpu','datasource']
+                      rfields = ['fillnum','runnum','lsnum','timestampsec','cmson','beamstatusid','targetegev','delivered','recorded','avgpu','datasource']
                       if pargs.withBX: rfields = rfields+['bxdeliveredblob'] 
                       onlineit = api.online_resultIter(dbengine,tablename,schemaname=dbschema,fillmin=pargs.fillmin,fillmax=pargs.fillmax,runmin=pargs.runmin,runmax=pargs.runmax,amodetagid=pargs.amodetagid,targetegev=pargs.egev,beamstatusid=pargs.beamstatusid,tssecmin=pargs.tssecmin,tssecmax=pargs.tssecmax,runlsselect=pargs.runlsSeries,chunksize=None,fields=rfields,sorted=True)
                   else:
                       rfields = ['avglumi']
-                      idfields = ['fillnum','runnum','lsnum','timestampsec','beamstatusid','cmson','deadtimefrac']
+                      idfields = ['fillnum','runnum','lsnum','timestampsec','beamstatusid','cmson','deadtimefrac','targetegev']
                       if pargs.withBX: rfields = rfields+['bxlumiblob']
                       onlineit = api.resultDataIter(dbengine,source,shard,datafields=rfields,idfields=idfields,schemaname=dbschema,fillmin=pargs.fillmin,fillmax=pargs.fillmax,runmin=pargs.runmin,runmax=pargs.runmax,amodetagid=pargs.amodetagid,targetegev=pargs.egev,beamstatusid=pargs.beamstatusid,tssecmin=pargs.tssecmin,tssecmax=pargs.tssecmax,runlsselect=pargs.runlsSeries,sorted=True)
                   if not onlineit: continue
                   for row in onlineit:
                       fillnum = row['fillnum']
                       runnum = row['runnum']
-                      lsnum = row['lsnum']                          
+                      lsnum = row['lsnum']
+                      cmslsnum = lsnum
                       timestampsec = row['timestampsec']
                       cmson = row['cmson']
+                      if not cmson:
+                          cmslsnum = 0
                       beamstatusid = row['beamstatusid']
                       beamstatus = params._idtobeamstatus[beamstatusid]
+                      tegev = row['targetegev']
                       d = datetime.fromtimestamp(int(timestampsec))
                       dtime = d.replace(tzinfo=utctmzone).astimezone(totz).strftime(params._datetimefm)
                       delivered = recorded = avgpu = 0.
@@ -185,10 +189,10 @@ def brilcalc_main(progname=sys.argv[0]):
                               if bxlumi is not None:
                                   a = map(formatter.bxlumi,bxlumi)  
                                   bxlumistr = '['+' '.join(a)+']'                              
-                              display.add_row( ['%d'%fillnum,'%d'%runnum,'%d'%lsnum,dtime,int(cmson),beamstatus,'%.3f'%(delivered),'%.3f'%(recorded),'%.1f'%(avgpu),datasource,'%s'%bxlumistr] , fh=fh, csvwriter=csvwriter, ptable=ptable)
+                              display.add_row( ['%d:%d'%(runnum,fillnum),'%d:%d'%(lsnum,cmslsnum),dtime,beamstatus,'%d'%tegev,'%.3f'%(delivered),'%.3f'%(recorded),'%.1f'%(avgpu),datasource,'%s'%bxlumistr] , fh=fh, csvwriter=csvwriter, ptable=ptable)
                               del bxlumi
                           elif pargs.byls:
-                              display.add_row( ['%d'%fillnum,'%d'%runnum,'%d'%lsnum,dtime,int(cmson),beamstatus,'%.3f'%(delivered),'%.3f'%(recorded),'%.1f'%(avgpu),datasource] , fh=fh, csvwriter=csvwriter, ptable=ptable)
+                              display.add_row( ['%d:%d'%(runnum,fillnum),'%d:%d'%(lsnum,cmslsnum),dtime,beamstatus,'%d'%tegev,'%.3f'%(delivered),'%.3f'%(recorded),'%.1f'%(avgpu),datasource] , fh=fh, csvwriter=csvwriter, ptable=ptable)
                       else:  #with lumi source
                           datasource = source.upper()
                           livefrac = 0. 
@@ -211,10 +215,10 @@ def brilcalc_main(progname=sys.argv[0]):
                               if bxlumi is not None:
                                   a = map(formatter.bxlumi,bxlumi)  
                                   bxlumistr = '['+' '.join(a)+']'                              
-                              display.add_row( ['%d'%fillnum,'%d'%runnum,'%d'%lsnum,dtime,int(cmson),beamstatus,'%.3f'%(delivered),'%.3f'%(recorded),'%.1f'%(avgpu),datasource,'%s'%bxlumistr] , fh=fh, csvwriter=csvwriter, ptable=ptable)
+                              display.add_row( ['%d:%d'%(runnum,fillnum),'%d:%d'%(lsnum,cmslsnum),dtime,beamstatus,'%d'%tegev,'%.3f'%(delivered),'%.3f'%(recorded),'%.1f'%(avgpu),datasource,'%s'%bxlumistr] , fh=fh, csvwriter=csvwriter, ptable=ptable)
                               del bxlumi
                           elif pargs.byls:
-                              display.add_row( ['%d'%fillnum,'%d'%runnum,'%d'%lsnum,dtime,int(cmson),beamstatus,'%.3f'%(delivered),'%.3f'%(recorded),'%.1f'%(avgpu),datasource] , fh=fh, csvwriter=csvwriter, ptable=ptable)
+                              display.add_row( ['%d:%d'%(runnum,fillnum),'%d:%d'%(lsnum,cmslsnum),dtime,beamstatus,'%d'%tegev,'%.3f'%(delivered),'%.3f'%(recorded),'%.1f'%(avgpu),datasource] , fh=fh, csvwriter=csvwriter, ptable=ptable)
                       if runtot.has_key(runnum):#accumulate                          
                           runtot[runnum]['nls'] += 1
                           if cmson:
@@ -236,7 +240,7 @@ def brilcalc_main(progname=sys.argv[0]):
               del df_runtot
               if not pargs.byls and not pargs.withBX: #run table
                   for run in sorted(runtot):
-                      display.add_row( [runtot[run]['fill'],run,runtot[run]['time'],runtot[run]['nls'],runtot[run]['ncms'],'%.3f'%(runtot[run]['delivered']),'%.3f'%(runtot[run]['recorded'])] , fh=fh, csvwriter=csvwriter, ptable=ptable)
+                      display.add_row( ['%d:%d'%(run,runtot[run]['fill']),runtot[run]['time'],runtot[run]['nls'],runtot[run]['ncms'],'%.3f'%(runtot[run]['delivered']),'%.3f'%(runtot[run]['recorded'])] , fh=fh, csvwriter=csvwriter, ptable=ptable)
         
               if pargs.totable:              
                   print '#Data tag : ',datatagname
