@@ -1,8 +1,12 @@
-import sys,logging
+import sys
+import os
+sys.path.insert(0,os.path.dirname(sys.executable)+'/../lib/python2.7/site-packages/') #ignore other PYTHONPATH
+
+import logging
 import docopt
 import schema
 import brilws
-import os,yaml
+import yaml
 from sqlalchemy import *
 from ConfigParser import SafeConfigParser
 from brilws import api
