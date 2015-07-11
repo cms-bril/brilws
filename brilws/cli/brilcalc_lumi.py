@@ -25,6 +25,7 @@ Options:
   --xing                        Show result in bx granularity
   --without-correction          Show raw data without calibration
   --cerntime                    Show time in CERN local time
+  --tssec                       Show time as second since Epoch
 
 """
 

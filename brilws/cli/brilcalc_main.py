@@ -16,7 +16,7 @@ from datetime import datetime
 from sqlalchemy import *
 import math
 from dateutil import tz
-
+import pytz
 log = logging.getLogger('brilws')
 logformatter = logging.Formatter('%(levelname)s %(name)s %(message)s')
 log.setLevel(logging.ERROR)
@@ -98,6 +98,7 @@ def brilcalc_main(progname=sys.argv[0]):
           dbengine = create_engine(pargs.connecturl)          
           totz=utctmzone
           if pargs.cerntime: totz=cerntmzone
+          if pargs.tssec: totz=None
           
           fh = None
           ptable = None
@@ -154,14 +155,18 @@ def brilcalc_main(progname=sys.argv[0]):
                       lsnum = row['lsnum']
                       cmslsnum = lsnum
                       timestampsec = row['timestampsec']
+                      #print timestampsec
                       cmson = row['cmson']
                       if not cmson:
                           cmslsnum = 0
                       beamstatusid = row['beamstatusid']
                       beamstatus = params._idtobeamstatus[beamstatusid]
                       tegev = row['targetegev']
-                      d = datetime.fromtimestamp(int(timestampsec))
-                      dtime = d.replace(tzinfo=utctmzone).astimezone(totz).strftime(params._datetimefm)
+                      dtime = str(timestampsec)
+                      if totz is not None:
+                          d = datetime.fromtimestamp(int(timestampsec),tz=pytz.utc)
+                          dtime = d.astimezone(totz).strftime(params._datetimefm)
+
                       delivered = recorded = avgpu = 0.
                       if source == 'best':
                           delivered = 0.
@@ -272,7 +277,8 @@ def brilcalc_main(progname=sys.argv[0]):
           if not pargs.dbconnect.find('oracle')!=-1: dbschema = 'cms_lumi_prod'
           dbengine = create_engine(pargs.connecturl)
           totz=utctmzone
-          if pargs.cerntime: totz=cerntmzone          
+          if pargs.cerntime: totz=cerntmzone
+          if pargs.tssec: totz=None
           ##display params          
           fh = None
           ptable = None
@@ -302,8 +308,10 @@ def brilcalc_main(progname=sys.argv[0]):
               runnum = row['runnum']
               lsnum = row['lsnum']                          
               timestampsec = row['timestampsec']
-              d = datetime.fromtimestamp(int(timestampsec))
-              dtime = d.replace(tzinfo=utctmzone).astimezone(totz).strftime(params._datetimefm)              
+              dtime = str(timestampsec)
+              if totz is not None:
+                  d = datetime.fromtimestamp(int(timestampsec),tz=pytz.utc)
+                  dtime = d.astimezone(totz).strftime(params._datetimefm) 
               if pargs.withBX:
                   bxintensity = None
                   bxintensitystr = '[]'

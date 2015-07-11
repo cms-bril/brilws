@@ -17,7 +17,6 @@ print version
 setup(
     name = "brilws",
     author = "Zhen Xie",
-    author_email = "Zhen.Xie@cern.ch",
     url = "https://github.com/xiezhen/brilws",
     download_url = 'https://github.com/xiezhen/brilws/tarball/'+version,
     license = "MIT",

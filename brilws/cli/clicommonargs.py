@@ -52,6 +52,7 @@ class parser(object):
         self._applyto = ''
         self._scalefactor = 1.
         self._cerntime = False
+        self._tssec = False
         self._withoutcorrection = False
         self._servicemap = {}
         self._parse()
@@ -97,6 +98,8 @@ class parser(object):
             self._scalefactor = self._argdict['-n']
         if self._argdict.has_key('--cerntime'):
             self._cerntime = self._argdict['--cerntime']
+        if self._argdict.has_key('--tssec'):
+            self._tssec = self._argdict['--tssec']
         if self._argdict.has_key('--without-correction'):
             self._withoutcorrection = self._argdict['--without-correction']
         if self._argdict.has_key('-f') and self._argdict['-f'] :
@@ -231,6 +234,9 @@ class parser(object):
     @property
     def cerntime(self):
         return self._cerntime
+    @property
+    def tssec(self):
+        return self._tssec
     @property
     def withoutcorrection(self):
         return self._withoutcorrection

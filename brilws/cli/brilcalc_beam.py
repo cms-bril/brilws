@@ -18,6 +18,7 @@ options:
   --output-style OSTYLE        Screen output style. tab, html, csv [default: tab]
   --xing                       Show result in bx granularity
   --cerntime                   Show time in CERN local time
+  --tssec                      Show time as second since Epoch
  
 """
 
