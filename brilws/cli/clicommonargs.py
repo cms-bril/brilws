@@ -1,8 +1,9 @@
 from brilws import api,params,RegexValidator
 import re,time,os,sys
 from datetime import datetime
+import calendar
 from schema import And, Or, Use
-
+from dateutil import tz
 from ConfigParser import SafeConfigParser
 
 def parseservicemap(authfile):
@@ -123,17 +124,19 @@ class parser(object):
                         elif style=='run':
                             self._runmin = int(s_beg)
                         elif style=='time':
-                            self._tssecmin = int(time.mktime(datetime.strptime(s_beg,params._datetimefm).timetuple()))
+                            dt_obj = datetime.strptime(s_beg,params._datetimefm)                            
+                            self._tssecmin = calendar.timegm(dt_obj.timetuple())
             if self._argdict.has_key('--end') and self._argdict['--end']:
                 s_end = self._argdict['--end']
                 for style,pattern in {'fill':params._fillnum_pattern,'run':params._runnum_pattern, 'time':params._time_pattern}.items():
                       if re.match(pattern,s_end):
-                          if style=='fill':
-                              self._fillmax = int(s_end)
-                          elif style=='run':
-                              self._runmax = int(s_end)
-                          elif style=='time':
-                              self._tssecmax = int(time.mktime(datetime.strptime(s_end,params._datetimefm).timetuple()))
+                        if style=='fill':
+                            self._fillmax = int(s_end)
+                        elif style=='run':
+                            self._runmax = int(s_end)
+                        elif style=='time':
+                            dt_obj = datetime.strptime(s_end,params._datetimefm)
+                            self._tssecmax = calendar.timegm(dt_obj.timetuple())
         
         if self._argdict.has_key('-o') and self._argdict['-o'] or self._outputstyle == 'csv':
             if self._argdict['-o']:
