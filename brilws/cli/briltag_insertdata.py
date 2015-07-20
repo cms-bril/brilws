@@ -4,24 +4,22 @@ Usage:
 
 Options:
       -h --help                Show this screen.
-      -c CONNECT               Connect string to lumiDB [default: frontier://LumiCalc/CMS_LUMI_PROD]
-      -p AUTHPATH              Path to authentication.xml 
-      --name TAGNAME           Name of the data tag [default: online]
+      -c CONNECT               Service name [default: onlinew]
+      -p AUTHPATH              Authentication file
+      --name TAGNAME           Name of the data tag 
       --comments COMMENTS      Comments on the tag
-      --debug                  Debug mode
-      --nowarning              Switch off warnings
+
 """
 
 import os
 from docopt import docopt
 from schema import Schema
-from brilws import clicommonargs
+from brilws.cli import clicommonargs
 
 def validate(optdict):
-    result = {}
-    myvalidables = ['-c','-p','--name',str]
+    myvalidables = ['-c','-p','--name','--comments',str]
     argdict = dict((k,v) for k,v in clicommonargs.argvalidators.iteritems() if k in myvalidables)
-    schema = Schema(argdict)
+    s = Schema(argdict)
     result = s.validate(optdict)
     return result
 

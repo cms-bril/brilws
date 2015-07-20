@@ -78,7 +78,7 @@ def brilcalc_main(progname=sys.argv[0]):
     if args['--debug']:
         log.setLevel(logging.DEBUG)
     elif args['--warn']:
-       log.setLevel(logging.WARNING)
+        log.setLevel(logging.WARNING)
         
     log.debug('global arguments: %s',args)
     cmmdargv = [args['<command>']] + args['<args>']

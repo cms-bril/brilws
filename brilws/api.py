@@ -448,50 +448,69 @@ def iov_getpayload(connection,payloadid,payloaddatadict,maxnitems=1):
     payload = [x for x in payload if x is not None]
     
     return payload
-    
-def iov_listtags(connection,tagname=None,datasource=None,applyto=None,isdefault=None):
+
+def data_gettags(engine,schemaname=''):
+    """
+    inputs:
+        connection: db handle
+    outputs:
+        result[ datatagname ] = [ datatagnameid,creationutc',comments ]
+    sql: select datatagnameid, datatagname, creationutc, comments from DATATAGS
+         
+    """
+    basetablename = tablename = 'DATATAGS'
+    if schemaname:
+        tablename = '.'.join([schemaname,basetablename])
+        
+    result = {}
+    q =  """select datatagnameid, datatagname, creationutc, comments from %s"""%(tablename)
+    log.debug(q)
+    connection = engine.connect()
+    qresult = connection.execute(q,{})
+    for row in qresult:
+        creationutc=''
+        comments=''
+        if row['creationutc']: creationutc=row['creationutc']
+        if row['comments']: comments=row['comments']
+        result[ row['datatagnameid'] ] = [ row['datatagname'],creationutc,comments ]
+    return result
+
+def iov_gettags(engine,schemaname='',datasource=None,applyto=None,isdefault=False):
     """
     inputs:
         connection:  db handle
         optional query parameters: tagid, tagname,datasource,applyto,isdefault
     outputs:
-        {tagid: {'tagname': , 'creationutc': , 'datadict': , 'maxnitems':, 'datasource': , 'applyto': , 'isdefault': 'tagcomment': , since:{'payloadid':,'payloadcomment':} } }
-    sql:
-        select t.TAGID as tagid, t.TAGNAME as tagname, t.CREATIONUTC as creationutc, t.DATADICT as datadict, t.MAXNITEMS as maxnitems, t.DATASOURCE as datasource, t.APPLYTO as applyto, t.ISDEFAULT as isdefault, t.COMMENT as tagcomment, d.SINCE as since, d.PAYLOADID as payloadid, d.COMMENT as payloadcomment from IOVTAGS t, IOVTAGDATA d where t.TAGID=d.TAGID [and t.TAGNAME=:tagname and t.DATASOURCE=:datasource and t.APPLYTO=:applyto and t.isdefault=:isdefault ]; 
+        {tagid: {'tagname': , 'creationutc': , 'datasource': , 'applyto': , 'isdefault': 'comments': }
+    sql: select tagid, tagname, creationutc, datasource, applyto, isdefault, comments from IOVTAGS where
+         
     """
-    
-    result = {}
-    q =  """select t.TAGID as tagid, t.TAGNAME as tagname, t.CREATIONUTC as creationutc, t.DATADICT as datadict, t.MAXNITEMS as maxnitems, t.DATASOURCE as datasource, t.APPLYTO as applyto, t.ISDEFAULT as isdefault, t.COMMENT as tagcomment, d.SINCE as since, d.PAYLOADID as payloadid, d.COMMENT as payloadcomment from IOVTAGS t, IOVTAGDATA d where t.TAGID=d.TAGID"""
-    param = {}
-    if tagname:
-        q += " and t.TAGNAME=:tagname"
-        param['tagname'] = tagname
-    if datasource:
-        q += " and t.DATASOURCE=:datasource"
-        param['datasource'] = datasource
-    if applyto:
-        q += " and t.APPLYTO=:applyto"
-        param['applyto'] = applyto
-    if isdefault:
-        q += " and t.ISDEFAULT=:isdefault"
-        param['isdefault'] = isdefault
+    basetablename = tablename = 'IOVTAGS'
+    if schemaname:
+        tablename = '.'.join([schemaname,basetablename])
         
-    with connection.begin() as trans:
-        r = connection.execute(q,param)
-        for row in r:
-            tagid = row['tagid']
-            since = row['since']
-            if not result.has_key(tagid):
-                result[tagid] = {}
-                result[tagid]['tagname'] = row['tagname']
-                result[tagid]['creationutc'] = row['creationutc']
-                result[tagid]['datadict'] = row['datadict']
-                result[tagid]['maxnitems'] = row['maxnitems']
-                result[tagid]['datasource'] = row['datasource']
-                result[tagid]['applyto'] = row['applyto']
-                result[tagid]['isdefault'] = row['isdefault']
-                result[tagid]['tagcomment'] = row['tagcomment']
-            result[tagid][since] = {'payloadid':row['payloadid'],'payloadcomment':row['payloadcomment']}
+    result = {}
+    q =  """select tagid, tagname, creationutc, datasource, applyto, isdefault, comments from %s"""%(tablename)
+    qCondition = ''
+    qPieces = []
+    binddict = {}
+
+    if datasource:
+        qPieces.append( "datasource=:datasource")
+        binddict['datasource'] = datasource
+    if applyto:
+        qPieces.append( "applyto=:applyto" )
+        binddict['applyto'] = applyto
+    if isdefault:
+        qPieces.append("isdefault=1")
+    if qPieces:
+        qCondition = ' and '.join(qPieces)
+    if qCondition: q = q+' where '+qCondition
+    log.debug(q)
+    connection = engine.connect()
+    qresult = connection.execute(q,binddict)
+    for row in qresult:
+        result[row['tagname']] = [ row['tagid'],row['creationutc'],row['datasource'],row['applyto'],row['isdefault'],row['comments'] ]
     return result
 
 def createIOVTag(engine,iovtagname,applyto,isdefault=False,comments='',schemaname=''):
@@ -608,7 +627,7 @@ def getIOVData(engine,iovtagid,since,fields=[]):
 
 def getIOVTags(engine,schemaname='',iovtagname='',isdefault=False,datasource='',applyto=''):
     '''
-    output: iovtags dataframe
+    output: iovtags 
     '''
     basetablename = tablename = 'IOVTAGS'
     if schemaname:
@@ -1270,7 +1289,7 @@ def unpackCLOBtoListstr(iStr,separator=','):
     return [i.strip() for i in iStr.strip().split(separator)]
 
 ##### Data tag ######    
-def createDataTag(engine,datatagname,comments='',schemaname=''):
+def data_createtag(engine,datatagname,comments='',schemaname=''):
     '''
     create a new data tag, return the datatag name id
     input:
@@ -1280,17 +1299,19 @@ def createDataTag(engine,datatagname,comments='',schemaname=''):
     '''
     datatagnameid = None
     if datatagname == 'online':
-        datatagnameid = 0
+        datatagnameid = 1
     else:
         datatagnameid = next(nonsequential_key(1))
-    basetablename = tablename = 'DATATAGS'
+    basetablename = tablename = 'datatags'
     if schemaname:
         tablename = '.'.join([schemaname,basetablename])
-    utcstr = datetime.now().strftime(params._datetimefm)
-    t = Table(tablename, MetaData(), Column('DATATAGNAMEID',types.BigInteger), Column('DATATAGNAME',types.String),  Column('CREATIONUTC',types.String), Column('COMMENTS',types.String) )
-    connection = engine.connect() 
-    with connection.begin() as trans:
-        connection.execute( t.insert(),DATATAGNAMEID=datatagnameid,DATATAGNAME=datatagname,CREATIONUTC=utcstr,COMMENTS=comments)
+    utcstr = datetime.utcnow().strftime(params._datetimefm)
+    t = Table(tablename, MetaData(), Column('datatagnameid',types.BigInteger), Column('datatagname',types.String),  Column('creationutc',types.String), Column('comments',types.String) )
+    q = str( t.insert() )
+    log.debug(q)
+    log.debug(utcstr)
+    #connection = engine.connect() 
+    #connection.execute( t.insert(),datatagnameid=datatagnameid,datatagname=datatagname,creationutc=utcstr,comments=comments)
     return datatagnameid
 
 def getDatatagNameid(engine,datatagname,schemaname=''):
@@ -1812,32 +1833,32 @@ def hltInfoIter(engine,datatagids,suffix,schemaname='',hltpathnamepattern='',chu
 #
 # operation on  data sources
 # 
-if __name__=='__main__':
+#if __name__=='__main__':
 
     ## test db api , i.e. sqlalchemy sans orm
-    engine = create_engine('sqlite:///test.db')
-    connection = engine.connect().execution_options(stream_results=True)
-    trans = connection.begin()
-    try:
-        connection.execute('''create table if not exists test ( a integer) ''')
-        trans.commit()
-    except:
-        trans.rollback()
-        raise
+    #engine = create_engine('sqlite:///test.db')
+    #connection = engine.connect().execution_options(stream_results=True)
+    #trans = connection.begin()
+    #try:
+    #    connection.execute('''create table if not exists test ( a integer) ''')
+    #    trans.commit()
+    #except:
+    #    trans.rollback()
+    #    raise
     
-    with connection.begin() as trans:
-        r = connection.execute("""insert into test(%s) values(%s)"""%('a',':a'),{'a':1})
-        connection.execute("""insert into test(%s) values(%s)"""%('a',':a'),[{'a':2},{'a':3}])
-    stmt_1 = text("select a from test where a=:x")
-    stmt_2 = text("select * from test")
-    with connection.begin() as trans:
-        r = connection.execute(stmt_1,{'x':1})
-        for i in r:
-            print i
-        r = connection.execute(stmt_2,{})
-        df = pd.DataFrame(string_folding_wrapper(r))
-        df.columns = r.keys()
-        print df
+    #with connection.begin() as trans:
+    #    r = connection.execute("""insert into test(%s) values(%s)"""%('a',':a'),{'a':1})
+    #    connection.execute("""insert into test(%s) values(%s)"""%('a',':a'),[{'a':2},{'a':3}])
+    #stmt_1 = text("select a from test where a=:x")
+    #stmt_2 = text("select * from test")
+    #with connection.begin() as trans:
+    #    r = connection.execute(stmt_1,{'x':1})
+    #    for i in r:
+    #        print i
+    #    r = connection.execute(stmt_2,{})
+    #    df = pd.DataFrame(string_folding_wrapper(r))
+    #    df.columns = r.keys()
+    #    print df
 
     ## test iov api
 
@@ -1850,28 +1871,28 @@ if __name__=='__main__':
     #applyto = 'daq'
     #maxnitems = 1
     #iovdataversion = '1.0.0'
-    datadict = 'UINT8:48'
-    payloaddatadict = iov_parsepayloaddatadict(datadict)
-    print payloaddatadict
-    datadict = 'STR12-STR256:40,UINT8:48'
-    print iov_parsepayloaddatadict(datadict)
-    iovdata = read_yaml('/home/zhen/work/brilws/data/bcm1f_channelmask_v1.yaml')
-    print iovdata
-    tagid = iov_createtag(connection,iovdata)
-    print tagid
-    alltags = iov_listtags(connection)
-    print 'alltags ', alltags
-    mytag = iov_listtags(connection,tagname='bcm1f_channelmask_v1')
-    print 'mytag ',mytag
-    mytagid = mytag.keys()[0]
-    oldsinces = [k for k in mytag[mytagid].keys() if isinstance(k,int) ]
-    lastsince = max(oldsinces)
-    print 'lastsince ',lastsince
-    newsince = lastsince+5
-    payloadcomment = 'blah'
-    payloaddata = [[48*[1]]]
-    datadict = 'UINT8:48'
-    print 'append to bcm1f_channelmask_v1'    
-    newpayloadid=iov_appendtotag(connection,mytagid,lastsince+5,payloaddata,datadict,payloadcomment)
-    print 'newpayloadid ',newpayloadid
+    #datadict = 'UINT8:48'
+    #payloaddatadict = iov_parsepayloaddatadict(datadict)
+    #print payloaddatadict
+    #datadict = 'STR12-STR256:40,UINT8:48'
+    #print iov_parsepayloaddatadict(datadict)
+    #iovdata = read_yaml('/home/zhen/work/brilws/data/bcm1f_channelmask_v1.yaml')
+    #print iovdata
+    #tagid = iov_createtag(connection,iovdata)
+    #print tagid
+    #alltags = iov_listtags(connection)
+    #print 'alltags ', alltags
+    #mytag = iov_listtags(connection,tagname='bcm1f_channelmask_v1')
+    #print 'mytag ',mytag
+    #mytagid = mytag.keys()[0]
+    #oldsinces = [k for k in mytag[mytagid].keys() if isinstance(k,int) ]
+    #lastsince = max(oldsinces)
+    #print 'lastsince ',lastsince
+    #newsince = lastsince+5
+    #payloadcomment = 'blah'
+    #payloaddata = [[48*[1]]]
+    #datadict = 'UINT8:48'
+    #print 'append to bcm1f_channelmask_v1'    
+    #newpayloadid=iov_appendtotag(connection,mytagid,lastsince+5,payloaddata,datadict,payloadcomment)
+    #print 'newpayloadid ',newpayloadid
             
