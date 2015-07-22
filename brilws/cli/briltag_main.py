@@ -154,16 +154,43 @@ def briltag_main(progname=sys.argv[0]):
       elif args['<command>'] == 'insertiov':
          import briltag_insertiov
          parseresult = docopt.docopt(briltag_insertiov.__doc__,argv=cmmdargv)
-         myargs = clicommonargs.parser(parseresult)
-         dbengine = create_engine(myargs.dbconnect)
-         authpath = myargs.authpath
-         name = myargs.name    
-         applyto = myargs.applyto
-         datasource = myargs.lumitype
-         isdefault = parseresult['--isdefault']         
-         iovfile = parseresult['-i']
-         iovtagid = api.createIOVTag(dbengine,name,myargs.applyto,isdefault=isdefault,comments=myargs.comments,schemaname='')
-         print iovtagid
+         parseresult = briltag_insertiov.validate(parseresult)
+         pargs = clicommonargs.parser(parseresult)
+         dbschema = ''
+         if not pargs.dbconnect.find('oracle')!=-1: dbschema = 'cms_lumi_prod'         
+         dbengine = create_engine(pargs.connecturl)
+         istypedefault=False
+         if pargs.yamlobj.has_key('istypedefault'):
+             istypedefault =  pargs.yamlobj['istypedefault']
+         iovtagname = ''
+         if pargs.yamlobj.has_key('name'):
+             iovtagname = pargs.yamlobj['name']
+         else:
+             ValueError('name cannot be empty')
+         applyto = 'lumi'
+         if pargs.yamlobj.has_key('applyto'):
+             applyto = pargs.yamlobj['applyto']
+         datasource = None
+         if pargs.yamlobj.has_key('datasource'):
+             datasource = pargs.yamlobj['datasource']
+         else:
+             raise ValueError('datasource cannot be empty')
+         comments = ''
+         if pargs.yamlobj.has_key('comments'):
+             comments = pargs.yamlobj['comments']
+         istypedefault = False
+         if pargs.yamlobj.has_key('istypedefault'):
+             istypedefault = True
+         iovdata = None
+         if pargs.yamlobj.has_key('since'):
+             iovdata = pargs.yamlobj['since']
+         else:
+             raise ValueError('since cannot be empty')
+         print iovtagname,applyto,datasource,comments,istypedefault
+         iovtagid = api.iov_insertdata(dbengine,iovtagname,datasource,iovdata,applyto=applyto,isdefault=istypedefault,comments=comments,schemaname=dbschema)
+         
+         #iovtagid = api.createIOVTag(dbengine,name,datasource,applyto=applyto,isdefault=isdefault,comments=comments,schemaname=dbschema)
+         #print iovtagid
          #if iovfile:
          #    iovdata = api.read_yaml(parseresult['-i'])
          #    tagname = iovdata['tagname']

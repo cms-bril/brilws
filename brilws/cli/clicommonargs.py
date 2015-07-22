@@ -5,7 +5,7 @@ import calendar
 from schema import And, Or, Use
 from dateutil import tz
 from ConfigParser import SafeConfigParser
-
+import yaml
 def parseservicemap(authfile):
     '''
     parse service config ini file
@@ -55,6 +55,7 @@ class parser(object):
         self._cerntime = False
         self._tssec = False
         self._withoutcorrection = False
+        self._yamlobj = None
         self._servicemap = {}
         self._parse()
         
@@ -95,6 +96,8 @@ class parser(object):
             self._lumitype = self._argdict['--type']
         if self._argdict.has_key('--applyto'):
             self._applyto = self._argdict['--applyto']
+        if self._argdict.has_key('-y'):
+            self._yamlfile = self._argdict['-y']            
         if self._argdict.has_key('-n'):
             self._scalefactor = self._argdict['-n']
         if self._argdict.has_key('--cerntime'):
@@ -147,7 +150,7 @@ class parser(object):
                 self._fh = sys.stdout
         else:
             self._totable = True
-            
+        
     @property
     def dbconnect(self):
         return self._dbconnect
@@ -257,6 +260,16 @@ class parser(object):
         else:
             return self._dbconnect
         
+    @property
+    def yamlfile(self):
+        return self._yamlfile
+    
+    @property
+    def yamlobj(self):
+        with open(self._yamlfile,'r') as f:
+            self._yamlobj = yaml.safe_load(f)
+        return self._yamlobj
+    
 argvalidators = {
     '--amodetag': Or(None,And(str,lambda s: s.upper() in params._amodetagChoices), error='--amodetag must be in '+str(params._amodetagChoices) ),
     '--beamenergy': Or(None,And(Use(int), lambda n: n>0), error='--beamenergy should be integer >0'),
@@ -269,7 +282,8 @@ argvalidators = {
     '--applyto': Or(None, And(str, lambda s: s.upper() in params._applytoChoices), error='--applyto must be in '+str(params._applytoChoices) ),
     '--siteconfpath': Or(None, str, error='--siteconfpath should be string'),
     '-c': str,
-    '-p': And(os.path.exists, error='AUTHPATH should exist'),
+    '-p': Or(None,os.path.exists, error='AUTHPATH should exist'),
+    '-y': And(os.path.exists, error='YAMLFILE should exist'),
     '-i': Or(None,str),
     '-o': Or(None,str),    
     '-f': Or(None, And(Use(RegexValidator.RegexValidator(params._fillnum_pattern)),Use(int)), error='-f FILL has wrong format'), 
