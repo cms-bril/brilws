@@ -89,8 +89,12 @@ def briltag_main(progname=sys.argv[0]):
                  display.add_row( [tagname,str(tagcontents[0]),tagcontents[1],tagcontents[2],tagcontents[3],tagcontents[4],tagcontents[5]], ptable=ptable )
              display.show_table(ptable,'tab')
          else:
-             print 'list detail of tag %s'%pargs.name
-         
+             iovtagdata = api.iov_gettagdata(dbengine,pargs.name,schemaname=dbschema)
+             header = ['since','payloaddict','func','comments']
+             ptable = display.create_table(header,header=True)
+             for sincedata in iovtagdata:                 
+                 display.add_row( [ '%d'%sincedata[0],sincedata[1],sincedata[2],sincedata[3] ], ptable=ptable )
+             display.show_table(ptable,'tab')
       elif args['<command>'] == 'insertiov':
          import briltag_insertiov
          parseresult = docopt.docopt(briltag_insertiov.__doc__,argv=cmmdargv)

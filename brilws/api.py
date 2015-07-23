@@ -584,9 +584,10 @@ def iov_insertdata(engine,iovtagname,datasource,iovdata,applyto='lumi',isdefault
             payloaddata = sincedict.values()[0]
             payloaddict = sincedict[sincerunnum]['payloaddict']
             func = sincedict[sincerunnum]['func']
+            sincecomments =  sincedict[sincerunnum]['comments']
             payloadid = next(generate_key(sincerunnum))
             log.debug( 'append to tag %s since %d'%(iovtagname,sincerunnum) )
-            inserted = _insert_iovdata(connection,datatablename,iovtagid,sincerunnum,payloaddict,payloadid,func,comments)
+            inserted = _insert_iovdata(connection,datatablename,iovtagid,sincerunnum,payloaddict,payloadid,func,sincecomments)
             if inserted:
                 payloadfields = parsepayloaddict(payloaddict)#[[fieldname,fieldtype,maxlength]]
                 payloadfielddata = dict( [ (k,v) for (k,v) in payloaddata.items() if k not in ['func','payloaddict','comments'] ] )
@@ -642,6 +643,26 @@ def iov_gettags(engine,isdefault=False,datasource='',applyto='',schemaname=''):
         result[row['tagname']] = [ row['tagid'],row['creationutc'],row['applyto'],row['datasource'],row['isdefault'],row['comments'] ] 
     return result
 
+def iov_gettagdata(engine,iovtagname,schemaname=''):
+    '''
+    result: [[since,func,params,comments]]
+    '''
+    basetagstable = tagstable = 'iovtags'
+    basetagdatatable = tagdatatable = 'iovtagdata'
+    if schemaname:
+        tagstable = '.'.join([schemaname,basetagstable])
+        tagdatatable = '.'.join([schemaname,basetagdatatable])
+        
+    q='''select d.since as since, d.payloaddict as payloaddict, d.func as func, d.comments as comments from %s d, %s t where t.tagid=d.tagid and t.tagname=:tagname order by d.since'''%(tagdatatable,tagstable)
+    log.debug(q)
+    connection = engine.connect()
+    qresult = connection.execute(q,{'tagname':iovtagname})
+    result = []
+    for row in qresult:
+        result.append( [ row['since'],row['payloaddict'],row['func'],row['comments'] ] )
+    print result
+    return result
+    
 def iov_updatedefault(connection,tagname,defaultval=1):
     """
     inputs:
