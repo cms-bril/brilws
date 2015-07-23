@@ -445,13 +445,13 @@ def data_gettags(engine,schemaname=''):
         result[ row['datatagnameid'] ] = [ row['datatagname'],creationutc,comments ]
     return result
 
-def iov_gettags(engine,schemaname='',datasource=None,applyto=None,isdefault=False):
+def iov_gettags(engine,datasource=None,applyto=None,isdefault=False,schemaname=''):
     """
     inputs:
         connection:  db handle
         optional query parameters: tagid, tagname,datasource,applyto,isdefault
     outputs:
-        {tagid: {'tagname': , 'creationutc': , 'datasource': , 'applyto': , 'isdefault': 'comments': }
+       {tagname:[tagid,creationutc,datasource,applyto,isdefault,comments]}    
     sql: select tagid, tagname, creationutc, datasource, applyto, isdefault, comments from IOVTAGS where
          
     """
@@ -613,30 +613,34 @@ def packlistoblob(typecode,data):
     dataarray = array.array(typecode,list(data))
     return buffer(dataarray.tostring())        
 
-def getIOVTags(engine,schemaname='',iovtagname='',isdefault=False,datasource='',applyto=''):
+def iov_gettags(engine,isdefault=False,datasource='',applyto='',schemaname=''):
     '''
     output: iovtags 
+    result: [[tagid,tagname,creationutc,applyto,datasource,isdefault,comments]]
     '''
-    basetablename = tablename = 'IOVTAGS'
+    basetablename = tablename = 'iovtags'
     if schemaname:
         tablename = '.'.join([schemaname,basetablename])
-    q = '''select TAGID as tagid, TAGNAME as tagname, CREATIONUTC as creationutc, APPLYTO as applyto, DATASOURCE as datasource, ISDEFAULT as isdefault, COMMENTS as comments from %s'''%(tablename)
+    q = '''select tagid, tagname, creationutc, applyto, datasource, isdefault, comments from %s'''%(tablename)
     qconditions = []
-    qparams = {}
-    if iovtagname:
-        qconditions.append('TAGNAME=:iovtagname')
-        qparams['iovtagname'] = iovtagname
-    if datasource:
-        qconditions.append('DATASOURCE=:datasource')
-        qparams['datasource'] = datasource
+    qparams = {}    
+    if datasource:        
+        qconditions.append('datasource=:datasource')
+        qparams['datasource'] = datasource.upper()
     if applyto:
-        qconditions.append('APPLYTO=:applyto')
-        qparams['applyto'] = applyto
+        qconditions.append('applyto=:applyto')
+        qparams['applyto'] = applyto.upper()
     if isdefault:
-        qconditions.append('ISDEFAULT=1')
+        qconditions.append('isdefault=1')
     if qconditions:
         q = q+' where '+' AND '.join(qconditions)
-    return pd.read_sql_query(q,engine,index_col='tagid',params=qparams)
+    log.debug(q)
+    connection = engine.connect()
+    qresult = connection.execute(q,qparams)
+    result = {}
+    for row in qresult:
+        result[row['tagname']] = [ row['tagid'],row['creationutc'],row['applyto'],row['datasource'],row['isdefault'],row['comments'] ] 
+    return result
 
 def iov_updatedefault(connection,tagname,defaultval=1):
     """
