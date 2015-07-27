@@ -286,7 +286,7 @@ def brilcalc_main(progname=sys.argv[0]):
 
           (datatagname,datatagnameid) = findtagname(dbengine,pargs.datatagname,dbschema)
           log.debug('datatagname: %s, datatagnameid: %d'%(datatagname,datatagnameid))    
-          header = ['fill','run','ls','time','egev','intensity1','intensity2']
+          header = ['fill','run','ls','time','egev','intensity1','intensity2','ncollidingbx']
           if pargs.withBX:
               header = ['fill','run','ls','time','[bxidx intensity1 intensity2]']
           if not pargs.totable:
@@ -298,7 +298,7 @@ def brilcalc_main(progname=sys.argv[0]):
               ptable = display.create_table(header,header=True,maxwidth=80)                        
 
           idfields = ['fillnum','runnum','lsnum','timestampsec','beamstatusid']    
-          fields = ['egev','intensity1','intensity2']
+          fields = ['egev','intensity1','intensity2','ncollidingbx']
           if pargs.withBX:
               fields = ['bxidxblob','bxintensity1blob','bxintensity2blob']
           beamIt = api.beamInfoIter(dbengine,3,datafields=fields,idfields=idfields,schemaname=dbschema,fillmin=pargs.fillmin,fillmax=pargs.fillmax,runmin=pargs.runmin,runmax=pargs.runmax,amodetagid=pargs.amodetagid,targetegev=pargs.egev,beamstatusid=pargs.beamstatusid,tssecmin=pargs.tssecmin,tssecmax=pargs.tssecmax,runlsselect=pargs.runlsSeries,sorted=True)
@@ -309,6 +309,7 @@ def brilcalc_main(progname=sys.argv[0]):
               lsnum = row['lsnum']                          
               timestampsec = row['timestampsec']
               dtime = str(timestampsec)
+              ncollidingbx = 0
               if totz is not None:
                   d = datetime.fromtimestamp(int(timestampsec),tz=pytz.utc)
                   dtime = d.astimezone(totz).strftime(params._datetimefm) 
@@ -332,7 +333,8 @@ def brilcalc_main(progname=sys.argv[0]):
                   egev = row['egev']
                   intensity1 = row['intensity1']/pargs.scalefactor
                   intensity2 = row['intensity2']/pargs.scalefactor
-                  display.add_row( ['%d'%fillnum,'%d'%runnum,'%d'%lsnum,dtime,'%.1f'%egev,'%.4e'%intensity1,'%.4e'%intensity2], fh=fh, csvwriter=csvwriter, ptable=ptable)
+                  ncollidingbx = row['ncollidingbx'] 
+                  display.add_row( ['%d'%fillnum,'%d'%runnum,'%d'%lsnum,dtime,'%.1f'%egev,'%.4e'%intensity1,'%.4e'%intensity2, '%d'%ncollidingbx],fh=fh, csvwriter=csvwriter, ptable=ptable)
 
           if pargs.totable:
               print '#Data tag : ',datatagname

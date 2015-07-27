@@ -556,6 +556,15 @@ def _insert_iovpayload(connection,payloadid,payloadfields,payloadfielddata,schem
         log.debug( 'payloadid=%ul, ifield=%d'%(payloadid,fieldid) )
         connection.execute( t.insert(), payloadid=payloadid, ifield=fieldid, val=dataval )
 
+def _get_iovpayload(connection,payloadid,payloadfields,schemaname=None):
+    tablename = 'iovp_'
+        
+    for fieldid,fielddata in enumerate(payloadfields):
+        fieldname = fielddata[0]
+        fieldtype = fielddata[1]
+        maxlength = fielddata[2]
+    pass
+
 def iov_insertdata(engine,iovtagname,datasource,iovdata,applyto='lumi',isdefault=False,comments='',schemaname=None ):
     '''
     create a new iov tag or append to an existing one
@@ -659,7 +668,10 @@ def iov_gettagdata(engine,iovtagname,schemaname=''):
     qresult = connection.execute(q,{'tagname':iovtagname})
     result = []
     for row in qresult:
-        result.append( [ row['since'],row['payloaddict'],row['func'],row['comments'] ] )
+        payloaddict = row['payloaddict']
+        payloadfields = parsepayloaddict(payloaddict)#[[fieldname,fieldtype,maxlength]]
+        print payloadfields
+        result.append( [ row['since'],payloaddict,row['func'],row['comments'] ] )
     print result
     return result
     
