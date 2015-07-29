@@ -557,14 +557,61 @@ def _insert_iovpayload(connection,payloadid,payloadfields,payloadfielddata,schem
         connection.execute( t.insert(), payloadid=payloadid, ifield=fieldid, val=dataval )
 
 def _get_iovpayload(connection,payloadid,payloadfields,schemaname=None):
-    tablename = 'iovp_'
-        
+    '''
+    output: [(fieldtype,fieldval)] 
+    select val from iovp_x where payloadid=:payloadid and ifield=:fieldid
+    '''
+    tablename = basetablename = 'iovp_'
+    if schemaname:
+        tablename = '.'.join([schemaname,basetablename])
+    result = []
     for fieldid,fielddata in enumerate(payloadfields):
         fieldname = fielddata[0]
         fieldtype = fielddata[1]
         maxlength = fielddata[2]
-    pass
-
+        if maxlength==1:
+            if fieldtype.lower()=='float':
+                ttype = 'float'
+            elif fieldtype.lower()=='bool':
+                ttype = 'boolean'
+            elif fieldtype.lower().find('str')!=-1:
+                ttype='string'
+            elif fieldtype.lower() in ['uint8','int8','uint16','int16']:
+                ttype='smallint'
+            elif fieldtype.lower() in ['uint32','int32']:
+                ttype='int'
+        else:
+            ttype = 'blob'
+            typecode = ''
+            if fieldtype=='float':
+                typecode = 'f'
+            elif fieldtype=='uint8':
+                typecode = 'B'
+            elif fieldtype=='int8':
+                typecode = 'b'
+            elif fieldtype=='uint16':
+                typecode = 'H'
+            elif fieldtype=='int16':
+                typecode = 'h'
+            elif fieldtype=='uint32':
+                typecode = 'I'
+            elif fieldtype=='int32':
+                typecode = 'i'
+            else:
+                typecode = 'c'
+        t = tablename+ttype    
+        q = '''select val from %s where payloadid=:payloadid and ifield=:fieldid'''%t
+        log.debug( q )
+        log.debug( 'payloadid=%ul, ifield=%d'%(payloadid,fieldid) )
+        binddict = {'payloadid':payloadid,'fieldid':fieldid}
+        r = connection.execute( q, binddict )
+        for row in r:
+            val = row['val']
+            if ttype=='blob' and val is not None:
+                val = unpackBlobtoArray(val,typecode)
+        result.append( [ [fieldname,ttype,val] ])
+    return result
+                
 def iov_insertdata(engine,iovtagname,datasource,iovdata,applyto='lumi',isdefault=False,comments='',schemaname=None ):
     '''
     create a new iov tag or append to an existing one
@@ -662,17 +709,17 @@ def iov_gettagdata(engine,iovtagname,schemaname=''):
         tagstable = '.'.join([schemaname,basetagstable])
         tagdatatable = '.'.join([schemaname,basetagdatatable])
         
-    q='''select d.since as since, d.payloaddict as payloaddict, d.func as func, d.comments as comments from %s d, %s t where t.tagid=d.tagid and t.tagname=:tagname order by d.since'''%(tagdatatable,tagstable)
+    q='''select d.since as since, d.payloaddict as payloaddict, d.payloadid as payloadid, d.func as func, d.comments as comments from %s d, %s t where t.tagid=d.tagid and t.tagname=:tagname order by d.since'''%(tagdatatable,tagstable)
     log.debug(q)
     connection = engine.connect()
     qresult = connection.execute(q,{'tagname':iovtagname})
     result = []
     for row in qresult:
         payloaddict = row['payloaddict']
+        payloadid = row['payloadid']
         payloadfields = parsepayloaddict(payloaddict)#[[fieldname,fieldtype,maxlength]]
-        print payloadfields
-        result.append( [ row['since'],payloaddict,row['func'],row['comments'] ] )
-    print result
+        payloaddata = _get_iovpayload(connection,payloadid,payloadfields,schemaname=schemaname)    
+        result.append( [ row['since'],payloaddict,row['func'],row['comments'],payloaddata ] )
     return result
     
 def iov_updatedefault(connection,tagname,defaultval=1):
