@@ -699,6 +699,32 @@ def iov_gettags(engine,isdefault=False,datasource='',applyto='',schemaname=''):
         result[row['tagname']] = [ row['tagid'],row['creationutc'],row['applyto'],row['datasource'],row['isdefault'],row['comments'] ] 
     return result
 
+def iov_getvaliddata(engine,iovtagname,runnum,schemaname=''):
+    '''
+    get valid data for runnum 
+    result: (func,params)
+    '''
+    basetagstable = tagstable = 'iovtags'
+    basetagdatatable = tagdatatable = 'iovtagdata'
+    if schemaname:
+        tagstable = '.'.join([schemaname,basetagstable])
+        tagdatatable = '.'.join([schemaname,basetagdatatable])  
+
+    q = '''select func, payloadid, payloaddict from %s where since=( select max(d.since) as since from %s d, %s t where t.tagid=d.tagid and t.tagname=:tagname and d.since<=:runnum )'''%(tagdatatable,tagdatatable,tagstable)    
+    log.debug(q)
+    connection = engine.connect()
+    qresult = connection.execute(q,{'tagname':iovtagname,'runnum':runnum})
+    result = None
+    for row in qresult:
+        func = row['func']
+        payloaddict = row['payloaddict']
+        payloadid = row['payloadid']
+        payloadfields = parsepayloaddict(payloaddict)#[[fieldname,fieldtype,maxlength]]
+        payloaddata = _get_iovpayload(connection,payloadid,payloadfields,schemaname=schemaname)    
+        result = ( row['func'],payloaddata )
+    return result
+            
+    
 def iov_gettagdata(engine,iovtagname,schemaname=''):
     '''
     result: [[since,func,params,comments]]

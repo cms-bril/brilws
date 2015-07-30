@@ -24,6 +24,37 @@ ch = logging.StreamHandler()
 ch.setFormatter(logformatter)
 log.addHandler(ch)
 
+
+class ValidityChecker(object):
+    def __init__(self, normdata):
+        self.normdata = normdata
+        self.allsince = np.array([x[0] for x in normdata])
+        
+    def getvalidity(self,runnum):
+        if self.allsince.size == 0 : return None
+        since = 1
+        if self.allsince[self.allsince<=runnum].size>0:
+            since = self.allsince[self.allsince<=runnum].max()
+        till = 999999
+        if self.allsince[self.allsince>runnum].size>0:
+            till = self.allsince[self.allsince>runnum].min()
+        return (since,till)
+    
+    def isvalid(self,runnum,validity):
+        if runnum>=validity[0] and runnum<validity[1]:
+            return True
+        return False
+
+    def getvaliddata(self,since):
+        s = np.where(self.allsince==since)
+        if s[0].size>0:
+            sinceindex = s[0][0]
+            funcdict = self.normdata[sinceindex][1]
+            func = self.normdata[sinceindex][2]
+            params = self.normdata[sinceindex][4]
+            return [func,funcdict,params]
+        return None
+    
 class Unbuffered(object):
     def __init__(self, stream):
         self.stream = stream
@@ -91,6 +122,8 @@ def brilcalc_main(progname=sys.argv[0]):
           import brilcalc_lumi          
           parseresult = docopt.docopt(brilcalc_lumi.__doc__,argv=cmmdargv)
           parseresult = brilcalc_lumi.validate(parseresult)
+          normtag = parseresult['--normtag']
+          
           ##parse selection params
           pargs = clicommonargs.parser(parseresult)
           dbschema = ''
@@ -115,7 +148,14 @@ def brilcalc_main(progname=sys.argv[0]):
               header = bylsheader
           header = vfunc_lumiunit(header,pargs.scalefactor).tolist()
           footer = vfunc_lumiunit(footer,pargs.scalefactor).tolist()
-          
+
+          normdata = []
+          allsince = []
+          if normtag:              
+              normdata = api.iov_gettagdata(dbengine, normtag,schemaname=dbschema)
+              print normdata
+              #allsince = np.array([x[0] for x in normdata])
+          #print 'allsince ',allsince    
           shards = [3]
           #print pargs.datatagname
           (datatagname,datatagnameid) = findtagname(dbengine,pargs.datatagname,dbschema)
@@ -127,13 +167,13 @@ def brilcalc_main(progname=sys.argv[0]):
               csvwriter = csv.writer(fh)
           else:
               ptable = display.create_table(header,header=True)
-              ftable = display.create_table(footer)
-                         
+              ftable = display.create_table(footer)          
+              
+          source = 'best'
+          if pargs.lumitype:
+              source=pargs.lumitype
           if datatagnameid==1:
-              basetablename = 'online_result'
-              source = 'best'
-              if pargs.lumitype:
-                  source=pargs.lumitype                  
+              basetablename = 'online_result'                  
               for shard in shards:
                   tablename = basetablename+'_'+str(shard)
                   shardexists = api.table_exists(dbengine,tablename,schemaname=dbschema)
@@ -149,9 +189,19 @@ def brilcalc_main(progname=sys.argv[0]):
                       if pargs.withBX: rfields = rfields+['bxlumiblob']
                       onlineit = api.resultDataIter(dbengine,source,shard,datafields=rfields,idfields=idfields,schemaname=dbschema,fillmin=pargs.fillmin,fillmax=pargs.fillmax,runmin=pargs.runmin,runmax=pargs.runmax,amodetagid=pargs.amodetagid,targetegev=pargs.egev,beamstatusid=pargs.beamstatusid,tssecmin=pargs.tssecmin,tssecmax=pargs.tssecmax,runlsselect=pargs.runlsSeries,sorted=True)
                   if not onlineit: continue
+                  
+                  vd = ValidityChecker(normdata)
+                  lastvalidity = None
+                  normdict = None
+                  normfunc = None
+                  normparam = None
                   for row in onlineit:
                       fillnum = row['fillnum']
                       runnum = row['runnum']
+                      if not lastvalidity or not vd.isvalid(runnum,lastvalidity):
+                          lastvalidity = vd.getvalidity(runnum)
+                          if lastvalidity is not None:
+                              [normfunc,normdict,normparam] = vd.getvaliddata(lastvalidity[0])
                       lsnum = row['lsnum']
                       cmslsnum = lsnum
                       timestampsec = row['timestampsec']
@@ -235,7 +285,7 @@ def brilcalc_main(progname=sys.argv[0]):
                           runtot[runnum]['recorded'] += recorded
                       else:
                           runtot[runnum] = {'fill':fillnum,'time':dtime,'nls':1,'ncms':int(cmson),'delivered':delivered,'recorded':recorded}
-                      
+              
           if runtot:              
               df_runtot = pd.DataFrame.from_dict(runtot,orient='index')
               nruns = len(df_runtot.index)
