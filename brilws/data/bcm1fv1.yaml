@@ -1,0 +1,16 @@
+name: bcm1fv1
+applyto: lumi
+datasource: bcm1f
+istypedefault: 0
+comments: 2015 magnet on
+since:
+    - 246437:
+        func: polynomial
+        payloaddict: coefs:str1024:1
+        coefs: "0.,0." 
+        comments: 2015, egev 6500, PROTPHYS
+    - 250862:
+        func: polynomial
+        payloaddict: coefs:str1024:1
+        coefs: "0.,2.54e-28"
+        comments: 2015, egev 6500, PROTPHYS

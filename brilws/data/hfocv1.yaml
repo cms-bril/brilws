@@ -1,0 +1,16 @@
+name: hfocv1
+applyto: lumi
+datasource: hfoc
+istypedefault: 0
+comments: 2015 magnet on
+since:
+    - 246437:
+        func: polynomial
+        payloaddict: coefs:str1024:1
+        coefs: "0.,0." 
+        comments: 2015, egev 6500, PROTPHYS
+    - 246908:
+        func: polynomial
+        payloaddict: coefs:str1024:1
+        coefs: "0.,19.16e-28"
+        comments: 2015, egev 6500, PROTPHYS
