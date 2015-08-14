@@ -36,6 +36,7 @@ def briltag_main(progname=sys.argv[0]):
     commands:
       listdata    list data tags
       listiov     list norm tags 
+      insertiov   insert norm tag
       insertdata  insert data tag
     See 'briltag <command> --help' for more information on a specific command.
 
