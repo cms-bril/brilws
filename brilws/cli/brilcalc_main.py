@@ -71,6 +71,11 @@ lslengthsec= lumip.lslengthsec()
 utctmzone = tz.gettz('UTC')
 cerntmzone = tz.gettz('CEST')
 
+def applycorrection(ivalue,funcname,normdict,normparam):
+    '''
+    apply correction on ivalue
+    '''
+    
 
 def findtagname(dbengine,datatagname,dbschema):
     '''
@@ -148,14 +153,7 @@ def brilcalc_main(progname=sys.argv[0]):
               header = bylsheader
           header = vfunc_lumiunit(header,pargs.scalefactor).tolist()
           footer = vfunc_lumiunit(footer,pargs.scalefactor).tolist()
-
-          normdata = []
-          allsince = []
-          if normtag:              
-              normdata = api.iov_gettagdata(dbengine, normtag,schemaname=dbschema)
-              print normdata
-              #allsince = np.array([x[0] for x in normdata])
-          #print 'allsince ',allsince    
+                    
           shards = [3]
           #print pargs.datatagname
           (datatagname,datatagnameid) = findtagname(dbengine,pargs.datatagname,dbschema)
@@ -189,19 +187,19 @@ def brilcalc_main(progname=sys.argv[0]):
                       if pargs.withBX: rfields = rfields+['bxlumiblob']
                       onlineit = api.resultDataIter(dbengine,source,shard,datafields=rfields,idfields=idfields,schemaname=dbschema,fillmin=pargs.fillmin,fillmax=pargs.fillmax,runmin=pargs.runmin,runmax=pargs.runmax,amodetagid=pargs.amodetagid,targetegev=pargs.egev,beamstatusid=pargs.beamstatusid,tssecmin=pargs.tssecmin,tssecmax=pargs.tssecmax,runlsselect=pargs.runlsSeries,sorted=True)
                   if not onlineit: continue
-                  
-                  vd = ValidityChecker(normdata)
+
+                  vd = None
                   lastvalidity = None
                   normdict = None
                   normfunc = None
                   normparam = None
+                  if normtag:
+                      normdata = api.iov_gettagdata(dbengine, normtag,schemaname=dbschema)
+                      vd = ValidityChecker(normdata)
+                      
                   for row in onlineit:
                       fillnum = row['fillnum']
                       runnum = row['runnum']
-                      if not lastvalidity or not vd.isvalid(runnum,lastvalidity):
-                          lastvalidity = vd.getvalidity(runnum)
-                          if lastvalidity is not None:
-                              [normfunc,normdict,normparam] = vd.getvaliddata(lastvalidity[0])
                       lsnum = row['lsnum']
                       cmslsnum = lsnum
                       timestampsec = row['timestampsec']
@@ -258,7 +256,13 @@ def brilcalc_main(progname=sys.argv[0]):
                           if row.has_key('deadtimefrac') and row['deadtimefrac'] is not None:
                               livefrac = 1.-row['deadtimefrac']
                           delivered = row['avglumi']*lslengthsec/pargs.scalefactor
-                          recorded = delivered*livefrac  
+                          if vd is not None and not lastvalidity or not vd.isvalid(runnum,lastvalidity):
+                              lastvalidity = vd.getvalidity(runnum)
+                              if lastvalidity is not None:
+                                  [normfunc,normdict,normparam] = vd.getvaliddata(lastvalidity[0])                                  
+                          delivered = applycorretion(delivered,normfunc,normdict,normparam)
+                          
+                          recorded = delivered*livefrac
                           if pargs.withBX:
                               bxlumi = None
                               bxlumistr = '[]'
@@ -271,6 +275,8 @@ def brilcalc_main(progname=sys.argv[0]):
                                   del bxdeliveredarray
                                   del bxidx
                               if bxlumi is not None:
+                                  bxlumi = np.vectorize(bxlumi, )
+                                  #bxlumi = (,normfunc,normdict,normparam)
                                   a = map(formatter.bxlumi,bxlumi)  
                                   bxlumistr = '['+' '.join(a)+']'                              
                               display.add_row( ['%d:%d'%(runnum,fillnum),'%d:%d'%(lsnum,cmslsnum),dtime,beamstatus,'%d'%tegev,'%.3f'%(delivered),'%.3f'%(recorded),'%.1f'%(avgpu),datasource,'%s'%bxlumistr] , fh=fh, csvwriter=csvwriter, ptable=ptable)
