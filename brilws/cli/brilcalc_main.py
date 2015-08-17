@@ -9,6 +9,7 @@ import brilws
 import prettytable
 import pandas as pd
 import numpy as np
+import ast
 from brilws import api,params,display,formatter,lumiParameters,corrector
 from brilws.cli import clicommonargs
 import re,time, csv
@@ -49,10 +50,9 @@ class ValidityChecker(object):
         s = np.where(self.allsince==since)
         if s[0].size>0:
             sinceindex = s[0][0]
-            funcdict = self.normdata[sinceindex][1]
-            func = self.normdata[sinceindex][2]
-            params = self.normdata[sinceindex][4]
-            return [func,funcdict,params]
+            func = self.normdata[sinceindex][1]
+            params = self.normdata[sinceindex][2]
+            return [func,params]
         return None
     
 class Unbuffered(object):
@@ -260,21 +260,11 @@ def brilcalc_main(progname=sys.argv[0]):
                           if vd is not None and not lastvalidity or not vd.isvalid(runnum,lastvalidity):
                               lastvalidity = vd.getvalidity(runnum)
                               if lastvalidity is not None:
-                                  [normfunc,normdict,normparam] = vd.getvaliddata(lastvalidity[0])
-                          print 'normfunc ',normfunc
-                          print 'normdict ',normdict
-                          print 'normparam ',normparam
-                          normdict={}
-                          for entry in normparam:
-                              normdict[entry[0]] = entry[2]
-                          print normdict                          
-                          f_args = [delivered]
+                                  [normfunc,normparam] = vd.getvaliddata(lastvalidity[0])
 
-                          f_kwds = normdict
-                          print f_kwds
-                          
+                          f_args = [delivered]
+                          f_kwds = ast.literal_eval(normparam)                          
                           delivered = corrector.FunctionCaller(normfunc,*f_args,**f_kwds)
-                          print 'delivered ',delivered
                           recorded = delivered*livefrac
                           if pargs.withBX:
                               bxlumi = None

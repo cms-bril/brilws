@@ -489,19 +489,19 @@ def _insert_iovtag(connection,tablename,iovtagid,iovtagname,creationutc,datasour
     log.debug( 'tagid=%ul, tagname=%s, creationutc=%s, applyto=%s, datasource=%s, isdefault=%d, comments=%s'%(iovtagid,iovtagname,creationutc,applyto,datasource,int(isdefault),comments) )
     connection.execute( t.insert(), tagid=iovtagid, tagname=iovtagname, creationutc=creationutc, applyto=applyto, datasource=datasource, isdefault=isdefault, comments=comments)    
     
-def _insert_iovdata(connection,tablename,iovtagid,since,payloaddict,payloadid,func,comments,schemaname=None):
-    t = Table(tablename, MetaData(), Column('tagid',types.BigInteger), Column('since',types.Integer),Column('payloaddict',types.String), Column('payloadid',types.BigInteger), Column('func',types.String), Column('comments',types.String),schema=schemaname )
+def _insert_iovdata(connection,tablename,iovtagid,since,payloadstr,func,comments,schemaname=None):
+    t = Table(tablename, MetaData(), Column('tagid',types.BigInteger), Column('since',types.Integer),Column('payload',types.String), Column('func',types.String), Column('comments',types.String),schema=schemaname )
     try:
         log.debug( str( t.insert() ) )
-        log.debug( 'tagid=%ul, since=%d, payloaddict=%s, payloadid=%ul, func=%s, comments=%s'%(iovtagid,since,payloaddict,payloadid,func,comments) )
-        connection.execute( t.insert(), tagid=int(iovtagid), since=since, payloaddict=payloaddict, payloadid=payloadid, func=func, comments=comments)
+        log.debug( 'tagid=%ul, since=%d, payload=%s, func=%s, comments=%s'%(iovtagid,since,payloadstr,func,comments) )
+        connection.execute( t.insert(), tagid=int(iovtagid), since=since, payload=payloadstr, func=func, comments=comments)
     except exc.IntegrityError, e:
         if str(e).find('unique constraint')!=-1:
             log.debug( 'Duplicated key iovtagid %ul, since %d, skip insertion, return 0'%(iovtagid,since) )
             return 0
-
     return iovtagid
 
+'''
 def _insert_iovpayload(connection,payloadid,payloadfields,payloadfielddata,schemaname=None):
     tablename = 'iovp_'
         
@@ -555,7 +555,9 @@ def _insert_iovpayload(connection,payloadid,payloadfields,payloadfielddata,schem
         log.debug( str( t.insert() ) )
         log.debug( 'payloadid=%ul, ifield=%d'%(payloadid,fieldid) )
         connection.execute( t.insert(), payloadid=payloadid, ifield=fieldid, val=dataval )
+'''
 
+"""
 def _get_iovpayload(connection,payloadid,payloadfields,schemaname=None):
     '''
     output: [(fieldtype,fieldval)] 
@@ -611,11 +613,12 @@ def _get_iovpayload(connection,payloadid,payloadfields,schemaname=None):
                 val = unpackBlobtoArray(val,typecode)
         result.append( [fieldname,ttype,val] )
     return result
-                
+ """
+    
 def iov_insertdata(engine,iovtagname,datasource,iovdata,applyto='lumi',isdefault=False,comments='',schemaname=None ):
     '''
     create a new iov tag or append to an existing one
-    iovdata:[{since:{'func':,'payloaddict':,'param1':...}},]
+    iovdata:[{since:{'func':,'payload':,'commments':}},]
     '''
     tablename = 'iovtags'
     datatablename = 'iovtagdata'
@@ -638,17 +641,14 @@ def iov_insertdata(engine,iovtagname,datasource,iovdata,applyto='lumi',isdefault
         for sincedict in iovdata:
             sincerunnum = sincedict.keys()[0]
             payloaddata = sincedict.values()[0]
-            payloaddict = sincedict[sincerunnum]['payloaddict']
             func = sincedict[sincerunnum]['func']
             sincecomments =  sincedict[sincerunnum]['comments']
-            payloadid = next(generate_key(sincerunnum))
+            payloadstr = str(sincedict[sincerunnum]['payload'])
             log.debug( 'append to tag %s since %d'%(iovtagname,sincerunnum) )
-            inserted = _insert_iovdata(connection,datatablename,iovtagid,sincerunnum,payloaddict,payloadid,func,sincecomments)
-            if inserted:
-                payloadfields = parsepayloaddict(payloaddict)#[[fieldname,fieldtype,maxlength]]
-                payloadfielddata = dict( [ (k,v) for (k,v) in payloaddata.items() if k not in ['func','payloaddict','comments'] ] )
-                _insert_iovpayload(connection,payloadid,payloadfields,payloadfielddata,schemaname=schemaname)                
+            inserted = _insert_iovdata(connection,datatablename,iovtagid,sincerunnum,payloadstr,func,sincecomments)
+            print 'inserted ',inserted
 
+"""
 def parsepayloaddict(payloaddict):
     '''
     input: fieldname:fieldtype:maxlength fieldname:fieldtype:maxlength
@@ -665,6 +665,7 @@ def parsepayloaddict(payloaddict):
             fieldinfo[2] = int(fieldinfo[2])
         result.append(fieldinfo)            
     return result
+"""
 
 def packlistoblob(typecode,data):
     dataarray = array.array(typecode,list(data))
@@ -698,7 +699,7 @@ def iov_gettags(engine,isdefault=False,datasource='',applyto='',schemaname=''):
     for row in qresult:
         result[row['tagname']] = [ row['tagid'],row['creationutc'],row['applyto'],row['datasource'],row['isdefault'],row['comments'] ] 
     return result
-
+"""
 def iov_getvaliddata(engine,iovtagname,runnum,schemaname=''):
     '''
     get valid data for runnum 
@@ -718,16 +719,17 @@ def iov_getvaliddata(engine,iovtagname,runnum,schemaname=''):
     for row in qresult:
         func = row['func']
         payloaddict = row['payloaddict']
-        payloadid = row['payloadid']
-        payloadfields = parsepayloaddict(payloaddict)#[[fieldname,fieldtype,maxlength]]
-        payloaddata = _get_iovpayload(connection,payloadid,payloadfields,schemaname=schemaname)    
+        payload = row['payload']
+        #payloadfields = parsepayloaddict(payloaddict)#[[fieldname,fieldtype,maxlength]]
+        #payloaddata = _get_iovpayload(connection,payloadid,payloadfields,schemaname=schemaname)    
         result = ( row['func'],payloaddata )
     return result
             
-    
+   """
+
 def iov_gettagdata(engine,iovtagname,schemaname=''):
     '''
-    result: [[since,func,params,comments]]
+    result: [[since,func,payload,comments]]
     '''
     basetagstable = tagstable = 'iovtags'
     basetagdatatable = tagdatatable = 'iovtagdata'
@@ -735,18 +737,18 @@ def iov_gettagdata(engine,iovtagname,schemaname=''):
         tagstable = '.'.join([schemaname,basetagstable])
         tagdatatable = '.'.join([schemaname,basetagdatatable])
         
-    q='''select d.since as since, d.payloaddict as payloaddict, d.payloadid as payloadid, d.func as func, d.comments as comments from %s d, %s t where t.tagid=d.tagid and t.tagname=:tagname order by d.since'''%(tagdatatable,tagstable)
+    q='''select d.since as since, d.payload as payload, d.func as func, d.comments as comments from %s d, %s t where t.tagid=d.tagid and t.tagname=:tagname order by d.since'''%(tagdatatable,tagstable)
     log.debug(q)
     connection = engine.connect()
     qresult = connection.execute(q,{'tagname':iovtagname})
     result = []
     for row in qresult:
-        payloaddict = row['payloaddict']
-        payloadid = row['payloadid']
-        payloadfields = parsepayloaddict(payloaddict)#[[fieldname,fieldtype,maxlength]]
-        payloaddata = _get_iovpayload(connection,payloadid,payloadfields,schemaname=schemaname)
+        payload = row['payload']
+        print 'payload ',payload
+        #payloadfields = parsepayloaddict(payloaddict)#[[fieldname,fieldtype,maxlength]]
+        #payloaddata = _get_iovpayload(connection,payloadid,payloadfields,schemaname=schemaname)
         #print 'payloaddata ',payloaddata
-        result.append( [ row['since'],payloaddict,row['func'],row['comments'],payloaddata ] )
+        result.append( [ row['since'],row['func'],row['payload'],row['comments'] ] )
     return result
     
 def iov_updatedefault(connection,tagname,defaultval=1):

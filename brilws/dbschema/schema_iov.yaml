@@ -17,7 +17,6 @@ IOVTAGDATA:
   columns:
     - tagid: int64  
     - since: uint32
-    - payloaddict: string
     - payload: string
     - func: string
     - comments: string

@@ -91,28 +91,15 @@ def briltag_main(progname=sys.argv[0]):
              display.show_table(ptable,'tab')
          else:
              iovtagdata = api.iov_gettagdata(dbengine,pargs.name,schemaname=dbschema)
-             
-             header = ['since','payloaddict','payloaddata','func','comments']
+             print iovtagdata
+             header = ['since','func','payload','comments']
              ptable = display.create_table(header,header=True)
              for sincedata in iovtagdata:
-                 payloaddata = sincedata[4]
-                 payloadFields = []
-                 for p in  payloaddata:
-                     for [fieldname,fieldtype,fieldval] in p:
-                         if fieldtype=='float':
-                             fmt='%s:%.2f'
-                             payloadFields.append( fmt%(fieldname,fieldval) )
-                         elif fieldtype.find('int')!=-1:
-                             fmt='%s:%d'
-                             payloadFields.append( fmt%(fieldname,fieldval) )
-                         elif fieldtype=='blob':
-                             fmt = '%s:['+', '.join(['%d']*len(fieldval))+']'
-                             payloadFields.append( fmt%(fieldname,tuple(fieldval) ) )
-                         else:
-                             fmt='%s:%s'
-                             payloadFields.append(fmt%(fieldname,fieldval) )
-                 payloaddataStr = ','.join(payloadFields)
-                 display.add_row( [ '%d'%sincedata[0],sincedata[1],payloaddataStr,sincedata[2],sincedata[3] ], ptable=ptable )
+                 since = sincedata[0]
+                 func = sincedata[1]                 
+                 payload = sincedata[2]
+                 comments = sincedata[3]                
+                 display.add_row( [ '%d'%since, func, payload, comments], ptable=ptable )
              display.show_table(ptable,'tab')
              
       elif args['<command>'] == 'insertiov':
