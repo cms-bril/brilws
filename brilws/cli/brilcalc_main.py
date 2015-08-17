@@ -128,7 +128,7 @@ def brilcalc_main(progname=sys.argv[0]):
           parseresult = docopt.docopt(brilcalc_lumi.__doc__,argv=cmmdargv)
           parseresult = brilcalc_lumi.validate(parseresult)
           normtag = parseresult['--normtag']
-          
+          print normtag
           ##parse selection params
           pargs = clicommonargs.parser(parseresult)
           dbschema = ''
@@ -155,7 +155,7 @@ def brilcalc_main(progname=sys.argv[0]):
           footer = vfunc_lumiunit(footer,pargs.scalefactor).tolist()
                     
           shards = [3]
-          #print pargs.datatagname
+          print pargs.datatagname          
           (datatagname,datatagnameid) = findtagname(dbengine,pargs.datatagname,dbschema)
           #print datatagname,datatagnameid
           if not pargs.totable:
@@ -195,8 +195,9 @@ def brilcalc_main(progname=sys.argv[0]):
                   normparam = None
                   if normtag:
                       normdata = api.iov_gettagdata(dbengine, normtag,schemaname=dbschema)
+                      print 'normdata ', normdata
                       vd = ValidityChecker(normdata)
-                      
+                      print vd
                   for row in onlineit:
                       fillnum = row['fillnum']
                       runnum = row['runnum']
@@ -259,7 +260,11 @@ def brilcalc_main(progname=sys.argv[0]):
                           if vd is not None and not lastvalidity or not vd.isvalid(runnum,lastvalidity):
                               lastvalidity = vd.getvalidity(runnum)
                               if lastvalidity is not None:
-                                  [normfunc,normdict,normparam] = vd.getvaliddata(lastvalidity[0])                                  
+                                  [normfunc,normdict,normparam] = vd.getvaliddata(lastvalidity[0])
+                          print 'normfunc ',normfunc
+                          print 'normdict ',normdict
+                          print 'normparam ',normparam
+                          
                           delivered = applycorretion(delivered,normfunc,normdict,normparam)
                           
                           recorded = delivered*livefrac

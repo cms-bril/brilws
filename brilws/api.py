@@ -609,7 +609,7 @@ def _get_iovpayload(connection,payloadid,payloadfields,schemaname=None):
             val = row['val']
             if ttype=='blob' and val is not None:
                 val = unpackBlobtoArray(val,typecode)
-        result.append( [ [fieldname,ttype,val] ])
+        result.append( [fieldname,ttype,val] )
     return result
                 
 def iov_insertdata(engine,iovtagname,datasource,iovdata,applyto='lumi',isdefault=False,comments='',schemaname=None ):
@@ -744,7 +744,8 @@ def iov_gettagdata(engine,iovtagname,schemaname=''):
         payloaddict = row['payloaddict']
         payloadid = row['payloadid']
         payloadfields = parsepayloaddict(payloaddict)#[[fieldname,fieldtype,maxlength]]
-        payloaddata = _get_iovpayload(connection,payloadid,payloadfields,schemaname=schemaname)    
+        payloaddata = _get_iovpayload(connection,payloadid,payloadfields,schemaname=schemaname)
+        #print 'payloaddata ',payloaddata
         result.append( [ row['since'],payloaddict,row['func'],row['comments'],payloaddata ] )
     return result
     

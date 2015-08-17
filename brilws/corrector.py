@@ -20,44 +20,71 @@ class FunctionFactory(object):
         if afterglowthresholds:
             result = self.afterglow(result,nbx,afterglowthresholds)
         return result
-        
-    def poly1d(self,ivalue,icoefs=[0.]):
-        coefs = icoefs
-        if isinstance(icoefs,str):
+            
+    def poly1d(self,*args,**kwds):
+        ivalue = args[0]
+        coefs = kwds['coefs']
+        if isinstance(coefs,str):
             coefs = np.fromstring(coefsstr, dtype=np.float, sep=',')
         f = np.poly1d(coefs)
         return f(ivalue)
     
-    def poly1d_tostring(self,icoefs=[1.,0.]):
-        coefs = icoefs
-        if isinstance(icoefs,str):
+    def poly1d_tostring(self,*args,**kwds):
+        coefs = kwds['coefs']
+        if isinstance(coefs,str):
             coefs = np.fromstring(coefsstr, dtype=np.float, sep=',')
         f = np.poly1d(coefs)
         return 'poly1d: %s'%f
     
-    def inversepoly1d(self,ivalue,icoefs=[1.,0.]):        
-        return 1./self.poly1d(ivalue,icoefs)
+    def inversepoly1d(self,*args,**kwds):
+        return 1./self.poly1d(*args,**kwds)
 
-    def inversepoly1d_tostring(self,icoefs=[1.,0.]):
-        return 'inversepoly1d: 1/%s'%(self.poly1d_tostring(icoefs=icoefs))
+    def inversepoly1d_tostring(self,*args,**kwds):
+        return 'inversepoly1d: 1/%s'%(self.poly1d_tostring(*args,**kwds))
     
-    def afterglow(self,ivalue,ncollidingbx,iafterglowthresholds=[(1,1.)]):
-        afterglowthresholds = iafterglowthresholds
+    def afterglow(self,*args,**kwds):
+        ivalue = args[0]
+        ncollidingbx = args[1]
+        afterglowthresholds = kwds['afterglowthresholds']
         afterglow = 1.
-        if isinstance(iafterglowthresholds,str):
-            afterglowthresholds = np.array(ast.literal_eval(iafterglowthresholds))
+        if isinstance(afterglowthresholds,str):
+            afterglowthresholds = np.array(ast.literal_eval(afterglowthresholds))
         for (bxthreshold,c) in afterglowthresholds:
             if ncollidingbx >= bxthreshold: afterglow = c
         return ivalue*afterglow
     
-    def afterglow_tostring(self,iafterglowthresholds=[(1,1.)]):
-        return 'afterglow: %s'%(iafterglowthresholds)
-    
-    def chooser(self,ivalue):        
-        return ivalue
+    def afterglow_tostring(self,*args,**kwds):
+        return 'afterglow: %s'%(kwds['afterglowthresholds'])
 
-    def chooser_tostring(self,ivalue):
-        return 'chooser: %s'%(ivalue)
+    def poly1dWafterglow(self,*args,**kwds):
+        '''
+        poly1d*afterglow
+        '''
+        result = self.poly1d(*args,**kwds)
+        args[0] = result
+        result = self.afterglow(*args,**kwds)
+        return result
+
+    def poly1dWafterglow_tostring(self,*args,**kwds):
+        return '('+poly1d_tostring(**kwds)+')*('+afterglow_tostring(**kwds)+')'
+
+    def inversepoly1dWafterglow(self,*args,**kwds):
+        '''
+        poly1d*afterglow
+        '''
+        result = self.inversepoly1d(*args,**kwds)
+        args[0] = result
+        result = self.afterglow(*args,**kwds)
+        return result
+
+    def inversepoly1dWafterglow_tostring(self,*args,**kwds):
+        return '('+inversepoly1d_tostring(**kwds)+')*('+afterglow_tostring(**kwds)+')'
+    
+    def chooser(self,*args,**kwds):        
+        return args[0]
+
+    def chooser_tostring(self,*args,**kwds):
+        return 'chooser: %s'%(args[0])
         
 def FunctionCaller(funcName,*args,**kwds):
     fac = FunctionFactory()
@@ -74,27 +101,28 @@ def FunctionCaller(funcName,*args,**kwds):
     
 if __name__=='__main__':
     ivalue = np.array([1.,2.,35.])
-    result = FunctionCaller('poly1d',ivalue,icoefs=np.array([2.,0.]))
+    result = FunctionCaller('poly1d',ivalue,coefs=np.array([2.,0.]))
+    print result
+    print FunctionCaller('poly1d_tostring',coefs=np.array([2.,0.]))    
+    result = FunctionCaller('inversepoly1d',ivalue,coefs=np.array([2.,0.]))
     print result
     
-    result = FunctionCaller('inversepoly1d',ivalue,icoefs=np.array([2.,0.]))
-    print result
 
     result = FunctionCaller('chooser','aa')
     print result
 
-    result = FunctionCaller('afterglow',ivalue,3,iafterglowthresholds=[(1,2),(2,5)])
+    result = FunctionCaller('afterglow',ivalue,3,afterglowthresholds=[(1,2),(2,5)])
     print result
  
-    result = FunctionCaller('afterglow',ivalue,3,iafterglowthresholds='(1,2),(2,5)')
+    result = FunctionCaller('afterglow',ivalue,3,afterglowthresholds='(1,2),(2,5)')
     print result
 
-    print FunctionCaller('afterglow_tostring',iafterglowthresholds='(1,2),(2,5)')
+    print FunctionCaller('afterglow_tostring',afterglowthresholds='(1,2),(2,5)')
 
-    print FunctionCaller('poly1d_tostring',icoefs=np.array([2.,0.]))
+
 
     ##accumulative function sequence
-    fs = [ ['poly1d',[ivalue],{'icoefs':np.array([2.,0.])}], ['afterglow',[ivalue,3], {'iafterglowthresholds':'(1,2),(2,5)'}] ]
+    fs = [ ['poly1d',[ivalue],{'coefs':np.array([2.,0.])}], ['afterglow',[ivalue,3], {'afterglowthresholds':'(1,2),(2,5)'}] ]
 
     result = None
     for f in fs:
