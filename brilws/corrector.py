@@ -25,14 +25,14 @@ class FunctionFactory(object):
         ivalue = args[0]
         coefs = kwds['coefs']
         if isinstance(coefs,str):
-            coefs = np.fromstring(coefsstr, dtype=np.float, sep=',')
+            coefs = np.fromstring(coefs, dtype=np.float, sep=',')
         f = np.poly1d(coefs)
         return f(ivalue)
     
     def poly1d_tostring(self,*args,**kwds):
         coefs = kwds['coefs']
         if isinstance(coefs,str):
-            coefs = np.fromstring(coefsstr, dtype=np.float, sep=',')
+            coefs = np.fromstring(coefs, dtype=np.float, sep=',')
         f = np.poly1d(coefs)
         return 'poly1d: %s'%f
     

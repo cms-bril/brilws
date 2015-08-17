@@ -9,7 +9,7 @@ import brilws
 import prettytable
 import pandas as pd
 import numpy as np
-from brilws import api,params,display,formatter,lumiParameters
+from brilws import api,params,display,formatter,lumiParameters,corrector
 from brilws.cli import clicommonargs
 import re,time, csv
 from datetime import datetime
@@ -264,9 +264,17 @@ def brilcalc_main(progname=sys.argv[0]):
                           print 'normfunc ',normfunc
                           print 'normdict ',normdict
                           print 'normparam ',normparam
+                          normdict={}
+                          for entry in normparam:
+                              normdict[entry[0]] = entry[2]
+                          print normdict                          
+                          f_args = [delivered]
+
+                          f_kwds = normdict
+                          print f_kwds
                           
-                          delivered = applycorretion(delivered,normfunc,normdict,normparam)
-                          
+                          delivered = corrector.FunctionCaller(normfunc,*f_args,**f_kwds)
+                          print 'delivered ',delivered
                           recorded = delivered*livefrac
                           if pargs.withBX:
                               bxlumi = None

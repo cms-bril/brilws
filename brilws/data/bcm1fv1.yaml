@@ -5,12 +5,12 @@ istypedefault: 0
 comments: 2015 magnet on
 since:
     - 246437:
-        func: polynomial
-        payloaddict: coefs:str1024:1
+        func: poly1d
+        payloaddict: coefs
         coefs: "0.,0." 
-        comments: 2015, egev 6500, PROTPHYS
+        comments: 2015, egev 6500, PROTPHYS, magnet on
     - 250862:
-        func: polynomial
-        payloaddict: coefs:str1024:1
-        coefs: "0.,2.54e-28"
-        comments: 2015, egev 6500, PROTPHYS
+        func: poly1d
+        payloaddict: coefs
+        coefs: "2.54,0."
+        comments: 2015, egev 6500, PROTPHYS, magnet on

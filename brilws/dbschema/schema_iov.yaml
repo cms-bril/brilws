@@ -18,52 +18,10 @@ IOVTAGDATA:
     - tagid: int64  
     - since: uint32
     - payloaddict: string
-    - payloadid: int64
+    - payload: string
     - func: string
     - comments: string
   pk: [tagid,since]
-  notnull: [payloaddict, payloadid]
 
-IOVP_BLOB:
-  columns:
-    - payloadid: int64
-    - ifield: uint16
-    - val: blob
-  pk: [payloadid,ifield]
-
-IOVP_INT:
-  columns:
-    - payloadid: int64
-    - ifield: uint16
-    - val: uint32
-  pk: [payloadid,ifield]
-
-IOVP_SMALLINT:
-  columns:
-    - payloadid: int64
-    - ifield: uint16
-    - val: uint16
-  pk: [payloadid,ifield]
-  
-IOVP_BOOLEAN:
-  columns:
-    - payloadid: int64
-    - ifield: uint16
-    - val: bool
-  pk: [payloadid,ifield]
-
-IOVP_FLOAT:
-  columns:
-    - payloadid: int64
-    - ifield: uint16
-    - val: float
-  pk: [payloadid,ifield]
-
-IOVP_STRING:
-  columns:
-    - payloadid: int64
-    - ifield: uint16
-    - val: string
-  pk: [payloadid,ifield]
 
 

@@ -6,11 +6,11 @@ comments: 2015
 since:
     - 246437:
         func: poly1d
-        payloaddict: coefs:str1024:1
+        payloaddict: coefs
         coefs: "0.,0." 
         comments: 2015, egev 6500, PROTPHYS, magnet on
     - 250862:
         func: poly1d
-        payloaddict: coefs:str1024:1
-        coefs: "4.95e-28,0."
+        payloaddict: coefs
+        coefs: "4.95,0."
         comments: 2015, egev 6500, PROTPHYS, magnet on
