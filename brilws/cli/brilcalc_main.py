@@ -71,12 +71,6 @@ lslengthsec= lumip.lslengthsec()
 utctmzone = tz.gettz('UTC')
 cerntmzone = tz.gettz('CEST')
 
-def applycorrection(ivalue,funcname,normdict,normparam):
-    '''
-    apply correction on ivalue
-    '''
-    
-
 def findtagname(dbengine,datatagname,dbschema):
     '''
     output: (datatagname,datatagnameid)
@@ -149,13 +143,18 @@ def brilcalc_main(progname=sys.argv[0]):
           header = ['run:fill','time','nls','ncms','delivered(/ub)','recorded(/ub)']
           footer = ['nfill','nrun','nls','ncms','totdelivered(/ub)','totrecorded(/ub)']
           bylsheader = ['run:fill','ls','time','beamstatus','E(GeV)','delivered(/ub)','recorded(/ub)','avgpu','source']
+          lumiunitstr = parseresult['-u']         
+          if lumiunitstr not in formatter.lumiunit_to_scalefactor.keys():
+              raise ValueError('%s not recognised as lumi unit'%lumiunit)
+          lumiunitconversion = formatter.lumiunit_to_scalefactor[lumiunitstr]
+
           runtot = {}#{run:{'fill':,'time':,'nls':,'ncms':,'delivered':,'recorded':}}
           if pargs.withBX:
               header = bylsheader+['[bxidx bxdelivered(/ub) bxrecorded(/ub)]']
           elif pargs.byls:
               header = bylsheader
-          header = vfunc_lumiunit(header,pargs.scalefactor).tolist()
-          footer = vfunc_lumiunit(footer,pargs.scalefactor).tolist()
+          header = vfunc_lumiunit(header,lumiunitstr).tolist()
+          footer = vfunc_lumiunit(footer,lumiunitstr).tolist()
                     
           shards = [3]
                     
@@ -172,7 +171,6 @@ def brilcalc_main(progname=sys.argv[0]):
               
           datatypechoices = ['detraw','detresultonline','bestresultonline']
 
-          source = 'best'
           if pargs.lumitype:
               lumiquerytype = 'det'
           if not normtag:
@@ -181,9 +179,10 @@ def brilcalc_main(progname=sys.argv[0]):
           else:
               lumiquerytype += 'raw'          
                 
-          
+          log.debug('lumiunitconversion: %.2f'%lumiunitconversion)
+          log.debug('scalefactor: %.2f'%pargs.scalefactor)
           log.debug('lumiquerytype: %s'%lumiquerytype)
-              
+          
           validitychecker = None
           lastvalidity = None          
           for shard in shards:              
@@ -239,10 +238,10 @@ def brilcalc_main(progname=sys.argv[0]):
                   if lumiquerytype == 'bestresultonline':
                       delivered = 0.
                       if row.has_key('delivered') and row['delivered']:
-                          delivered = row['delivered']*lslengthsec/pargs.scalefactor
+                          delivered = row['delivered']*lslengthsec/(pargs.scalefactor*lumiunitconversion)
                       recorded = 0.
                       if delivered>0 and row.has_key('recorded') and row['recorded']:
-                          recorded = row['recorded']*lslengthsec/pargs.scalefactor
+                          recorded = row['recorded']*lslengthsec/(pargs.scalefactor*lumiunitconversion)
                       avgpu = 0.
                       if delivered>0 and row.has_key('avgpu') and row['avgpu']:
                           avgpu = row['avgpu']
@@ -258,7 +257,7 @@ def brilcalc_main(progname=sys.argv[0]):
                               bxdeliveredarray = np.array(api.unpackBlobtoArray(row['bxdeliveredblob'],'f'))
                               bxidx = np.nonzero(bxdeliveredarray)
                               if bxidx[0].size>0:
-                                  bxdelivered = bxdeliveredarray[bxidx]*lslengthsec/pargs.scalefactor
+                                  bxdelivered = bxdeliveredarray[bxidx]*lslengthsec/(pargs.scalefactor*lumiunitconversion)
                                   bxlumi = np.transpose( np.array([bxidx[0],bxdelivered,bxdelivered*livefrac]) )
                               del bxdeliveredarray
                               del bxidx
@@ -283,7 +282,7 @@ def brilcalc_main(progname=sys.argv[0]):
                           f_args = (avglumi,ncollidingbx)
                           f_kwds = ast.literal_eval(normparam)                          
                           avglumi = corrector.FunctionCaller(normfunc,*f_args,**f_kwds)    
-                      delivered = avglumi*lslengthsec/pargs.scalefactor                          
+                      delivered = avglumi*lslengthsec/(pargs.scalefactor*lumiunitconversion)                          
                       recorded = delivered*livefrac
                       if pargs.withBX:
                           bxlumi = None
@@ -295,7 +294,7 @@ def brilcalc_main(progname=sys.argv[0]):
                                   bxdeliveredarray = corrector.FunctionCaller(normfunc,*f_bxargs,**f_kwds)
                               bxidx = np.nonzero(bxdeliveredarray)
                               if bxidx[0].size>0:                                      
-                                  bxdelivered = bxdeliveredarray[bxidx]*lslengthsec/pargs.scalefactor
+                                  bxdelivered = bxdeliveredarray[bxidx]*lslengthsec/(pargs.scalefactor*lumiunitconversion)
                                   bxlumi = np.transpose( np.array([bxidx[0],bxdelivered,bxdelivered*livefrac]) )               
                               del bxdeliveredarray
                               del bxidx

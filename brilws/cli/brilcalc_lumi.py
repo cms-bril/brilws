@@ -12,6 +12,7 @@ Options:
   -i INPUTFILE                  Input selection json file or string
   -o OUTPUTFILE                 Output csv file. Special file '-' for stdout.
   -b BEAMSTATUS                 Beam mode. FLAT TOP,SQUEEZE,ADJUST,STABLE BEAMS
+  -u UNIT                       Lumi unit. hz/ub,1e30/cm2s,/nb,1e33/cm2 [default: /ub]
   --amodetag AMODETAG           Accelerator mode 
   --beamenergy BEAMENERGY       Target single beam energy in GeV
   --minBiasXsec MINBIASXSEC     Minbias cross-section in ub [default: 78400.0]
