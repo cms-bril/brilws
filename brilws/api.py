@@ -1523,7 +1523,7 @@ def rundatatagIter(engine,datatagnameid,schemaname='',runmin=None,runmax=None,fi
     #print q
     return pd.read_sql_query(q,engine,chunksize=chunksize,params=binddict,index_col='datatagid')
 
-def table_exists(engine,tablename,schemaname=None):   
+def table_exists(engine,tablename,schemaname=None):
     return engine.dialect.has_table(engine.connect(),tablename,schema=schemaname)
 
 def build_query_condition(runmin=None,runmax=None,fillmin=None,tssecmin=None,tssecmax=None,fillmax=None,beamstatus=None,beamstatusid=None,amodetag=None,amodetagid=None,targetegev=None,runlsselect=None):
@@ -1585,7 +1585,7 @@ def build_query_condition(runmin=None,runmax=None,fillmin=None,tssecmin=None,tss
     qCondition = ' and '.join(qPieces)
     return (qCondition,binddict)
     
-def online_resultIter(engine,tablename,schemaname='',runmin=None,runmax=None,fillmin=None,tssecmin=None,tssecmax=None,fillmax=None,beamstatus=None,beamstatusid=None,amodetag=None,amodetagid=None,targetegev=None,runlsselect=None,chunksize=9999,fields=[],sorted=False):
+def online_resultIter(engine,tablename,schemaname='',runmin=None,runmax=None,fillmin=None,tssecmin=None,tssecmax=None,fillmax=None,beamstatus=None,beamstatusid=None,amodetag=None,amodetagid=None,targetegev=None,runlsselect=None,fields=[],sorted=False):
     '''
     get list of run/ls of the online tag
     '''
@@ -1771,7 +1771,7 @@ def build_joinwithdatatagid_query(datatablename,suffix,datafields,idfields,idcon
         q = q+' order by runnum,lsnum'
     return q
 
-def resultDataIter(engine,datasource,suffix,datafields=[],idfields=[],schemaname='',runmin=None,runmax=None,fillmin=None,tssecmin=None,tssecmax=None,fillmax=None,beamstatus=None,beamstatusid=None,amodetag=None,amodetagid=None,targetegev=None,runlsselect=None,sorted=False):
+def det_resultDataIter(engine,datasource,suffix,datafields=[],idfields=[],schemaname='',runmin=None,runmax=None,fillmin=None,tssecmin=None,tssecmax=None,fillmax=None,beamstatus=None,beamstatusid=None,amodetag=None,amodetagid=None,targetegev=None,runlsselect=None,sorted=False):
     '''
     output: iterator
     select b.avglumi as avglumi, b.bxlumiblob as bxlumiblob, b.normtag as normtag, b.datatagid as datatagid, a.runnum as run from cms_lumi_prod._3 b,(select max(datatagid) as datatagid, runnum from cms_lumi_prod.ids_datatag group by runnum) a where a.datatagid=b.datatagid
@@ -1786,7 +1786,7 @@ def resultDataIter(engine,datasource,suffix,datafields=[],idfields=[],schemaname
     result = connection.execution_options(stream_result=True).execute(q,binddict)
     return iter(result)
 
-def rawDataIter(engine,datasource,suffix,datafields=[],idfields=[],schemaname='',runmin=None,runmax=None,fillmin=None,tssecmin=None,tssecmax=None,fillmax=None,beamstatus=None,beamstatusid=None,amodetag=None,amodetagid=None,targetegev=None,runlsselect=None,sorted=False):
+def det_rawDataIter(engine,datasource,suffix,datafields=[],idfields=[],schemaname='',runmin=None,runmax=None,fillmin=None,tssecmin=None,tssecmax=None,fillmax=None,beamstatus=None,beamstatusid=None,amodetag=None,amodetagid=None,targetegev=None,runlsselect=None,sorted=False):
     '''
     output: iterator
     select b.rawlumi as rawlumi, b.bxrawlumiblob as bxrawlumiblob, b.datatagid as datatagid, a.runnum as run from cms_lumi_prod._3 b,(select max(datatagid) as datatagid, runnum from cms_lumi_prod.ids_datatag group by runnum) a where a.datatagid=b.datatagid
@@ -1795,7 +1795,6 @@ def rawDataIter(engine,datasource,suffix,datafields=[],idfields=[],schemaname=''
     (qCondition,binddict) = build_query_condition(runmin=runmin,runmax=runmax,fillmin=fillmin,fillmax=fillmax,tssecmin=tssecmin,tssecmax=tssecmax,beamstatus=beamstatus,beamstatusid=beamstatusid,amodetag=amodetag,amodetagid=amodetagid,targetegev=targetegev,runlsselect=runlsselect)
     if not qCondition: return None
     basetablename = datasource+'_raw'
-    idfields = ['fillnum','runnum','lsnum','timestampsec','beamstatusid','cmson','deadtimefrac']
     q = build_joinwithdatatagid_query(basetablename,suffix,datafields,idfields,qCondition,schemaname=schemaname,sorted=sorted)
     log.debug(q)
     connection = engine.connect()
