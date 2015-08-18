@@ -48,9 +48,11 @@ class FunctionFactory(object):
         afterglowthresholds = kwds['afterglowthresholds']
         afterglow = 1.
         if isinstance(afterglowthresholds,str):
+            if afterglowthresholds[-1]!=',': afterglowthresholds+=','
             afterglowthresholds = np.array(ast.literal_eval(afterglowthresholds))
         for (bxthreshold,c) in afterglowthresholds:
-            if ncollidingbx >= bxthreshold: afterglow = c
+            if ncollidingbx >= bxthreshold:
+                afterglow = c
         return ivalue*afterglow
     
     def afterglow_tostring(self,*args,**kwds):
@@ -60,9 +62,9 @@ class FunctionFactory(object):
         '''
         poly1d*afterglow
         '''
-        result = self.poly1d(*args,**kwds)
-        args[0] = result
-        result = self.afterglow(*args,**kwds)
+        newargs = [ self.poly1d(*args,**kwds) ]
+        if len(args)>1: newargs = newargs+list(args[1:])
+        result = self.afterglow(*tuple(newargs),**kwds)
         return result
 
     def poly1dWafterglow_tostring(self,*args,**kwds):
@@ -114,7 +116,7 @@ if __name__=='__main__':
     result = FunctionCaller('afterglow',ivalue,3,afterglowthresholds=[(1,2),(2,5)])
     print result
  
-    result = FunctionCaller('afterglow',ivalue,3,afterglowthresholds='(1,2),(2,5)')
+    result = FunctionCaller('afterglow',ivalue,3,afterglowthresholds='(1,2),')
     print result
 
     print FunctionCaller('afterglow_tostring',afterglowthresholds='(1,2),(2,5)')

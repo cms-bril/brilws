@@ -261,8 +261,8 @@ def brilcalc_main(progname=sys.argv[0]):
                               lastvalidity = vd.getvalidity(runnum)
                               if lastvalidity is not None:
                                   [normfunc,normparam] = vd.getvaliddata(lastvalidity[0])
-
-                          f_args = [delivered]
+                          ncollidingbx = 1        
+                          f_args = (delivered,ncollidingbx)
                           f_kwds = ast.literal_eval(normparam)                          
                           delivered = corrector.FunctionCaller(normfunc,*f_args,**f_kwds)
                           recorded = delivered*livefrac
@@ -271,15 +271,15 @@ def brilcalc_main(progname=sys.argv[0]):
                               bxlumistr = '[]'
                               if row.has_key('bxlumiblob'):                                  
                                   bxdeliveredarray = np.array(api.unpackBlobtoArray(row['bxlumiblob'],'f'))
+                                  f_args = (bxdeliveredarray,ncollidingbx)
+                                  bxdeliveredarray = corrector.FunctionCaller(normfunc,*f_args,**f_kwds)
                                   bxidx = np.nonzero(bxdeliveredarray)
-                                  if bxidx[0].size>0:
+                                  if bxidx[0].size>0:                                      
                                       bxdelivered = bxdeliveredarray[bxidx]*lslengthsec/pargs.scalefactor
-                                      bxlumi = np.transpose( np.array([bxidx[0],bxdelivered,bxdelivered*livefrac]) )
+                                      bxlumi = np.transpose( np.array([bxidx[0],bxdelivered,bxdelivered*livefrac]) )               
                                   del bxdeliveredarray
                                   del bxidx
-                              if bxlumi is not None:
-                                  bxlumi = np.vectorize(bxlumi, )
-                                  #bxlumi = (,normfunc,normdict,normparam)
+                              if bxlumi is not None:                                  
                                   a = map(formatter.bxlumi,bxlumi)  
                                   bxlumistr = '['+' '.join(a)+']'                              
                               display.add_row( ['%d:%d'%(runnum,fillnum),'%d:%d'%(lsnum,cmslsnum),dtime,beamstatus,'%d'%tegev,'%.3f'%(delivered),'%.3f'%(recorded),'%.1f'%(avgpu),datasource,'%s'%bxlumistr] , fh=fh, csvwriter=csvwriter, ptable=ptable)
