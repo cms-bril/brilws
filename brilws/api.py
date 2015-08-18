@@ -744,7 +744,7 @@ def iov_gettagdata(engine,iovtagname,schemaname=''):
     result = []
     for row in qresult:
         payload = row['payload']
-        print 'payload ',payload
+        #print 'payload ',payload
         #payloadfields = parsepayloaddict(payloaddict)#[[fieldname,fieldtype,maxlength]]
         #payloaddata = _get_iovpayload(connection,payloadid,payloadfields,schemaname=schemaname)
         #print 'payloaddata ',payloaddata

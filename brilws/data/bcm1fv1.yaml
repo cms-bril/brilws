@@ -10,5 +10,5 @@ since:
         comments: 2015, egev 6500, PROTPHYS, magnet on
     - 250862:
         func: poly1dWafterglow
-        payload: {'coefs': '2.54,0.','afterglowthresholds': '(1,1.)'}
+        payload: {'coefs': '2.54,0.','afterglowthresholds': '(0,1.),'} 
         comments: 2015, egev 6500, PROTPHYS, magnet on
