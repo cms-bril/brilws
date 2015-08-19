@@ -25,7 +25,149 @@ ch = logging.StreamHandler()
 ch.setFormatter(logformatter)
 log.addHandler(ch)
 
+lumip = lumiParameters.ParametersObject()
+lslengthsec= lumip.lslengthsec()
+utctmzone = tz.gettz('UTC')
+cerntmzone = tz.gettz('CEST')
 
+class Unbuffered(object):
+    def __init__(self, stream):
+        self.stream = stream
+    def write(self, data):
+        self.stream.write(data)
+        self.stream.flush()
+    def __getattr__(self, attr):
+        return getattr(self.stream.attr)
+sys.stdout = Unbuffered(sys.stdout)
+
+def lumi_per_normtag(shards,lumiquerytype,dbengine,dbschema,pargs,normtag=None,totz=None,fh=None,csvwriter=None,ptable=None,lumiunitconversion=1):
+    runtot = {}
+    for shard in shards:              
+        lumiiter = None
+        if lumiquerytype == 'bestresultonline':
+            tablename = 'online_result_'+str(shard)
+            shardexists = api.table_exists(dbengine,tablename,schemaname=dbschema)
+            if not shardexists: continue
+            rfields = ['fillnum','runnum','lsnum','timestampsec','cmson','beamstatusid','targetegev','delivered','recorded','avgpu','datasource']
+            if pargs.withBX: rfields = rfields+['bxdeliveredblob'] 
+            lumiiter = api.online_resultIter(dbengine,tablename,schemaname=dbschema,fillmin=pargs.fillmin,fillmax=pargs.fillmax,runmin=pargs.runmin,runmax=pargs.runmax,amodetagid=pargs.amodetagid,targetegev=pargs.egev,beamstatusid=pargs.beamstatusid,tssecmin=pargs.tssecmin,tssecmax=pargs.tssecmax,runlsselect=pargs.runlsSeries,fields=rfields,sorted=True)
+                  
+        elif lumiquerytype == 'detresultonline':
+            tablename = pargs.lumitype.lower()+'_result_'+str(shard)
+            shardexists = api.table_exists(dbengine,tablename,schemaname=dbschema)
+            if not shardexists: continue
+            rfields = ['avglumi']
+            idfields = ['fillnum','runnum','lsnum','timestampsec','beamstatusid','cmson','deadtimefrac','targetegev']
+            if pargs.withBX: rfields = rfields+['bxlumiblob']
+            lumiiter = api.det_resultDataIter(dbengine,pargs.lumitype.lower(),shard,datafields=rfields,idfields=idfields,schemaname=dbschema,fillmin=pargs.fillmin,fillmax=pargs.fillmax,runmin=pargs.runmin,runmax=pargs.runmax,amodetagid=pargs.amodetagid,targetegev=pargs.egev,beamstatusid=pargs.beamstatusid,tssecmin=pargs.tssecmin,tssecmax=pargs.tssecmax,runlsselect=pargs.runlsSeries,sorted=True)
+
+        elif lumiquerytype == 'detraw':
+            tablename = pargs.lumitype.lower()+'_raw_'+str(shard)
+            shardexists = api.table_exists(dbengine,tablename,schemaname=dbschema)
+            if not shardexists: continue
+            rfields = ['avglumi']
+            idfields = ['fillnum','runnum','lsnum','timestampsec','beamstatusid','cmson','deadtimefrac','targetegev']
+            if pargs.withBX: rfields = rfields+['bxlumiblob']
+            lumiiter = api.det_rawDataIter(dbengine,pargs.lumitype.lower(),shard,datafields=rfields,idfields=idfields,schemaname=dbschema,fillmin=pargs.fillmin,fillmax=pargs.fillmax,runmin=pargs.runmin,runmax=pargs.runmax,amodetagid=pargs.amodetagid,targetegev=pargs.egev,beamstatusid=pargs.beamstatusid,tssecmin=pargs.tssecmin,tssecmax=pargs.tssecmax,runlsselect=pargs.runlsSeries,sorted=True)
+                                    
+            if normtag and normtag is not 'withoutcorrection':
+                normdata = api.iov_gettagdata(dbengine, normtag,schemaname=dbschema)
+                validitychecker = ValidityChecker(normdata)                                    
+                  
+        if not lumiiter: continue                      
+        for row in lumiiter:
+            fillnum = row['fillnum']
+            runnum = row['runnum']
+            lsnum = row['lsnum']
+            cmslsnum = lsnum
+            timestampsec = row['timestampsec']
+            cmson = row['cmson']
+            if not cmson: cmslsnum = 0
+            beamstatusid = row['beamstatusid']
+            beamstatus = params._idtobeamstatus[beamstatusid]
+            if beamstatus not in ['FLAT TOP','STABLE BEAMS','SQUEEZE','ADJUST']: continue
+            tegev = row['targetegev']
+            dtime = str(timestampsec)
+            if totz is not None:
+                d = datetime.fromtimestamp(int(timestampsec),tz=pytz.utc)
+                dtime = d.astimezone(totz).strftime(params._datetimefm)
+
+            delivered = recorded = avgpu = livefrac = 0.
+            if lumiquerytype == 'bestresultonline':
+                if row.has_key('delivered') and row['delivered']:
+                    delivered = row['delivered']*lslengthsec/(pargs.scalefactor*lumiunitconversion)
+                if delivered>0 and row.has_key('recorded') and row['recorded']:
+                    recorded = row['recorded']*lslengthsec/(pargs.scalefactor*lumiunitconversion)
+                if delivered>0 and row.has_key('avgpu') and row['avgpu']:
+                    avgpu = row['avgpu']
+                datasource = 'UNKNOWN'
+                if row.has_key('datasource') and row['datasource']:
+                    datasource = row['datasource']
+                if delivered: livefrac = np.divide(recorded,delivered)
+                if pargs.withBX:
+                    bxlumi = None
+                    bxlumistr = '[]'
+                    if row.has_key('bxdeliveredblob'):
+                        bxdeliveredarray = np.array(api.unpackBlobtoArray(row['bxdeliveredblob'],'f'))
+                        bxidx = np.nonzero(bxdeliveredarray)
+                        if bxidx[0].size>0:
+                            bxdelivered = bxdeliveredarray[bxidx]*lslengthsec/(pargs.scalefactor*lumiunitconversion)
+                            bxlumi = np.transpose( np.array([bxidx[0],bxdelivered,bxdelivered*livefrac]) )
+                        del bxdeliveredarray
+                        del bxidx
+                    if bxlumi is not None:
+                        a = map(formatter.bxlumi,bxlumi)  
+                        bxlumistr = '['+' '.join(a)+']'                              
+                    display.add_row( ['%d:%d'%(runnum,fillnum),'%d:%d'%(lsnum,cmslsnum),dtime,beamstatus,'%d'%tegev,'%.3f'%(delivered),'%.3f'%(recorded),'%.1f'%(avgpu),datasource,'%s'%bxlumistr] , fh=fh, csvwriter=csvwriter, ptable=ptable)
+                    del bxlumi
+                elif pargs.byls:
+                    display.add_row( ['%d:%d'%(runnum,fillnum),'%d:%d'%(lsnum,cmslsnum),dtime,beamstatus,'%d'%tegev,'%.3f'%(delivered),'%.3f'%(recorded),'%.1f'%(avgpu),datasource] , fh=fh, csvwriter=csvwriter, ptable=ptable)
+            else:  #with lumi source
+                datasource = pargs.lumitype.upper()
+                if row.has_key('deadtimefrac') and row['deadtimefrac'] is not None:
+                    livefrac = 1.-row['deadtimefrac']
+                avglumi = row['avglumi']  
+                if validitychecker is not None:
+                    if not lastvalidity or not validitychecker.isvalid(runnum,lastvalidity):
+                        lastvalidity = validitychecker.getvalidity(runnum)
+                    [normfunc,normparam] = validitychecker.getvaliddata(lastvalidity[0])
+                    ncollidingbx = 1        
+                    f_args = (avglumi,ncollidingbx)
+                    f_kwds = ast.literal_eval(normparam)                          
+                    avglumi = corrector.FunctionCaller(normfunc,*f_args,**f_kwds)    
+                    delivered = avglumi*lslengthsec/(pargs.scalefactor*lumiunitconversion)                          
+                    recorded = delivered*livefrac
+                    if pargs.withBX:
+                        bxlumi = None
+                        bxlumistr = '[]'
+                        if row.has_key('bxlumiblob'):                                  
+                            bxdeliveredarray = np.array(api.unpackBlobtoArray(row['bxlumiblob'],'f'))
+                            if validitychecker is not None:              
+                                f_bxargs = (bxdeliveredarray,ncollidingbx)
+                                bxdeliveredarray = corrector.FunctionCaller(normfunc,*f_bxargs,**f_kwds)
+                            bxidx = np.nonzero(bxdeliveredarray)
+                            if bxidx[0].size>0:                                      
+                                bxdelivered = bxdeliveredarray[bxidx]*lslengthsec/(pargs.scalefactor*lumiunitconversion)
+                                bxlumi = np.transpose( np.array([bxidx[0],bxdelivered,bxdelivered*livefrac]) )               
+                            del bxdeliveredarray
+                            del bxidx
+                        if bxlumi is not None:                                  
+                            a = map(formatter.bxlumi,bxlumi)  
+                            bxlumistr = '['+' '.join(a)+']'                              
+                        display.add_row( ['%d:%d'%(runnum,fillnum),'%d:%d'%(lsnum,cmslsnum),dtime,beamstatus,'%d'%tegev,'%.3f'%(delivered),'%.3f'%(recorded),'%.1f'%(avgpu),datasource,'%s'%bxlumistr] , fh=fh, csvwriter=csvwriter, ptable=ptable)
+                        del bxlumi
+                    elif pargs.byls:
+                        display.add_row( ['%d:%d'%(runnum,fillnum),'%d:%d'%(lsnum,cmslsnum),dtime,beamstatus,'%d'%tegev,'%.3f'%(delivered),'%.3f'%(recorded),'%.1f'%(avgpu),datasource] , fh=fh, csvwriter=csvwriter, ptable=ptable)
+
+            if runtot.has_key(runnum):#accumulate                          
+                runtot[runnum]['nls'] += 1
+                if cmson: runtot[runnum]['ncms'] += 1
+                runtot[runnum]['delivered'] += delivered
+                runtot[runnum]['recorded'] += recorded
+            else:
+                runtot[runnum] = {'fill':fillnum,'time':dtime,'nls':1,'ncms':int(cmson),'delivered':delivered,'recorded':recorded}
+    return runtot
+     
 class ValidityChecker(object):
     def __init__(self, normdata):
         self.normdata = normdata
@@ -54,22 +196,6 @@ class ValidityChecker(object):
             params = self.normdata[sinceindex][2]
             return [func,params]
         return None
-    
-class Unbuffered(object):
-    def __init__(self, stream):
-        self.stream = stream
-    def write(self, data):
-        self.stream.write(data)
-        self.stream.flush()
-    def __getattr__(self, attr):
-        return getattr(self.stream.attr)
-sys.stdout = Unbuffered(sys.stdout)
-
-lumip = lumiParameters.ParametersObject()
-lslengthsec= lumip.lslengthsec()
-
-utctmzone = tz.gettz('UTC')
-cerntmzone = tz.gettz('CEST')
 
 def findtagname(dbengine,datatagname,dbschema):
     '''
@@ -169,151 +295,25 @@ def brilcalc_main(progname=sys.argv[0]):
               ptable = display.create_table(header,header=True)
               ftable = display.create_table(footer)          
               
-          datatypechoices = ['detraw','detresultonline','bestresultonline']
-
+          datatypechoices = ['detraw','bestraw','detresultonline','bestresultonline']
+          
+          lumiquerytype = 'best'
           if pargs.lumitype:
               lumiquerytype = 'det'
           if not normtag:
               lumiquerytype += 'result'
               if datatagnameid==1: lumiquerytype += 'online'
           else:
-              lumiquerytype += 'raw'          
-                
+              lumiquerytype += 'raw'
+          print lumiquerytype
+          
           log.debug('lumiunitconversion: %.2f'%lumiunitconversion)
           log.debug('scalefactor: %.2f'%pargs.scalefactor)
-          log.debug('lumiquerytype: %s'%lumiquerytype)
-          
+          log.debug('lumiquerytype: %s'%lumiquerytype)          
+                  
           validitychecker = None
           lastvalidity = None          
-          for shard in shards:              
-              lumiiter = None
-              if lumiquerytype == 'bestresultonline':
-                  tablename = 'online_result_'+str(shard)
-                  shardexists = api.table_exists(dbengine,tablename,schemaname=dbschema)
-                  if not shardexists: continue
-                  rfields = ['fillnum','runnum','lsnum','timestampsec','cmson','beamstatusid','targetegev','delivered','recorded','avgpu','datasource']
-                  if pargs.withBX: rfields = rfields+['bxdeliveredblob'] 
-                  lumiiter = api.online_resultIter(dbengine,tablename,schemaname=dbschema,fillmin=pargs.fillmin,fillmax=pargs.fillmax,runmin=pargs.runmin,runmax=pargs.runmax,amodetagid=pargs.amodetagid,targetegev=pargs.egev,beamstatusid=pargs.beamstatusid,tssecmin=pargs.tssecmin,tssecmax=pargs.tssecmax,runlsselect=pargs.runlsSeries,fields=rfields,sorted=True)
-                  
-              elif lumiquerytype == 'detresultonline':
-                  tablename = pargs.lumitype.lower()+'_result_'+str(shard)
-                  shardexists = api.table_exists(dbengine,tablename,schemaname=dbschema)
-                  if not shardexists: continue
-                  rfields = ['avglumi']
-                  idfields = ['fillnum','runnum','lsnum','timestampsec','beamstatusid','cmson','deadtimefrac','targetegev']
-                  if pargs.withBX: rfields = rfields+['bxlumiblob']
-                  lumiiter = api.det_resultDataIter(dbengine,pargs.lumitype.lower(),shard,datafields=rfields,idfields=idfields,schemaname=dbschema,fillmin=pargs.fillmin,fillmax=pargs.fillmax,runmin=pargs.runmin,runmax=pargs.runmax,amodetagid=pargs.amodetagid,targetegev=pargs.egev,beamstatusid=pargs.beamstatusid,tssecmin=pargs.tssecmin,tssecmax=pargs.tssecmax,runlsselect=pargs.runlsSeries,sorted=True)
-
-              elif lumiquerytype == 'detraw':
-                  tablename = pargs.lumitype.lower()+'_raw_'+str(shard)
-                  shardexists = api.table_exists(dbengine,tablename,schemaname=dbschema)
-                  if not shardexists: continue
-                  rfields = ['avglumi']
-                  idfields = ['fillnum','runnum','lsnum','timestampsec','beamstatusid','cmson','deadtimefrac','targetegev']
-                  if pargs.withBX: rfields = rfields+['bxlumiblob']
-                  lumiiter = api.det_rawDataIter(dbengine,pargs.lumitype.lower(),shard,datafields=rfields,idfields=idfields,schemaname=dbschema,fillmin=pargs.fillmin,fillmax=pargs.fillmax,runmin=pargs.runmin,runmax=pargs.runmax,amodetagid=pargs.amodetagid,targetegev=pargs.egev,beamstatusid=pargs.beamstatusid,tssecmin=pargs.tssecmin,tssecmax=pargs.tssecmax,runlsselect=pargs.runlsSeries,sorted=True)
-                                    
-                  if normtag and normtag is not 'withoutcorrection':
-                      normdata = api.iov_gettagdata(dbengine, normtag,schemaname=dbschema)
-                      validitychecker = ValidityChecker(normdata)
-              if not lumiiter: continue                      
-              for row in lumiiter:
-                  fillnum = row['fillnum']
-                  runnum = row['runnum']
-                  lsnum = row['lsnum']
-                  cmslsnum = lsnum
-                  timestampsec = row['timestampsec']
-                  cmson = row['cmson']
-                  if not cmson: cmslsnum = 0
-                  beamstatusid = row['beamstatusid']
-                  beamstatus = params._idtobeamstatus[beamstatusid]
-                  if beamstatus not in ['FLAT TOP','STABLE BEAMS','SQUEEZE','ADJUST']: continue
-                  tegev = row['targetegev']
-                  dtime = str(timestampsec)
-                  if totz is not None:
-                      d = datetime.fromtimestamp(int(timestampsec),tz=pytz.utc)
-                      dtime = d.astimezone(totz).strftime(params._datetimefm)
-
-                  delivered = recorded = avgpu = 0.
-                  if lumiquerytype == 'bestresultonline':
-                      delivered = 0.
-                      if row.has_key('delivered') and row['delivered']:
-                          delivered = row['delivered']*lslengthsec/(pargs.scalefactor*lumiunitconversion)
-                      recorded = 0.
-                      if delivered>0 and row.has_key('recorded') and row['recorded']:
-                          recorded = row['recorded']*lslengthsec/(pargs.scalefactor*lumiunitconversion)
-                      avgpu = 0.
-                      if delivered>0 and row.has_key('avgpu') and row['avgpu']:
-                          avgpu = row['avgpu']
-                      datasource = 'UNKNOWN'
-                      if row.has_key('datasource') and row['datasource']:
-                          datasource = row['datasource']
-                      livefrac = 0.                          
-                      if delivered: livefrac = np.divide(recorded,delivered)
-                      if pargs.withBX:
-                          bxlumi = None
-                          bxlumistr = '[]'
-                          if row.has_key('bxdeliveredblob'):
-                              bxdeliveredarray = np.array(api.unpackBlobtoArray(row['bxdeliveredblob'],'f'))
-                              bxidx = np.nonzero(bxdeliveredarray)
-                              if bxidx[0].size>0:
-                                  bxdelivered = bxdeliveredarray[bxidx]*lslengthsec/(pargs.scalefactor*lumiunitconversion)
-                                  bxlumi = np.transpose( np.array([bxidx[0],bxdelivered,bxdelivered*livefrac]) )
-                              del bxdeliveredarray
-                              del bxidx
-                          if bxlumi is not None:
-                              a = map(formatter.bxlumi,bxlumi)  
-                              bxlumistr = '['+' '.join(a)+']'                              
-                          display.add_row( ['%d:%d'%(runnum,fillnum),'%d:%d'%(lsnum,cmslsnum),dtime,beamstatus,'%d'%tegev,'%.3f'%(delivered),'%.3f'%(recorded),'%.1f'%(avgpu),datasource,'%s'%bxlumistr] , fh=fh, csvwriter=csvwriter, ptable=ptable)
-                          del bxlumi
-                      elif pargs.byls:
-                              display.add_row( ['%d:%d'%(runnum,fillnum),'%d:%d'%(lsnum,cmslsnum),dtime,beamstatus,'%d'%tegev,'%.3f'%(delivered),'%.3f'%(recorded),'%.1f'%(avgpu),datasource] , fh=fh, csvwriter=csvwriter, ptable=ptable)
-                  else:  #with lumi source
-                      datasource = pargs.lumitype.upper()
-                      livefrac = 0.
-                      if row.has_key('deadtimefrac') and row['deadtimefrac'] is not None:
-                          livefrac = 1.-row['deadtimefrac']
-                      avglumi = row['avglumi']  
-                      if validitychecker is not None:
-                          if not lastvalidity or not validitychecker.isvalid(runnum,lastvalidity):
-                              lastvalidity = validitychecker.getvalidity(runnum)
-                          [normfunc,normparam] = validitychecker.getvaliddata(lastvalidity[0])
-                          ncollidingbx = 1        
-                          f_args = (avglumi,ncollidingbx)
-                          f_kwds = ast.literal_eval(normparam)                          
-                          avglumi = corrector.FunctionCaller(normfunc,*f_args,**f_kwds)    
-                      delivered = avglumi*lslengthsec/(pargs.scalefactor*lumiunitconversion)                          
-                      recorded = delivered*livefrac
-                      if pargs.withBX:
-                          bxlumi = None
-                          bxlumistr = '[]'
-                          if row.has_key('bxlumiblob'):                                  
-                              bxdeliveredarray = np.array(api.unpackBlobtoArray(row['bxlumiblob'],'f'))
-                              if validitychecker is not None:              
-                                  f_bxargs = (bxdeliveredarray,ncollidingbx)
-                                  bxdeliveredarray = corrector.FunctionCaller(normfunc,*f_bxargs,**f_kwds)
-                              bxidx = np.nonzero(bxdeliveredarray)
-                              if bxidx[0].size>0:                                      
-                                  bxdelivered = bxdeliveredarray[bxidx]*lslengthsec/(pargs.scalefactor*lumiunitconversion)
-                                  bxlumi = np.transpose( np.array([bxidx[0],bxdelivered,bxdelivered*livefrac]) )               
-                              del bxdeliveredarray
-                              del bxidx
-                          if bxlumi is not None:                                  
-                              a = map(formatter.bxlumi,bxlumi)  
-                              bxlumistr = '['+' '.join(a)+']'                              
-                          display.add_row( ['%d:%d'%(runnum,fillnum),'%d:%d'%(lsnum,cmslsnum),dtime,beamstatus,'%d'%tegev,'%.3f'%(delivered),'%.3f'%(recorded),'%.1f'%(avgpu),datasource,'%s'%bxlumistr] , fh=fh, csvwriter=csvwriter, ptable=ptable)
-                          del bxlumi
-                      elif pargs.byls:
-                          display.add_row( ['%d:%d'%(runnum,fillnum),'%d:%d'%(lsnum,cmslsnum),dtime,beamstatus,'%d'%tegev,'%.3f'%(delivered),'%.3f'%(recorded),'%.1f'%(avgpu),datasource] , fh=fh, csvwriter=csvwriter, ptable=ptable)
-
-                  if runtot.has_key(runnum):#accumulate                          
-                      runtot[runnum]['nls'] += 1
-                      if cmson: runtot[runnum]['ncms'] += 1
-                      runtot[runnum]['delivered'] += delivered
-                      runtot[runnum]['recorded'] += recorded
-                  else:
-                      runtot[runnum] = {'fill':fillnum,'time':dtime,'nls':1,'ncms':int(cmson),'delivered':delivered,'recorded':recorded}
-              
+          runtot = lumi_per_normtag(shards,lumiquerytype,dbengine,dbschema,pargs,normtag=normtag,totz=totz,fh=fh,csvwriter=csvwriter,ptable=ptable,lumiunitconversion=lumiunitconversion)                       
           if runtot:              
               df_runtot = pd.DataFrame.from_dict(runtot,orient='index')
               nruns = len(df_runtot.index)
