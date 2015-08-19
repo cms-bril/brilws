@@ -1,0 +1,18 @@
+name: bestlumiv1
+applyto: lumi
+datasource: best
+istypedefault: 0
+comments: bestlumi
+since:
+    - 246437:
+        func: chooser
+        payload: {'normtag':'hfocv1'}
+        comments: 2015, egev 6500 , PROTPHYS, uncalibrated
+    - 246908:
+        func: chooser
+        payload: {'normtag':'bcm1fv1'}
+        comments: 2015, egev 6500, PROTPHYS , bcm1f 
+    - 253963:
+        func: chooser
+        payload: {'normtag':'hfocv1'}
+        comments: 2015, egev 6500, PROTPHYS, hfoc
