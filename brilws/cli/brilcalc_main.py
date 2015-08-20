@@ -42,6 +42,12 @@ sys.stdout = Unbuffered(sys.stdout)
 
 def lumi_per_normtag(shards,lumiquerytype,dbengine,dbschema,pargs,normtag=None,totz=None,fh=None,csvwriter=None,ptable=None,lumiunitconversion=1):
     runtot = {}
+    validitychecker = None
+    lastvalidity = None
+    if normtag and normtag is not 'withoutcorrection':
+        normdata = api.iov_gettagdata(dbengine, normtag,schemaname=dbschema)
+        validitychecker = ValidityChecker(normdata)
+        
     for shard in shards:              
         lumiiter = None
         if lumiquerytype == 'bestresultonline':
@@ -69,10 +75,6 @@ def lumi_per_normtag(shards,lumiquerytype,dbengine,dbschema,pargs,normtag=None,t
             idfields = ['fillnum','runnum','lsnum','timestampsec','beamstatusid','cmson','deadtimefrac','targetegev']
             if pargs.withBX: rfields = rfields+['bxlumiblob']
             lumiiter = api.det_rawDataIter(dbengine,pargs.lumitype.lower(),shard,datafields=rfields,idfields=idfields,schemaname=dbschema,fillmin=pargs.fillmin,fillmax=pargs.fillmax,runmin=pargs.runmin,runmax=pargs.runmax,amodetagid=pargs.amodetagid,targetegev=pargs.egev,beamstatusid=pargs.beamstatusid,tssecmin=pargs.tssecmin,tssecmax=pargs.tssecmax,runlsselect=pargs.runlsSeries,sorted=True)
-                                    
-            if normtag and normtag is not 'withoutcorrection':
-                normdata = api.iov_gettagdata(dbengine, normtag,schemaname=dbschema)
-                validitychecker = ValidityChecker(normdata)                                    
                   
         if not lumiiter: continue                      
         for row in lumiiter:
@@ -135,29 +137,29 @@ def lumi_per_normtag(shards,lumiquerytype,dbengine,dbschema,pargs,normtag=None,t
                     f_args = (avglumi,ncollidingbx)
                     f_kwds = ast.literal_eval(normparam)                          
                     avglumi = corrector.FunctionCaller(normfunc,*f_args,**f_kwds)    
-                    delivered = avglumi*lslengthsec/(pargs.scalefactor*lumiunitconversion)                          
-                    recorded = delivered*livefrac
-                    if pargs.withBX:
-                        bxlumi = None
-                        bxlumistr = '[]'
-                        if row.has_key('bxlumiblob'):                                  
-                            bxdeliveredarray = np.array(api.unpackBlobtoArray(row['bxlumiblob'],'f'))
-                            if validitychecker is not None:              
-                                f_bxargs = (bxdeliveredarray,ncollidingbx)
-                                bxdeliveredarray = corrector.FunctionCaller(normfunc,*f_bxargs,**f_kwds)
-                            bxidx = np.nonzero(bxdeliveredarray)
-                            if bxidx[0].size>0:                                      
-                                bxdelivered = bxdeliveredarray[bxidx]*lslengthsec/(pargs.scalefactor*lumiunitconversion)
-                                bxlumi = np.transpose( np.array([bxidx[0],bxdelivered,bxdelivered*livefrac]) )               
-                            del bxdeliveredarray
-                            del bxidx
-                        if bxlumi is not None:                                  
-                            a = map(formatter.bxlumi,bxlumi)  
-                            bxlumistr = '['+' '.join(a)+']'                              
-                        display.add_row( ['%d:%d'%(runnum,fillnum),'%d:%d'%(lsnum,cmslsnum),dtime,beamstatus,'%d'%tegev,'%.3f'%(delivered),'%.3f'%(recorded),'%.1f'%(avgpu),datasource,'%s'%bxlumistr] , fh=fh, csvwriter=csvwriter, ptable=ptable)
-                        del bxlumi
-                    elif pargs.byls:
-                        display.add_row( ['%d:%d'%(runnum,fillnum),'%d:%d'%(lsnum,cmslsnum),dtime,beamstatus,'%d'%tegev,'%.3f'%(delivered),'%.3f'%(recorded),'%.1f'%(avgpu),datasource] , fh=fh, csvwriter=csvwriter, ptable=ptable)
+                delivered = avglumi*lslengthsec/(pargs.scalefactor*lumiunitconversion)                          
+                recorded = delivered*livefrac
+                if pargs.withBX:
+                    bxlumi = None
+                    bxlumistr = '[]'
+                    if row.has_key('bxlumiblob'):                                  
+                        bxdeliveredarray = np.array(api.unpackBlobtoArray(row['bxlumiblob'],'f'))
+                        if validitychecker is not None:              
+                            f_bxargs = (bxdeliveredarray,ncollidingbx)
+                            bxdeliveredarray = corrector.FunctionCaller(normfunc,*f_bxargs,**f_kwds)
+                        bxidx = np.nonzero(bxdeliveredarray)
+                        if bxidx[0].size>0:                                      
+                            bxdelivered = bxdeliveredarray[bxidx]*lslengthsec/(pargs.scalefactor*lumiunitconversion)
+                            bxlumi = np.transpose( np.array([bxidx[0],bxdelivered,bxdelivered*livefrac]) )               
+                        del bxdeliveredarray
+                        del bxidx
+                    if bxlumi is not None:                                  
+                        a = map(formatter.bxlumi,bxlumi)  
+                        bxlumistr = '['+' '.join(a)+']'                              
+                    display.add_row( ['%d:%d'%(runnum,fillnum),'%d:%d'%(lsnum,cmslsnum),dtime,beamstatus,'%d'%tegev,'%.3f'%(delivered),'%.3f'%(recorded),'%.1f'%(avgpu),datasource,'%s'%bxlumistr] , fh=fh, csvwriter=csvwriter, ptable=ptable)
+                    del bxlumi
+                elif pargs.byls:
+                    display.add_row( ['%d:%d'%(runnum,fillnum),'%d:%d'%(lsnum,cmslsnum),dtime,beamstatus,'%d'%tegev,'%.3f'%(delivered),'%.3f'%(recorded),'%.1f'%(avgpu),datasource] , fh=fh, csvwriter=csvwriter, ptable=ptable)
 
             if runtot.has_key(runnum):#accumulate                          
                 runtot[runnum]['nls'] += 1
@@ -310,9 +312,7 @@ def brilcalc_main(progname=sys.argv[0]):
           log.debug('lumiunitconversion: %.2f'%lumiunitconversion)
           log.debug('scalefactor: %.2f'%pargs.scalefactor)
           log.debug('lumiquerytype: %s'%lumiquerytype)          
-                  
-          validitychecker = None
-          lastvalidity = None          
+                            
           runtot = lumi_per_normtag(shards,lumiquerytype,dbengine,dbschema,pargs,normtag=normtag,totz=totz,fh=fh,csvwriter=csvwriter,ptable=ptable,lumiunitconversion=lumiunitconversion)                       
           if runtot:              
               df_runtot = pd.DataFrame.from_dict(runtot,orient='index')
