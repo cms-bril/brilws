@@ -340,7 +340,7 @@ def brilcalc_main(progname=sys.argv[0]):
                   print >> fh, '#'+','.join(footer)
                   print >> fh, '#'+','.join( [ '%d'%nfills,'%d'%nruns,'%d'%nls,'%d'%ncmsls,'%.3f'%(totdelivered),'%.3f'%(totrecorded)] )
           
-              if fh and fh is not sys.stdout: fh.close()
+          if fh and fh is not sys.stdout: fh.close()
           sys.exit(0)
       elif args['<command>'] == 'beam':
           import brilcalc_beam
