@@ -445,6 +445,26 @@ def data_gettags(engine,schemaname=''):
         result[ row['datatagnameid'] ] = [ row['datatagname'],creationutc,comments ]
     return result
 
+def iov_gettag(engine,tagname,schemaname=''):
+    '''
+    inputs:
+        connection:  db handle
+    outputs:
+        [tagid,creationutc,datasource,applyto,isdefault,comments]
+    '''
+    basetablename = tablename = 'iovtags'
+    if schemaname:
+        tablename = '.'.join([schemaname,basetablename])
+    q =  """select tagid, creationutc, datasource, applyto, isdefault, comments from %s where tagname=:tagname"""%(tablename)    
+    log.debug(q)
+    connection = engine.connect()
+    binddict = {'tagname':tagname}
+    qresult = connection.execute(q,binddict)
+    result = []
+    for row in qresult:
+        result = [ row['tagid'],row['creationutc'],row['datasource'],row['applyto'],row['isdefault'],row['comments'] ]
+    return result
+
 def iov_gettags(engine,datasource=None,applyto=None,isdefault=False,schemaname=''):
     """
     inputs:

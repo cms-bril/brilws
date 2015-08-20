@@ -5,14 +5,18 @@ istypedefault: 0
 comments: bestlumi
 since:
     - 246437:
-        func: chooser
-        payload: {'normtag':'hfocv1'}
-        comments: 2015, egev 6500 , PROTPHYS, uncalibrated
-    - 246908:
-        func: chooser
-        payload: {'normtag':'bcm1fv1'}
-        comments: 2015, egev 6500, PROTPHYS , bcm1f 
-    - 253963:
-        func: chooser
-        payload: {'normtag':'hfocv1'}
-        comments: 2015, egev 6500, PROTPHYS, hfoc
+        func: bestlumiselector
+        payload:
+          -
+            det: hfoc
+            iovtag: hfocv1
+            datatag: online
+            select: 
+            exclude:
+          -
+            det: bcm1f
+            iovtag: bcm1fv1
+            datatag: online
+            select:
+            exclude:  
+        comments: 2015, month 1-9
