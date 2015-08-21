@@ -74,6 +74,54 @@ sqlitetypemap={
 ####################
 ##    Selection API
 ####################
+
+_maxls = 9999
+_maxrun = 999999
+
+def parseselectionJSON(filepath_or_buffer):
+    d = get_filepath_or_buffer(filepath_or_buffer)
+    data = ''
+    if os.path.isfile(d):
+        with open(d,'r') as f:
+            data = f.read().lstrip()        
+    else:
+        data = filepath_or_buffer.lstrip()
+    if data[0]=='[':
+        return parseiovtagselectionJSON(data)
+    else:
+        return parsecmsselectJSON(data)
+        
+def parseiovtagselectionJSON(filepath_or_buffer):
+    """
+    parse iov tag selection file
+    input:
+        if file, parse file
+    output:
+        list [iovtag,"{run:[[1,9999]],run:[[1,9999]]}" , [iovtag,"{run:[[lsstart,lsstop]],...}" ]                     
+    """
+    result = None
+    d = get_filepath_or_buffer(filepath_or_buffer)    
+    if os.path.isfile(filepath_or_buffer):
+        result = pd.read_json(d,orient='index',convert_axes=False,typ='Series')
+    else:
+        spacer = re.compile(r'^\s+')
+        d = spacer.sub('',d)
+        word = re.compile(r'(\w*[A-Za-z]\w*),')
+        d = ast.literal_eval(d)
+        result = pd.Series(d)
+    final = []
+    for r in result:
+        iovtag = r[0]
+        payload = r[1:]
+        for piece in payload :
+            if isinstance(piece,dict):
+                final.append([iovtag,str(piece)])
+            else:
+                p = '{"%s":[[1,%s]]}'%(piece,_maxls)
+                final.append([iovtag,p])
+
+    return final
+
 def parsecmsselectJSON(filepath_or_buffer,numpy=False):
     """
     parse cms selection json format
@@ -91,6 +139,7 @@ def parsecmsselectJSON(filepath_or_buffer,numpy=False):
         return result
     except ValueError:
         pass
+
     if os.path.isfile(d):
         result = pd.read_json(d,orient='index',convert_axes=False,typ='Series',numpy=numpy)
     else:
