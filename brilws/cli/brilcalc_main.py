@@ -40,17 +40,13 @@ class Unbuffered(object):
         return getattr(self.stream.attr)
 sys.stdout = Unbuffered(sys.stdout)
 
-def lumi_per_normtag(shards,lumiquerytype,dbengine,dbschema,pargs,datasource=None,normtag=None,fh=None,csvwriter=None,ptable=None,lumiunitconversion=1):
-    totz=utctmzone
-    if pargs.cerntime: totz=cerntmzone
-    if pargs.tssec: totz=None
-    runtot = {}
+def lumi_per_normtag(shards,lumiquerytype,dbengine,dbschema,runtot,datasource=None,normtag=None,withBX=False,byls=None,fh=None,csvwriter=None,ptable=None,scalefactor=1,totz=utctmzone,fillmin=None,fillmax=None,runmin=None,runmax=None,amodetagid=None,egev=None,beamstatusid=None,tssecmin=None,tssecmax=None,runlsSeries=None):
+    
     validitychecker = None
     lastvalidity = None
     if normtag and normtag is not 'withoutcorrection':
         normdata = api.iov_gettagdata(dbengine, normtag,schemaname=dbschema)
-        if not normdata:
-            raise ValueError('normtag %s does not exist'%normtag)
+        if not normdata: raise ValueError('normtag %s does not exist'%normtag)
         validitychecker = ValidityChecker(normdata)
         
     for shard in shards:              
@@ -60,17 +56,17 @@ def lumi_per_normtag(shards,lumiquerytype,dbengine,dbschema,pargs,datasource=Non
             shardexists = api.table_exists(dbengine,tablename,schemaname=dbschema)
             if not shardexists: continue
             rfields = ['fillnum','runnum','lsnum','timestampsec','cmson','beamstatusid','targetegev','delivered','recorded','avgpu','datasource']
-            if pargs.withBX: rfields = rfields+['bxdeliveredblob'] 
-            lumiiter = api.online_resultIter(dbengine,tablename,schemaname=dbschema,fillmin=pargs.fillmin,fillmax=pargs.fillmax,runmin=pargs.runmin,runmax=pargs.runmax,amodetagid=pargs.amodetagid,targetegev=pargs.egev,beamstatusid=pargs.beamstatusid,tssecmin=pargs.tssecmin,tssecmax=pargs.tssecmax,runlsselect=pargs.runlsSeries,fields=rfields,sorted=True)
+            if withBX: rfields = rfields+['bxdeliveredblob'] 
+            lumiiter = api.online_resultIter(dbengine,tablename,schemaname=dbschema,fields=rfields,fillmin=fillmin,fillmax=fillmax,runmin=runmin,runmax=runmax,amodetagid=amodetagid,targetegev=egev,beamstatusid=beamstatusid,tssecmin=tssecmin,tssecmax=tssecmax,runlsselect=runlsSeries,sorted=True)
                   
         elif lumiquerytype == 'detresultonline':
-            tablename = pargs.lumitype.lower()+'_result_'+str(shard)
+            tablename = lumitype.lower()+'_result_'+str(shard)
             shardexists = api.table_exists(dbengine,tablename,schemaname=dbschema)
             if not shardexists: continue
             rfields = ['avglumi']
             idfields = ['fillnum','runnum','lsnum','timestampsec','beamstatusid','cmson','deadtimefrac','targetegev']
-            if pargs.withBX: rfields = rfields+['bxlumiblob']
-            lumiiter = api.det_resultDataIter(dbengine,pargs.lumitype.lower(),shard,datafields=rfields,idfields=idfields,schemaname=dbschema,fillmin=pargs.fillmin,fillmax=pargs.fillmax,runmin=pargs.runmin,runmax=pargs.runmax,amodetagid=pargs.amodetagid,targetegev=pargs.egev,beamstatusid=pargs.beamstatusid,tssecmin=pargs.tssecmin,tssecmax=pargs.tssecmax,runlsselect=pargs.runlsSeries,sorted=True)
+            if withBX: rfields = rfields+['bxlumiblob']
+            lumiiter = api.det_resultDataIter(dbengine,datasource,shard,datafields=rfields,idfields=idfields,schemaname=dbschema,fillmin=fillmin,fillmax=fillmax,runmin=runmin,runmax=runmax,amodetagid=amodetagid,targetegev=egev,beamstatusid=beamstatusid,tssecmin=tssecmin,tssecmax=tssecmax,runlsselect=runlsSeries,sorted=True)
 
         elif lumiquerytype =='detraw':
             if datasource=='best':
@@ -81,8 +77,8 @@ def lumi_per_normtag(shards,lumiquerytype,dbengine,dbschema,pargs,datasource=Non
             if not shardexists: continue
             rfields = ['avglumi']
             idfields = ['fillnum','runnum','lsnum','timestampsec','beamstatusid','cmson','deadtimefrac','targetegev']
-            if pargs.withBX: rfields = rfields+['bxlumiblob']
-            lumiiter = api.det_rawDataIter(dbengine,datasource,shard,datafields=rfields,idfields=idfields,schemaname=dbschema,fillmin=pargs.fillmin,fillmax=pargs.fillmax,runmin=pargs.runmin,runmax=pargs.runmax,amodetagid=pargs.amodetagid,targetegev=pargs.egev,beamstatusid=pargs.beamstatusid,tssecmin=pargs.tssecmin,tssecmax=pargs.tssecmax,runlsselect=pargs.runlsSeries,sorted=True)
+            if withBX: rfields = rfields+['bxlumiblob']
+            lumiiter = api.det_rawDataIter(dbengine,datasource,shard,datafields=rfields,idfields=idfields,schemaname=dbschema,fillmin=fillmin,fillmax=fillmax,runmin=runmin,runmax=runmax,amodetagid=amodetagid,targetegev=egev,beamstatusid=beamstatusid,tssecmin=tssecmin,tssecmax=tssecmax,runlsselect=runlsSeries,sorted=True)
                   
         if not lumiiter: continue                      
         for row in lumiiter:
@@ -105,22 +101,22 @@ def lumi_per_normtag(shards,lumiquerytype,dbengine,dbschema,pargs,datasource=Non
             delivered = recorded = avgpu = livefrac = 0.
             if lumiquerytype == 'bestresultonline':
                 if row.has_key('delivered') and row['delivered']:
-                    delivered = row['delivered']*lslengthsec/(pargs.scalefactor*lumiunitconversion)
+                    delivered = row['delivered']*lslengthsec/scalefactor
                 if delivered>0 and row.has_key('recorded') and row['recorded']:
-                    recorded = row['recorded']*lslengthsec/(pargs.scalefactor*lumiunitconversion)
+                    recorded = row['recorded']*lslengthsec/scalefactor
                 if delivered>0 and row.has_key('avgpu') and row['avgpu']:
                     avgpu = row['avgpu']
                 ds = 'UNKNOWN' 
                 if row.has_key('datasource') and row['datasource']: ds = row['datasource']
                 if delivered: livefrac = np.divide(recorded,delivered)
-                if pargs.withBX:
+                if withBX:
                     bxlumi = None
                     bxlumistr = '[]'
                     if row.has_key('bxdeliveredblob'):
                         bxdeliveredarray = np.array(api.unpackBlobtoArray(row['bxdeliveredblob'],'f'))
                         bxidx = np.nonzero(bxdeliveredarray)
                         if bxidx[0].size>0:
-                            bxdelivered = bxdeliveredarray[bxidx]*lslengthsec/(pargs.scalefactor*lumiunitconversion)
+                            bxdelivered = bxdeliveredarray[bxidx]*lslengthsec/scalefactor
                             bxlumi = np.transpose( np.array([bxidx[0],bxdelivered,bxdelivered*livefrac]) )
                         del bxdeliveredarray
                         del bxidx
@@ -129,7 +125,7 @@ def lumi_per_normtag(shards,lumiquerytype,dbengine,dbschema,pargs,datasource=Non
                         bxlumistr = '['+' '.join(a)+']'                              
                     display.add_row( ['%d:%d'%(runnum,fillnum),'%d:%d'%(lsnum,cmslsnum),dtime,beamstatus,'%d'%tegev,'%.3f'%(delivered),'%.3f'%(recorded),'%.1f'%(avgpu),ds,'%s'%bxlumistr] , fh=fh, csvwriter=csvwriter, ptable=ptable)
                     del bxlumi
-                elif pargs.byls:
+                elif byls:
                     display.add_row( ['%d:%d'%(runnum,fillnum),'%d:%d'%(lsnum,cmslsnum),dtime,beamstatus,'%d'%tegev,'%.3f'%(delivered),'%.3f'%(recorded),'%.1f'%(avgpu),ds] , fh=fh, csvwriter=csvwriter, ptable=ptable)
             else:  #with lumi source
                 if row.has_key('deadtimefrac') and row['deadtimefrac'] is not None:
@@ -140,13 +136,13 @@ def lumi_per_normtag(shards,lumiquerytype,dbengine,dbschema,pargs,datasource=Non
                         lastvalidity = validitychecker.getvalidity(runnum)
                     [normfunc,normparam] = validitychecker.getvaliddata(lastvalidity[0])
                     
-                    ncollidingbx = 1        
+                    ncollidingbx = 1        #fixme
                     f_args = (avglumi,ncollidingbx)
                     f_kwds = ast.literal_eval(normparam)                          
                     avglumi = corrector.FunctionCaller(normfunc,*f_args,**f_kwds)    
-                delivered = avglumi*lslengthsec/(pargs.scalefactor*lumiunitconversion)                          
+                delivered = avglumi*lslengthsec/scalefactor
                 recorded = delivered*livefrac
-                if pargs.withBX:
+                if withBX:
                     bxlumi = None
                     bxlumistr = '[]'
                     if row.has_key('bxlumiblob'):                                  
@@ -156,7 +152,7 @@ def lumi_per_normtag(shards,lumiquerytype,dbengine,dbschema,pargs,datasource=Non
                             bxdeliveredarray = corrector.FunctionCaller(normfunc,*f_bxargs,**f_kwds)
                         bxidx = np.nonzero(bxdeliveredarray)
                         if bxidx[0].size>0:                                      
-                            bxdelivered = bxdeliveredarray[bxidx]*lslengthsec/(pargs.scalefactor*lumiunitconversion)
+                            bxdelivered = bxdeliveredarray[bxidx]*lslengthsec/scalefactor
                             bxlumi = np.transpose( np.array([bxidx[0],bxdelivered,bxdelivered*livefrac]) )               
                         del bxdeliveredarray
                         del bxidx
@@ -165,7 +161,7 @@ def lumi_per_normtag(shards,lumiquerytype,dbengine,dbschema,pargs,datasource=Non
                         bxlumistr = '['+' '.join(a)+']'                              
                     display.add_row( ['%d:%d'%(runnum,fillnum),'%d:%d'%(lsnum,cmslsnum),dtime,beamstatus,'%d'%tegev,'%.3f'%(delivered),'%.3f'%(recorded),'%.1f'%(avgpu),datasource.upper(),'%s'%bxlumistr] , fh=fh, csvwriter=csvwriter, ptable=ptable)
                     del bxlumi
-                elif pargs.byls:
+                elif byls:
                     display.add_row( ['%d:%d'%(runnum,fillnum),'%d:%d'%(lsnum,cmslsnum),dtime,beamstatus,'%d'%tegev,'%.3f'%(delivered),'%.3f'%(recorded),'%.1f'%(avgpu),datasource.upper()] , fh=fh, csvwriter=csvwriter, ptable=ptable)
 
             if runtot.has_key(runnum):#accumulate                          
@@ -260,8 +256,10 @@ def brilcalc_main(progname=sys.argv[0]):
           pargs = clicommonargs.parser(parseresult)
           dbschema = ''
           if not pargs.dbconnect.find('oracle')!=-1: dbschema = 'cms_lumi_prod'
-          dbengine = create_engine(pargs.connecturl)                    
-          normtag = ''
+          dbengine = create_engine(pargs.connecturl)
+          
+          selectionkwds = {}
+          normtag = None
           if not pargs.withoutcorrection:
               normtag = parseresult['--normtag']
           else:
@@ -275,23 +273,25 @@ def brilcalc_main(progname=sys.argv[0]):
           header = ['run:fill','time','nls','ncms','delivered(/ub)','recorded(/ub)']
           footer = ['nfill','nrun','nls','ncms','totdelivered(/ub)','totrecorded(/ub)']
           bylsheader = ['run:fill','ls','time','beamstatus','E(GeV)','delivered(/ub)','recorded(/ub)','avgpu','source']
+          scalefactor = pargs.scalefactor
+          
           lumiunitstr = parseresult['-u']         
-          if lumiunitstr not in formatter.lumiunit_to_scalefactor.keys():
-              raise ValueError('%s not recognised as lumi unit'%lumiunit)
+          if lumiunitstr not in formatter.lumiunit_to_scalefactor.keys(): raise ValueError('%s not recognised as lumi unit'%lumiunit)
           lumiunitconversion = formatter.lumiunit_to_scalefactor[lumiunitstr]
-
-          runtot = {}#{run:{'fill':,'time':,'nls':,'ncms':,'delivered':,'recorded':}}
+          scalefactor = scalefactor*lumiunitconversion
+          
           if pargs.withBX:
               header = bylsheader+['[bxidx bxdelivered(/ub) bxrecorded(/ub)]']
           elif pargs.byls:
               header = bylsheader
+
           header = vfunc_lumiunit(header,lumiunitstr).tolist()
           footer = vfunc_lumiunit(footer,lumiunitstr).tolist()
                     
           shards = [3]
-                    
+          
           (datatagname,datatagnameid) = findtagname(dbengine,pargs.datatagname,dbschema)
-          #print datatagname,datatagnameid
+          
           if not pargs.totable:
               fh = pargs.ofilehandle
               print >> fh, '#Data tag : %s , Norm tag: %s'%(datatagname,normtag)
@@ -302,33 +302,74 @@ def brilcalc_main(progname=sys.argv[0]):
               ftable = display.create_table(footer)          
               
           #datatypechoices = ['detraw','detresultonline','bestresultonline']         
-          datasource = lumiquerytype = 'best'              
+          datasource = lumiquerytype = 'best'
+          
+          datasources = []
           if pargs.lumitype:
               lumiquerytype = 'det'
               datasource = pargs.lumitype.lower()
+              datasources.append(datasource)
           if not normtag:
               lumiquerytype = lumiquerytype+'result'
               if datatagnameid==1: lumiquerytype += 'online'
+              datasources.append(datasource)
           else:
               lumiquerytype = 'detraw'
               if normtag=='withoutcorrection' :
                   if datasource == 'best': raise ValueError('--type is required with --without-correction')
               else:
                   normtag_meta = api.iov_gettag(dbengine,normtag,schemaname=dbschema)
-                  if not normtag_meta: raise ValueError('normtag %s does not exist'%normtag)
+                  if not normtag_meta: raise ValueError('normtag %s does not exist'%normtag)                  
                   if not pargs.lumitype:
                       datasource = normtag_meta[2].lower()
+                      if datasource == 'best':
+                          print 'need to parse datasource from best lumi tag'                        
+                          exit(1)
+                      else:
+                          datasources.append(datasource)
                   else:
                       if normtag_meta[2].lower()!=datasource :
                           raise ValueError('Error: normtag %s is not for %s'%(normtag,pargs.lumitype))
-              
-          print '#Query type: %s '%(lumiquerytype)
-          
-          log.debug('lumiunitconversion: %.2f'%lumiunitconversion)
+                      
+          print '#Query type: %s '%(lumiquerytype)          
+
           log.debug('scalefactor: %.2f'%pargs.scalefactor)
-          log.debug('lumiquerytype: %s'%lumiquerytype)              
-                
-          runtot = lumi_per_normtag(shards,lumiquerytype,dbengine,dbschema,pargs,datasource=datasource,normtag=normtag,fh=fh,csvwriter=csvwriter,ptable=ptable,lumiunitconversion=lumiunitconversion)                       
+          log.debug('lumiquerytype: %s'%lumiquerytype)        
+                    
+          print datasources
+          runtot = {}# {run: {'fill':fillnum,'time':dtime,'nls':1,'ncms':int(cmson),'delivered':delivered,'recorded':recorded} }
+          
+          totz=utctmzone
+          if pargs.cerntime:
+              totz=cerntmzone
+          elif pargs.tssec:
+              totz=None
+
+          #selectkwds = {}
+          #selectkwds['fillmin'] = pargs.fillmin
+          #selectkwds['fillmax'] = pargs.fillmax
+          #selectkwds['runmin'] = pargs.runmin
+          #selectkwds['runmax'] = pargs.runmax
+          #selectkwds['amodetagid'] = pargs.amodetagid
+          #selectkwds['egev'] = pargs.egev
+          #selectkwds['beamstatusid'] = pargs.beamstatusid
+          #selectkwds['tssecmin'] = pargs.tssecmin
+          #selectkwds['tssecmax'] = pargs.tssecmax
+
+          fillmin = pargs.fillmin
+          fillmax = pargs.fillmax
+          runmin = pargs.runmin
+          runmax = pargs.runmax
+          amodetagid = pargs.amodetagid
+          egev = pargs.egev
+          beamstatusid = pargs.beamstatusid
+          tssecmin = pargs.tssecmin
+          tssecmax = pargs.tssecmax
+          runlsSeries = pargs.runlsSeries
+          
+          for dsource in datasources:
+              lumi_per_normtag(shards,lumiquerytype,dbengine,dbschema,runtot,datasource=dsource,normtag=normtag,withBX=pargs.withBX,byls=pargs.byls,fh=fh,csvwriter=csvwriter,ptable=ptable,scalefactor=scalefactor,totz=totz,fillmin=fillmin,fillmax=fillmax,runmin=runmin,runmax=runmax,amodetagid=amodetagid,egev=egev,beamstatusid=beamstatusid,tssecmin=tssecmin,tssecmax=tssecmax,runlsSeries=runlsSeries)
+          
           if runtot:              
               df_runtot = pd.DataFrame.from_dict(runtot,orient='index')
               nruns = len(df_runtot.index)
@@ -357,6 +398,7 @@ def brilcalc_main(progname=sys.argv[0]):
           
           if fh and fh is not sys.stdout: fh.close()
           sys.exit(0)
+          
       elif args['<command>'] == 'beam':
           import brilcalc_beam
 
