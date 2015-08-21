@@ -105,10 +105,10 @@ def parseiovtagselectionJSON(filepath_or_buffer):
         result = pd.read_json(d,orient='index',convert_axes=False,typ='Series')
     else:
         spacer = re.compile(r'^\s+')
-        d = spacer.sub('',d)
+        d = spacer.sub('',d) #remove whitespace
         word = re.compile(r'(\w*[A-Za-z]\w*),')
-        d = ast.literal_eval(d)
-        result = pd.Series(d)
+        d = word.sub(r'"\1",',d) #add quotes to iovtag field
+        result = pd.Series( ast.literal_eval(d) )
     final = []
     for r in result:
         iovtag = r[0]
@@ -119,7 +119,6 @@ def parseiovtagselectionJSON(filepath_or_buffer):
             else:
                 p = '{"%s":[[1,%s]]}'%(piece,_maxls)
                 final.append([iovtag,p])
-
     return final
 
 def parsecmsselectJSON(filepath_or_buffer,numpy=False):

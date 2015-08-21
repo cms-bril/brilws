@@ -60,7 +60,7 @@ def lumi_per_normtag(shards,lumiquerytype,dbengine,dbschema,runtot,datasource=No
             lumiiter = api.online_resultIter(dbengine,tablename,schemaname=dbschema,fields=rfields,fillmin=fillmin,fillmax=fillmax,runmin=runmin,runmax=runmax,amodetagid=amodetagid,targetegev=egev,beamstatusid=beamstatusid,tssecmin=tssecmin,tssecmax=tssecmax,runlsselect=runlsSeries,sorted=True)
                   
         elif lumiquerytype == 'detresultonline':
-            tablename = lumitype.lower()+'_result_'+str(shard)
+            tablename = datasource.lower()+'_result_'+str(shard)
             shardexists = api.table_exists(dbengine,tablename,schemaname=dbschema)
             if not shardexists: continue
             rfields = ['avglumi']
@@ -69,15 +69,12 @@ def lumi_per_normtag(shards,lumiquerytype,dbengine,dbschema,runtot,datasource=No
             lumiiter = api.det_resultDataIter(dbengine,datasource,shard,datafields=rfields,idfields=idfields,schemaname=dbschema,fillmin=fillmin,fillmax=fillmax,runmin=runmin,runmax=runmax,amodetagid=amodetagid,targetegev=egev,beamstatusid=beamstatusid,tssecmin=tssecmin,tssecmax=tssecmax,runlsselect=runlsSeries,sorted=True)
 
         elif lumiquerytype =='detraw':
-            if datasource=='best':
-                print 'should not be here'
-                return runtot
             tablename = datasource+'_raw_'+str(shard)
             shardexists = api.table_exists(dbengine,tablename,schemaname=dbschema)
             if not shardexists: continue
             rfields = ['avglumi']
             idfields = ['fillnum','runnum','lsnum','timestampsec','beamstatusid','cmson','deadtimefrac','targetegev']
-            if withBX: rfields = rfields+['bxlumiblob']
+            if withBX: rfields = rfields+['bxlumiblob']            
             lumiiter = api.det_rawDataIter(dbengine,datasource,shard,datafields=rfields,idfields=idfields,schemaname=dbschema,fillmin=fillmin,fillmax=fillmax,runmin=runmin,runmax=runmax,amodetagid=amodetagid,targetegev=egev,beamstatusid=beamstatusid,tssecmin=tssecmin,tssecmax=tssecmax,runlsselect=runlsSeries,sorted=True)
                   
         if not lumiiter: continue                      
@@ -301,41 +298,34 @@ def brilcalc_main(progname=sys.argv[0]):
               ptable = display.create_table(header,header=True)
               ftable = display.create_table(footer)          
               
-          #datatypechoices = ['detraw','detresultonline','bestresultonline']         
-          datasource = lumiquerytype = 'best'
-          
-          datasources = []
-          if pargs.lumitype:
-              lumiquerytype = 'det'
-              datasource = pargs.lumitype.lower()
-              datasources.append(datasource)
-          if not normtag:
-              lumiquerytype = lumiquerytype+'result'
-              if datatagnameid==1: lumiquerytype += 'online'
-              datasources.append(datasource)
+          #datatypechoices = ['detraw','detresultonline','bestresultonline','bestresultoffline']    
+          datasources = []#[lumiquerytype,normtagname,datasource,runlsstr]
+          if isinstance(pargs.runlsSeries,list):
+              dparams = pargs.runlsSeries
+              for item in dparams:
+                  ntg = item[0]
+                  runlsstr = item[1]
+                  normtag_meta = api.iov_gettag(dbengine,ntg,schemaname=dbschema)
+                  datasource = normtag_meta[2].lower()
+                  runlsdict = api.parsecmsselectJSON(runlsstr)
+                  datasources.append( ['detraw',ntg,datasource,runlsdict] )          
           else:
-              lumiquerytype = 'detraw'
-              if normtag=='withoutcorrection' :
-                  if datasource == 'best': raise ValueError('--type is required with --without-correction')
-              else:
-                  normtag_meta = api.iov_gettag(dbengine,normtag,schemaname=dbschema)
-                  if not normtag_meta: raise ValueError('normtag %s does not exist'%normtag)                  
-                  if not pargs.lumitype:
-                      datasource = normtag_meta[2].lower()
-                      if datasource == 'best':
-                          print 'need to parse datasource from best lumi tag'                        
-                          exit(1)
-                      else:
-                          datasources.append(datasource)
+              if not normtag:
+                  if not pargs.lumitype:                  
+                      datasources.append( ['bestresultonline',normtag,'best',pargs.runlsSeries] )
                   else:
-                      if normtag_meta[2].lower()!=datasource :
-                          raise ValueError('Error: normtag %s is not for %s'%(normtag,pargs.lumitype))
+                      datasources.append( ['detresultonline',normtag,pargs.lumitype.lower(),pargs.runlsSeries] )
+              else:
+                  if normtag=='withoutcorrection' and not pargs.lumitype: raise ValueError('--type is required with --without-correction')
+                  datasource = pargs.lumitype
+                  if datasource is None:
+                      #deduce lumitype from normtag metadata
+                      normtag_meta = api.iov_gettag(dbengine,normtag,schemaname=dbschema)
+                      if not normtag_meta: raise ValueError('normtag %s does not exist'%normtag)                   
+                      datasource = normtag_meta[2]
+                  datasources.append( ['detraw',normtag,datasource.lower(),pargs.runlsSeries ])
                       
-          print '#Query type: %s '%(lumiquerytype)          
-
-          log.debug('scalefactor: %.2f'%pargs.scalefactor)
-          log.debug('lumiquerytype: %s'%lumiquerytype)        
-                    
+          log.debug('scalefactor: %.2f'%pargs.scalefactor)                    
           print datasources
           runtot = {}# {run: {'fill':fillnum,'time':dtime,'nls':1,'ncms':int(cmson),'delivered':delivered,'recorded':recorded} }
           
@@ -343,18 +333,7 @@ def brilcalc_main(progname=sys.argv[0]):
           if pargs.cerntime:
               totz=cerntmzone
           elif pargs.tssec:
-              totz=None
-
-          #selectkwds = {}
-          #selectkwds['fillmin'] = pargs.fillmin
-          #selectkwds['fillmax'] = pargs.fillmax
-          #selectkwds['runmin'] = pargs.runmin
-          #selectkwds['runmax'] = pargs.runmax
-          #selectkwds['amodetagid'] = pargs.amodetagid
-          #selectkwds['egev'] = pargs.egev
-          #selectkwds['beamstatusid'] = pargs.beamstatusid
-          #selectkwds['tssecmin'] = pargs.tssecmin
-          #selectkwds['tssecmax'] = pargs.tssecmax
+              totz=None          
 
           fillmin = pargs.fillmin
           fillmax = pargs.fillmax
@@ -365,10 +344,10 @@ def brilcalc_main(progname=sys.argv[0]):
           beamstatusid = pargs.beamstatusid
           tssecmin = pargs.tssecmin
           tssecmax = pargs.tssecmax
-          runlsSeries = pargs.runlsSeries
           
-          for dsource in datasources:
-              lumi_per_normtag(shards,lumiquerytype,dbengine,dbschema,runtot,datasource=dsource,normtag=normtag,withBX=pargs.withBX,byls=pargs.byls,fh=fh,csvwriter=csvwriter,ptable=ptable,scalefactor=scalefactor,totz=totz,fillmin=fillmin,fillmax=fillmax,runmin=runmin,runmax=runmax,amodetagid=amodetagid,egev=egev,beamstatusid=beamstatusid,tssecmin=tssecmin,tssecmax=tssecmax,runlsSeries=runlsSeries)
+          for [qtype,ntag,dsource,rselect] in datasources:
+              print ntag,dsource,rselect
+              lumi_per_normtag(shards,qtype,dbengine,dbschema,runtot,datasource=dsource,normtag=ntag,withBX=pargs.withBX,byls=pargs.byls,fh=fh,csvwriter=csvwriter,ptable=ptable,scalefactor=scalefactor,totz=totz,fillmin=fillmin,fillmax=fillmax,runmin=runmin,runmax=runmax,amodetagid=amodetagid,egev=egev,beamstatusid=beamstatusid,tssecmin=tssecmin,tssecmax=tssecmax,runlsSeries=rselect)
           
           if runtot:              
               df_runtot = pd.DataFrame.from_dict(runtot,orient='index')
