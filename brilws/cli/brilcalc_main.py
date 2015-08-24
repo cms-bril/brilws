@@ -326,7 +326,7 @@ def brilcalc_main(progname=sys.argv[0]):
                   datasources.append( ['detraw',normtag,datasource.lower(),pargs.runlsSeries ])
                       
           log.debug('scalefactor: %.2f'%pargs.scalefactor)                    
-          print datasources
+          #print datasources
           runtot = {}# {run: {'fill':fillnum,'time':dtime,'nls':1,'ncms':int(cmson),'delivered':delivered,'recorded':recorded} }
           
           totz=utctmzone
@@ -346,7 +346,7 @@ def brilcalc_main(progname=sys.argv[0]):
           tssecmax = pargs.tssecmax
           
           for [qtype,ntag,dsource,rselect] in datasources:
-              print ntag,dsource,rselect
+              #print ntag,dsource,rselect
               lumi_per_normtag(shards,qtype,dbengine,dbschema,runtot,datasource=dsource,normtag=ntag,withBX=pargs.withBX,byls=pargs.byls,fh=fh,csvwriter=csvwriter,ptable=ptable,scalefactor=scalefactor,totz=totz,fillmin=fillmin,fillmax=fillmax,runmin=runmin,runmax=runmax,amodetagid=amodetagid,egev=egev,beamstatusid=beamstatusid,tssecmin=tssecmin,tssecmax=tssecmax,runlsSeries=rselect)
           
           if runtot:              
