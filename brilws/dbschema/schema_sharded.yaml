@@ -146,7 +146,7 @@ HFET_RESULT_&suffix:
     - bxlumiblob: blob
    pk: [datatagid,normtagid]
    
-PLT_RESULT_&suffix:
+PLTZERO_RESULT_&suffix:
    columns:
     - datatagid: int64
     - fillnum: uint32
@@ -159,6 +159,19 @@ PLT_RESULT_&suffix:
     - bxlumiblob: blob
    pk: [datatagid,normtagid]
    
+PLT_RESULT_&suffix:
+   columns:
+    - datatagid: int64
+    - fillnum: uint32
+    - runnum: uint32
+    - lsnum: uint32
+    - timestampsec: uint32
+    - normtag: string
+    - normtagid: int64
+    - avglumi: float
+    - bxlumiblob: blob
+   pk: [datatagid,normtagid]   
+
 BCM1F_RESULT_&suffix:
    columns:
     - datatagid: int64
