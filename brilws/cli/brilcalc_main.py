@@ -114,7 +114,7 @@ def lumi_per_normtag(shards,lumiquerytype,dbengine,dbschema,runtot,datasource=No
                         bxidx = np.nonzero(bxdeliveredarray)
                         if bxidx[0].size>0:
                             bxdelivered = bxdeliveredarray[bxidx]*lslengthsec/scalefactor
-                            bxlumi = np.transpose( np.array([bxidx[0],bxdelivered,bxdelivered*livefrac]) )
+                            bxlumi = np.transpose( np.array([bxidx[0]+1,bxdelivered,bxdelivered*livefrac]) )
                         del bxdeliveredarray
                         del bxidx
                     if bxlumi is not None:
@@ -150,7 +150,7 @@ def lumi_per_normtag(shards,lumiquerytype,dbengine,dbschema,runtot,datasource=No
                         bxidx = np.nonzero(bxdeliveredarray)
                         if bxidx[0].size>0:                                      
                             bxdelivered = bxdeliveredarray[bxidx]*lslengthsec/scalefactor
-                            bxlumi = np.transpose( np.array([bxidx[0],bxdelivered,bxdelivered*livefrac]) )               
+                            bxlumi = np.transpose( np.array([bxidx[0]+1,bxdelivered,bxdelivered*livefrac]) )               
                         del bxdeliveredarray
                         del bxidx
                     if bxlumi is not None:                                  
@@ -436,7 +436,7 @@ def brilcalc_main(progname=sys.argv[0]):
                       if bxidxarray is not None and bxidxarray.size>0:
                           bxintensity1array =  np.array(api.unpackBlobtoArray(row['bxintensity1blob'],'f'))
                           bxintensity2array =  np.array(api.unpackBlobtoArray(row['bxintensity2blob'],'f'))
-                          bxintensity = np.transpose( np.array([bxidxarray,bxintensity1array,bxintensity2array]) )
+                          bxintensity = np.transpose( np.array([bxidxarray+1,bxintensity1array,bxintensity2array]) )
                           a = map(formatter.bxintensity,bxintensity)                          
                           bxintensitystr = '['+' '.join(a)+']'
                           del bxintensity1array
