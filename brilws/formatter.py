@@ -1,6 +1,6 @@
 import numpy as np
 def bxlumi(x):
-    return '%d %.3f %.3f'%(x[0],x[1],x[2])
+    return '%d %.4f %.4f'%(x[0],x[1],x[2])
 def bxintensity(x):
     return '%d %.4e %.4e'%(x[0],x[1],x[2])
 
