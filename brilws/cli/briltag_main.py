@@ -91,7 +91,7 @@ def briltag_main(progname=sys.argv[0]):
              display.show_table(ptable,'tab')
          else:
              iovtagdata = api.iov_gettagdata(dbengine,pargs.name,schemaname=dbschema)
-             print iovtagdata
+             #print iovtagdata
              header = ['since','func','payload','comments']
              ptable = display.create_table(header,header=True)
              for sincedata in iovtagdata:
