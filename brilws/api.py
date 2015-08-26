@@ -688,9 +688,9 @@ def iov_insertdata(engine,iovtagname,datasource,iovdata,applyto='lumi',isdefault
     create a new iov tag or append to an existing one
     iovdata:[{since:{'func':,'payload':,'commments':}},]
     '''
-    tablename = 'iovtags'
+    basetablename = 'iovtags'
     if schemaname:
-        tablename = '.'.join([schemaname,tablename])
+       tablename = '.'.join([schemaname,basetablename])
     datatablename = 'iovtagdata'
         
     iovtagid = 0
@@ -706,7 +706,7 @@ def iov_insertdata(engine,iovtagname,datasource,iovdata,applyto='lumi',isdefault
             log.debug( 'create new tag %s'%(iovtagname) )
             iovtagid = next(nonsequential_key(78))
             utcstr = datetime.now().strftime(params._datetimefm)
-            _insert_iovtag(connection,tablename,iovtagid,iovtagname,utcstr,datasource.upper(),applyto.upper(),isdefault,comments,schemaname=schemaname)
+            _insert_iovtag(connection,basetablename,iovtagid,iovtagname,utcstr,datasource.upper(),applyto.upper(),isdefault,comments,schemaname=schemaname)
 
         for sincedict in iovdata:
             sincerunnum = sincedict.keys()[0]
