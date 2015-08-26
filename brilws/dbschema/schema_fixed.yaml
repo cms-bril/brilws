@@ -44,9 +44,7 @@ IDS_DATATAG:     #per ls
     - norb: uint32
     - cmson: bool
     - targetegev: uint16
-    - beamstatus: string
     - beamstatusid: uint16
-    - amodetag: string
     - amodetagid: uint16
     - deadtimefrac: float 
    pk: [datatagid] 

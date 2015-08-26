@@ -13,7 +13,6 @@ BEAM_&suffix:         #per ls
     - lsnum: uint32
     - timestampsec: uint32
     - beamstatusid: uint16
-    - beamstatus: string
     - egev: float
     - intensity1: float
     - intensity2: float
@@ -193,14 +192,12 @@ ONLINE_RESULT_&suffix:
     - timestampsec: uint32
     - cmson: bool
     - beamstatusid: uint16
-    - beamstatus: string
     - delivered: float
     - recorded: float
     - bxdeliveredblob: blob
     - avgpu: float
     - datasource: string
     - normtagid: int64
-    - normtag: string
     - amodetagid: uint16
     - targetegev: uint16
    pk: [runnum,lsnum]
@@ -212,7 +209,6 @@ OFFLINE_RESULT_&suffix:
     - fillnum: uint32
     - cmson: bool
     - beamstatusid: uint16
-    - beamstatus: string
     - delivered: float
     - recorded: float
     - bxdeliveredblob: blob
