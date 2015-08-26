@@ -689,6 +689,8 @@ def iov_insertdata(engine,iovtagname,datasource,iovdata,applyto='lumi',isdefault
     iovdata:[{since:{'func':,'payload':,'commments':}},]
     '''
     tablename = 'iovtags'
+    if schemaname:
+        tablename = '.'.join([schemaname,tablename])
     datatablename = 'iovtagdata'
         
     iovtagid = 0
@@ -713,7 +715,7 @@ def iov_insertdata(engine,iovtagname,datasource,iovdata,applyto='lumi',isdefault
             sincecomments =  sincedict[sincerunnum]['comments']
             payloadstr = str(sincedict[sincerunnum]['payload'])
             log.debug( 'append to tag %s since %d'%(iovtagname,sincerunnum) )
-            inserted = _insert_iovdata(connection,datatablename,iovtagid,sincerunnum,payloadstr,func,sincecomments)
+            inserted = _insert_iovdata(connection,datatablename,iovtagid,sincerunnum,payloadstr,func,sincecomments,schemaname=schemaname)
             print 'inserted ',inserted
 
 """
