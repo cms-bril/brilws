@@ -435,9 +435,7 @@ def brilcalc_main(progname=sys.argv[0]):
                       bxidxarray = bxidxarray[bxidxarray!=np.array(None)]
                       if bxidxarray is not None and bxidxarray.size>0:
                           bxintensity1array =  np.array(api.unpackBlobtoArray(row['bxintensity1blob'],'f'))
-                          print bxintensity1array
                           bxintensity2array =  np.array(api.unpackBlobtoArray(row['bxintensity2blob'],'f'))
-                          print bxintensity2array
                           bxintensity = np.transpose( np.array([bxidxarray+1,bxintensity1array,bxintensity2array]) )
                           a = map(formatter.bxintensity,bxintensity)                          
                           bxintensitystr = '['+' '.join(a)+']'
