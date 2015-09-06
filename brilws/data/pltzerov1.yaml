@@ -36,3 +36,11 @@ since:
         func: poly1d
         payload: {'coefs': '21.7524,0.'}
         comments: 2015, egev 6500, PROTPHYS, magnet off
+    - 254627:
+        func: poly1d
+        payload: {'coefs': '22.7192,0.'}
+        comments: 2015, egev 6500, PROTPHYS, magnet on
+    - 255039:
+        func: poly1d
+        payload: {'coefs': '21.7524,0.'}
+        comments: 2015, egev 6500, PROTPHYS, magnet off

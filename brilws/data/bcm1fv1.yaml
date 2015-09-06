@@ -2,7 +2,7 @@ name: bcm1fv1
 applyto: lumi
 datasource: bcm1f
 istypedefault: 0
-comments: 2015 
+comments: from mini vdm
 since:
     - 246437:
         func: poly1d
@@ -33,6 +33,14 @@ since:
         payload: {'coefs': '44.2756,0.'}
         comments: 2015, egev 6500, PROTPHYS, magnet on
     - 254289:
+        func: poly1d
+        payload: {'coefs': '50.5211,0.'}
+        comments: 2015, egev 6500, PROTPHYS, magnet off
+    - 254627:
+        func: poly1d
+        payload: {'coefs': '44.2756,0.'}
+        comments: 2015, egev 6500, PROTPHYS, magnet on
+    - 255039:
         func: poly1d
         payload: {'coefs': '50.5211,0.'}
         comments: 2015, egev 6500, PROTPHYS, magnet off
