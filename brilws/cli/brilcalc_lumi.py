@@ -17,7 +17,7 @@ Options:
   --beamenergy BEAMENERGY       Target single beam energy in GeV
   --minBiasXsec MINBIASXSEC     Minbias cross-section in ub [default: 78400.0]
   --datatag DATATAG             Data tag name
-  --normtag NORMTAG             correction/calibration tag
+  --normtag NORMTAG             correction tag or combined correction tag selection file or string
   --begin BEGIN                 Min start time/fill/run 
   --end END                     Max start time/fill/run
   --output-style OSTYLE         Screen output style. tab, html, csv [default: tab]
@@ -39,7 +39,7 @@ def validate(optdict):
     result={}
     #argdict = clicommonargs.argvalidators
     #extract sub argdict here
-    myvalidables = ['-c','-n','-f','-r','-i','-o','--amodetag','-b','--beamenergy','--datatag','--begin','--end','--output-style','--type',str]
+    myvalidables = ['-c','-n','-f','-r','-i','-o','--amodetag','-b','--beamenergy','--datatag','--normtag','--begin','--end','--output-style','--type',str]
     argdict = dict((k,v) for k,v in clicommonargs.argvalidators.iteritems() if k in myvalidables)
     schema = Schema(argdict)
     result = schema.validate(optdict)    

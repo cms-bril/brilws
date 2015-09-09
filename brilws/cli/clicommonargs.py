@@ -38,6 +38,7 @@ class parser(object):
         self._tssecmin = None
         self._tssecmax = None
         self._runlsSeries = None
+        self._iovtagSelect = None
         self._withBX = False
         self._byls = False
         self._bybit = False
@@ -109,10 +110,13 @@ class parser(object):
         if self._argdict.has_key('-f') and self._argdict['-f'] :
             self._fillmin = self._argdict['-f']
             self._fillmax = self._argdict['-f']
+        if self._argdict.has_key('--normtag') and self._argdict['--normtag']:
+            normtagfileorpath = self._argdict['--normtag']
+            self._iovtagSelect = api.parseiovtagselectionJSON(normtagfileorpath)
         if self._argdict.has_key('-i') and self._argdict['-i']: # -i has precedance over -r
             fileorpath = self._argdict['-i']
-            #self._runlsSeries = api.parsecmsselectJSON(fileorpath)
-            self._runlsSeries = api.parseselectionJSON(fileorpath)
+            self._runlsSeries = api.parsecmsselectJSON(fileorpath)
+            #self._runlsSeries = api.parseselectionJSON(fileorpath)
         elif self._argdict.has_key('-r') and self._argdict['-r'] :
             self._runmin = self._argdict['-r']
             self._runmax = self._argdict['-r']
@@ -200,6 +204,9 @@ class parser(object):
     def runlsSeries(self):
         return self._runlsSeries
     @property
+    def iovtagSelect(self):
+        return self._iovtagSelect
+    @property
     def withBX(self):
         return self._withBX
     @property
@@ -285,6 +292,7 @@ argvalidators = {
     '-c': str,
     '-p': Or(None,os.path.exists, error='AUTHPATH should exist'),
     '-y': And(os.path.exists, error='YAMLFILE should exist'),
+    '--normtag': Or(None,str),
     '-i': Or(None,str),
     '-o': Or(None,str),    
     '-f': Or(None, And(Use(RegexValidator.RegexValidator(params._fillnum_pattern)),Use(int)), error='-f FILL has wrong format'), 

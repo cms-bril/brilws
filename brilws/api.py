@@ -78,6 +78,72 @@ sqlitetypemap={
 _maxls = 9999
 _maxrun = 999999
 
+def expandrange(element):
+    '''
+    expand [x,y] to range[x,y+1]
+    output: np array
+    '''
+    return np.arange(element[0],element[1]+1)
+
+def consecutive(npdata, stepsize=1):
+    '''
+    split input array into chunks of consecutive numbers
+    np.diff(a,n=1,axis=-1)
+    Calculate the n-th order discrete difference along given axis.
+    output: list of ndarrays
+    '''
+    return np.split(npdata, np.where(np.diff(npdata) != stepsize )[0]+1)
+
+def mergerangeseries(x,y):
+    '''
+    merge two range type series
+    x [[x1min,x1max],[x2min,x2max],...]
+    y [[y1min,y1max],[y2min,y2max],...]
+    into
+    z [[z1min,z1max],[z2min,z2max],...]
+    '''
+    a = pd.Series(x).apply(expandrange)
+    ai = np.hstack(a.values)
+    b = pd.Series(y).apply(expandrange)
+    bi = np.hstack(b.values)
+    i = np.intersect1d(np.unique(ai),np.unique(bi),assume_unique=True)
+    scatter = consecutive(i)
+    return scatter
+
+def mergeiovrunls(iovselect,cmsselect):
+    '''
+    merge iovselect list and cms runls select dict
+    input:
+        iovselect: pd.Series from dict {run:[[]],}
+        cmsselect:  [[iovtag,pd.Series],...]  pd.Series from dict {run:[[]],}
+        
+    '''
+    cmsselect_runs = cmsselect.index
+    final = []#[[iovtag,{},{}],[iovtag,{},{}]]
+    previoustag = ''
+    for entry in iovselect:
+        iovtag = entry[0]
+        iovtagrunls = entry[1]
+        iovtagruns = iovtagrunls.index
+        if iovtag!=previoustag:
+            if len(final)>0 and len(final[-1])==1:
+                del final[-1]
+            final.append([iovtag])
+        inter = np.intersect1d(cmsselect_runs,iovtagruns)
+        runlsdict = {}
+        if inter.size>0:
+            for runnum in inter:
+                scatter = mergerangeseries(iovtagrunls[runnum],cmsselect[runnum])
+                if not runlsdict.has_key(runnum):
+                    runlsdict[runnum] = []
+                for c in scatter:
+                    if len(c)==0: continue
+                    runlsdict[runnum].append([np.min(c),np.max(c)])
+            final[-1].append(runlsdict)
+        previoustag = iovtag
+    if len(final)>0 and len(final[-1])==1: del final[-1]
+    return final
+
 def parseselectionJSON(filepath_or_buffer):
     d = get_filepath_or_buffer(filepath_or_buffer)
     data = ''
@@ -97,12 +163,16 @@ def parseiovtagselectionJSON(filepath_or_buffer):
     input:
         if file, parse file
     output:
+        normtag string
+          or 
         list [iovtag,"{run:[[1,9999]],run:[[1,9999]]}" , [iovtag,"{run:[[lsstart,lsstop]],...}" ]                     
     """
     result = None
     d = get_filepath_or_buffer(filepath_or_buffer)    
     if os.path.isfile(filepath_or_buffer):
         result = pd.read_json(d,orient='index',convert_axes=False,typ='Series')
+    elif filepath_or_buffer.find('[') == -1:
+        return filepath_or_buffer
     else:
         spacer = re.compile(r'^\s+')
         d = spacer.sub('',d) #remove whitespace
@@ -115,10 +185,12 @@ def parseiovtagselectionJSON(filepath_or_buffer):
         payload = r[1:]
         for piece in payload :
             if isinstance(piece,dict):
-                final.append([iovtag,str(piece)])
+                final.append([iovtag,pd.Series(piece)])
             else:
-                p = '{"%s":[[1,%s]]}'%(piece,_maxls)
-                final.append([iovtag,p])
+                #p = '{"%s":[[1,%s]]}'%(piece,_maxls)
+                p = {}
+                p[piece] = [[1,_maxls]]
+                final.append([iovtag,pd.Series(p)])
     return final
 
 def parsecmsselectJSON(filepath_or_buffer,numpy=False):

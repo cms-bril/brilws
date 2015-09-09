@@ -256,12 +256,8 @@ def brilcalc_main(progname=sys.argv[0]):
           dbengine = create_engine(pargs.connecturl)
           
           selectionkwds = {}
-          normtag = None
-          if not pargs.withoutcorrection:
-              normtag = parseresult['--normtag']
-          else:
-              normtag = "withoutcorrection"
-          
+          normtag = None          
+                      
           fh = None
           ptable = None
           ftable = None
@@ -298,33 +294,42 @@ def brilcalc_main(progname=sys.argv[0]):
               ptable = display.create_table(header,header=True)
               ftable = display.create_table(footer)          
               
-          #datatypechoices = ['detraw','detresultonline','bestresultonline','bestresultoffline']    
-          datasources = []#[lumiquerytype,normtagname,datasource,runlsstr]
-          if isinstance(pargs.runlsSeries,list):
-              dparams = pargs.runlsSeries
-              for item in dparams:
-                  ntg = item[0]
-                  runlsstr = item[1]
-                  normtag_meta = api.iov_gettag(dbengine,ntg,schemaname=dbschema)
-                  datasource = normtag_meta[2].lower()
-                  runlsdict = api.parsecmsselectJSON(runlsstr)
-                  datasources.append( ['detraw',ntg,datasource,runlsdict] )          
-          else:
+          datasources = []#[lumiquerytype,normtagname,datasource,runlsstr]          
+
+          lumiquerytype = 'detraw'
+          if not pargs.withoutcorrection:
+              normtag = pargs.iovtagSelect
               if not normtag:
-                  if not pargs.lumitype:                  
-                      datasources.append( ['bestresultonline',normtag,'best',pargs.runlsSeries] )
-                  else:
+                  if pargs.lumitype:
+                      lumiquerytype = 'detresultonline'
                       datasources.append( ['detresultonline',normtag,pargs.lumitype.lower(),pargs.runlsSeries] )
+                  else:
+                      lumiquerytype = 'bestresultonline'
+                      datasources.append( ['bestresultonline',normtag,'best',pargs.runlsSeries] )
               else:
-                  if normtag=='withoutcorrection' and not pargs.lumitype: raise ValueError('--type is required with --without-correction')
-                  datasource = pargs.lumitype
-                  if datasource is None:
-                      #deduce lumitype from normtag metadata
-                      normtag_meta = api.iov_gettag(dbengine,normtag,schemaname=dbschema)
-                      if not normtag_meta: raise ValueError('normtag %s does not exist'%normtag)                   
-                      datasource = normtag_meta[2]
-                  datasources.append( ['detraw',normtag,datasource.lower(),pargs.runlsSeries ])
-                      
+                  if isinstance(normtag,list): #normtag is list
+                      mergedselect = api.mergeiovrunls(normtag,pargs.runlsSeries)
+                      for item in mergedselect:
+                          iovtag = item[0]
+                          runlsdict = item[1]
+                          iovtag_meta = api.iov_gettag(dbengine,iovtag,schemaname=dbschema)
+                          if not iovtag_meta: raise ValueError('requested iovtags do not exist')  
+                          datasource = iovtag_meta[2].lower()
+                          datasources.append( [lumiquerytype,iovtag,datasource,runlsdict] )
+                  else:  #normtag is string 
+                      datasource = pargs.lumitype
+                      if datasource is None: #det lumi with correction
+                          iovtag_meta = api.iov_gettag(dbengine,normtag,schemaname=dbschema)
+                          if not iovtag_meta: raise ValueError('%s does not exist'%normtag)                   
+                          datasource = iovtag_meta[2]
+                          datasources.append( [lumiquerytype,normtag,datasource.lower(),pargs.runlsSeries ])
+          else:
+              if not pargs.lumitype: raise ValueError('--type is required with --without-correction')
+              normtag = "withoutcorrection"
+
+          print lumiquerytype
+          print datasources
+          """
           log.debug('scalefactor: %.2f'%pargs.scalefactor)                    
           #print datasources
           runtot = {}# {run: {'fill':fillnum,'time':dtime,'nls':1,'ncms':int(cmson),'delivered':delivered,'recorded':recorded} }
@@ -374,10 +379,11 @@ def brilcalc_main(progname=sys.argv[0]):
                   print >> fh, '#Summary:'                  
                   print >> fh, '#'+','.join(footer)
                   print >> fh, '#'+','.join( [ '%d'%nfills,'%d'%nruns,'%d'%nls,'%d'%ncmsls,'%.3f'%(totdelivered),'%.3f'%(totrecorded)] )
-          
-          if fh and fh is not sys.stdout: fh.close()
+
+          if fh and fh is not sys.stdout: fh.close(
+          """          
           sys.exit(0)
-          
+
       elif args['<command>'] == 'beam':
           import brilcalc_beam
 
