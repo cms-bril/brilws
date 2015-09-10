@@ -41,7 +41,7 @@ class Unbuffered(object):
 sys.stdout = Unbuffered(sys.stdout)
 
 def lumi_per_normtag(shards,lumiquerytype,dbengine,dbschema,runtot,datasource=None,normtag=None,withBX=False,byls=None,fh=None,csvwriter=None,ptable=None,scalefactor=1,totz=utctmzone,fillmin=None,fillmax=None,runmin=None,runmax=None,amodetagid=None,egev=None,beamstatusid=None,tssecmin=None,tssecmax=None,runlsSeries=None):
-    
+    print runlsSeries
     validitychecker = None
     lastvalidity = None
     if normtag and normtag is not 'withoutcorrection':
@@ -294,9 +294,10 @@ def brilcalc_main(progname=sys.argv[0]):
               ptable = display.create_table(header,header=True)
               ftable = display.create_table(footer)          
               
-          datasources = []#[lumiquerytype,normtagname,datasource,runlsstr]          
+          datasources = [] #[lumiquerytype,normtagname,datasource,runlsstr]          
 
           lumiquerytype = 'detraw'
+          normtag = normtagname = 'withoutcorrection'
           if not pargs.withoutcorrection:
               normtag = pargs.iovtagSelect
               if not normtag:
@@ -309,6 +310,7 @@ def brilcalc_main(progname=sys.argv[0]):
               else:
                   if isinstance(normtag,list): #normtag is list
                       mergedselect = api.mergeiovrunls(normtag,pargs.runlsSeries)
+                      normtagname = 'composite'
                       for item in mergedselect:
                           iovtag = item[0]
                           runlsdict = item[1]
@@ -322,14 +324,14 @@ def brilcalc_main(progname=sys.argv[0]):
                           iovtag_meta = api.iov_gettag(dbengine,normtag,schemaname=dbschema)
                           if not iovtag_meta: raise ValueError('%s does not exist'%normtag)                   
                           datasource = iovtag_meta[2]
-                          datasources.append( [lumiquerytype,normtag,datasource.lower(),pargs.runlsSeries ])
+                      datasources.append( [lumiquerytype,normtag,datasource.lower(),pargs.runlsSeries ])
+                     
           else:
               if not pargs.lumitype: raise ValueError('--type is required with --without-correction')
-              normtag = "withoutcorrection"
 
-          print lumiquerytype
-          print datasources
-          """
+          log.debug('lumiquerytype %s'%lumiquerytype)
+          #print datasources
+          
           log.debug('scalefactor: %.2f'%pargs.scalefactor)                    
           #print datasources
           runtot = {}# {run: {'fill':fillnum,'time':dtime,'nls':1,'ncms':int(cmson),'delivered':delivered,'recorded':recorded} }
@@ -351,7 +353,7 @@ def brilcalc_main(progname=sys.argv[0]):
           tssecmax = pargs.tssecmax
           
           for [qtype,ntag,dsource,rselect] in datasources:
-              #print ntag,dsource,rselect
+              print ntag,dsource,rselect              
               lumi_per_normtag(shards,qtype,dbengine,dbschema,runtot,datasource=dsource,normtag=ntag,withBX=pargs.withBX,byls=pargs.byls,fh=fh,csvwriter=csvwriter,ptable=ptable,scalefactor=scalefactor,totz=totz,fillmin=fillmin,fillmax=fillmax,runmin=runmin,runmax=runmax,amodetagid=amodetagid,egev=egev,beamstatusid=beamstatusid,tssecmin=tssecmin,tssecmax=tssecmax,runlsSeries=rselect)
           
           if runtot:              
@@ -369,7 +371,7 @@ def brilcalc_main(progname=sys.argv[0]):
                       display.add_row( ['%d:%d'%(run,runtot[run]['fill']),runtot[run]['time'],runtot[run]['nls'],runtot[run]['ncms'],'%.3f'%(runtot[run]['delivered']),'%.3f'%(runtot[run]['recorded'])] , fh=fh, csvwriter=csvwriter, ptable=ptable)
         
               if pargs.totable:              
-                  print '#Data tag : %s , Norm tag: %s'%(datatagname,normtag)
+                  print '#Data tag : %s , Norm tag: %s'%(datatagname,normtagname)
                   display.show_table(ptable,pargs.outputstyle)
                   print "#Summary: "
                   display.show_table(ftable,pargs.outputstyle)
@@ -380,8 +382,8 @@ def brilcalc_main(progname=sys.argv[0]):
                   print >> fh, '#'+','.join(footer)
                   print >> fh, '#'+','.join( [ '%d'%nfills,'%d'%nruns,'%d'%nls,'%d'%ncmsls,'%.3f'%(totdelivered),'%.3f'%(totrecorded)] )
 
-          if fh and fh is not sys.stdout: fh.close(
-          """          
+          if fh and fh is not sys.stdout: fh.close()
+          
           sys.exit(0)
 
       elif args['<command>'] == 'beam':

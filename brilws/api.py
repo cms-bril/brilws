@@ -110,6 +110,11 @@ def mergerangeseries(x,y):
     scatter = consecutive(i)
     return scatter
 
+def merge_two_dicts(x,y):
+    z = x.copy()
+    z.update(y)
+    return z
+
 def mergeiovrunls(iovselect,cmsselect):
     '''
     merge iovselect list and cms runls select dict
@@ -119,29 +124,26 @@ def mergeiovrunls(iovselect,cmsselect):
         
     '''
     cmsselect_runs = cmsselect.index
-    final = []#[[iovtag,{},{}],[iovtag,{},{}]]
+    final = []#[[iovtag,{}],[iovtag,{}]]
     previoustag = ''
-    for entry in iovselect:
-        iovtag = entry[0]
-        iovtagrunls = entry[1]
+    for [iovtag,iovtagrunls] in iovselect:
         iovtagruns = iovtagrunls.index
+        runlsdict = {}       
+        selectedruns = np.intersect1d(cmsselect_runs,iovtagruns)
+        if selectedruns.size == 0: continue
+        for runnum in selectedruns:
+            scatter = mergerangeseries(iovtagrunls[runnum],cmsselect[runnum])
+            for c in scatter:
+                if len(c)==0: continue
+                runlsdict.setdefault(runnum,[]).append([np.min(c),np.max(c)])                
         if iovtag!=previoustag:
-            if len(final)>0 and len(final[-1])==1:
-                del final[-1]
-            final.append([iovtag])
-        inter = np.intersect1d(cmsselect_runs,iovtagruns)
-        runlsdict = {}
-        if inter.size>0:
-            for runnum in inter:
-                scatter = mergerangeseries(iovtagrunls[runnum],cmsselect[runnum])
-                if not runlsdict.has_key(runnum):
-                    runlsdict[runnum] = []
-                for c in scatter:
-                    if len(c)==0: continue
-                    runlsdict[runnum].append([np.min(c),np.max(c)])
-            final[-1].append(runlsdict)
-        previoustag = iovtag
-    if len(final)>0 and len(final[-1])==1: del final[-1]
+            if runlsdict:
+                final.append([iovtag,runlsdict])
+                previoustag = iovtag
+        else:
+            x = final[-1][1]                
+            y = runlsdict
+            final[-1][1] = merge_two_dicts(x,y)
     return final
 
 def parseselectionJSON(filepath_or_buffer):
