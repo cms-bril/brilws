@@ -94,7 +94,7 @@ def consecutive(npdata, stepsize=1):
     '''
     return np.split(npdata, np.where(np.diff(npdata) != stepsize )[0]+1)
 
-def mergerangeseries(x,y):
+def mergerangeseries(x,y,requiresuperset=True):
     '''
     merge two range type series
     x [[x1min,x1max],[x2min,x2max],...]
@@ -106,6 +106,10 @@ def mergerangeseries(x,y):
     ai = np.hstack(a.values)
     b = pd.Series(y).apply(expandrange)
     bi = np.hstack(b.values)
+    if requiresuperset:
+        issuperset = set(np.unique(ai)).issuperset(np.unique(bi))
+        if not issuperset:
+            raise ValueError('Error %s is not a superset of %s'%(pd.Series(x).to_string(),pd.Series(y).to_string()))
     i = np.intersect1d(np.unique(ai),np.unique(bi),assume_unique=True)
     scatter = consecutive(i)
     return scatter
@@ -128,7 +132,7 @@ def mergeiovrunls(iovselect,cmsselect):
     previoustag = ''
     for [iovtag,iovtagrunls] in iovselect:
         iovtagruns = iovtagrunls.index
-        runlsdict = {}       
+        runlsdict = {}
         selectedruns = np.intersect1d(cmsselect_runs,iovtagruns)
         if selectedruns.size == 0: continue
         for runnum in selectedruns:
@@ -187,7 +191,9 @@ def parseiovtagselectionJSON(filepath_or_buffer):
         payload = r[1:]
         for piece in payload :
             if isinstance(piece,dict):
-                final.append([iovtag,pd.Series(piece)])
+                s = pd.Series(piece)
+                s.index = [int(k) for k in piece.keys()]
+                final.append([iovtag,s])
             else:
                 #p = '{"%s":[[1,%s]]}'%(piece,_maxls)
                 p = {}
@@ -1664,7 +1670,6 @@ def rundatatagIter(engine,datatagnameid,schemaname='',runmin=None,runmax=None,fi
     if not qPieces: return None # at least one piece of selection is required
     qCondition = ' and '.join([qCondition]+qPieces)
     q = q + qCondition+' group by RUNNUM'
-    #print q
     return pd.read_sql_query(q,engine,chunksize=chunksize,params=binddict,index_col='datatagid')
 
 def table_exists(engine,tablename,schemaname=None):

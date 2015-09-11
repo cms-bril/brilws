@@ -41,7 +41,6 @@ class Unbuffered(object):
 sys.stdout = Unbuffered(sys.stdout)
 
 def lumi_per_normtag(shards,lumiquerytype,dbengine,dbschema,runtot,datasource=None,normtag=None,withBX=False,byls=None,fh=None,csvwriter=None,ptable=None,scalefactor=1,totz=utctmzone,fillmin=None,fillmax=None,runmin=None,runmax=None,amodetagid=None,egev=None,beamstatusid=None,tssecmin=None,tssecmax=None,runlsSeries=None):
-    print runlsSeries
     validitychecker = None
     lastvalidity = None
     if normtag and normtag is not 'withoutcorrection':
@@ -328,10 +327,8 @@ def brilcalc_main(progname=sys.argv[0]):
                      
           else:
               if not pargs.lumitype: raise ValueError('--type is required with --without-correction')
-
-          log.debug('lumiquerytype %s'%lumiquerytype)
-          #print datasources
-          
+              
+          log.debug('lumiquerytype %s'%lumiquerytype)          
           log.debug('scalefactor: %.2f'%pargs.scalefactor)                    
           #print datasources
           runtot = {}# {run: {'fill':fillnum,'time':dtime,'nls':1,'ncms':int(cmson),'delivered':delivered,'recorded':recorded} }
@@ -353,7 +350,7 @@ def brilcalc_main(progname=sys.argv[0]):
           tssecmax = pargs.tssecmax
           
           for [qtype,ntag,dsource,rselect] in datasources:
-              print ntag,dsource,rselect              
+              #print ntag,dsource,rselect              
               lumi_per_normtag(shards,qtype,dbengine,dbschema,runtot,datasource=dsource,normtag=ntag,withBX=pargs.withBX,byls=pargs.byls,fh=fh,csvwriter=csvwriter,ptable=ptable,scalefactor=scalefactor,totz=totz,fillmin=fillmin,fillmax=fillmax,runmin=runmin,runmax=runmax,amodetagid=amodetagid,egev=egev,beamstatusid=beamstatusid,tssecmin=tssecmin,tssecmax=tssecmax,runlsSeries=rselect)
           
           if runtot:              
@@ -383,7 +380,6 @@ def brilcalc_main(progname=sys.argv[0]):
                   print >> fh, '#'+','.join( [ '%d'%nfills,'%d'%nruns,'%d'%nls,'%d'%ncmsls,'%.3f'%(totdelivered),'%.3f'%(totrecorded)] )
 
           if fh and fh is not sys.stdout: fh.close()
-          
           sys.exit(0)
 
       elif args['<command>'] == 'beam':
