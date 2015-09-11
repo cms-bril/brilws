@@ -78,6 +78,16 @@ sqlitetypemap={
 _maxls = 9999
 _maxrun = 999999
 
+class brilwsException(Exception):
+    pass
+
+class NotSupersetError(brilwsException):
+    def __init__(self, message, runnum, superset, subset):
+        super(brilwsException, self).__init__(message)
+        self.runnum = runnum
+        self.superset = superset
+        self.subset = subset
+    
 def expandrange(element):
     '''
     expand [x,y] to range[x,y+1]
@@ -109,7 +119,8 @@ def mergerangeseries(x,y,requiresuperset=True):
     if requiresuperset:
         issuperset = set(np.unique(ai)).issuperset(np.unique(bi))
         if not issuperset:
-            raise ValueError('Error %s is not a superset of %s'%(pd.Series(x).to_string(),pd.Series(y).to_string()))
+            raise NotSupersetError('NotSupersetError',0,pd.Series(x),pd.Series(y))
+            #raise ValueError('Error %s is not a superset of %s'%(pd.Series(x).to_string(),pd.Series(y).to_string()))
     i = np.intersect1d(np.unique(ai),np.unique(bi),assume_unique=True)
     scatter = consecutive(i)
     return scatter
@@ -119,7 +130,7 @@ def merge_two_dicts(x,y):
     z.update(y)
     return z
 
-def mergeiovrunls(iovselect,cmsselect):
+def mergeiovrunls(iovselect,cmsselect,requiresuperset=True):
     '''
     merge iovselect list and cms runls select dict
     input:
@@ -136,7 +147,12 @@ def mergeiovrunls(iovselect,cmsselect):
         selectedruns = np.intersect1d(cmsselect_runs,iovtagruns)
         if selectedruns.size == 0: continue
         for runnum in selectedruns:
-            scatter = mergerangeseries(iovtagrunls[runnum],cmsselect[runnum])
+            scatter = []
+            try:                
+                scatter = mergerangeseries(iovtagrunls[runnum],cmsselect[runnum],requiresuperset=requiresuperset)
+            except NotSupersetError,e:
+                e.runnum = runnum
+                raise e
             for c in scatter:
                 if len(c)==0: continue
                 runlsdict.setdefault(runnum,[]).append([np.min(c),np.max(c)])                
