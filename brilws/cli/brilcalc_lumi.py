@@ -21,7 +21,7 @@ Options:
   --begin BEGIN                 Min start time/fill/run 
   --end END                     Max start time/fill/run
   --output-style OSTYLE         Screen output style. tab, html, csv [default: tab]
-  --type LUMITYPE               Luminosity type. hfoc,bcm1f,plt,pltzero,pxl
+  --type LUMITYPE               Luminosity type. hfoc,bcm1f,pltzero,pxl
   --byls                        Show result in ls granularity
   --xing                        Show result in bx granularity
   --without-correction          Show raw data without calibration
