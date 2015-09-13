@@ -82,7 +82,7 @@ class brilwsException(Exception):
     pass
 
 class NotSupersetError(brilwsException):
-    def __init__(self, message, runnum, superset, subset):
+    def __init__(self, message, runnum,superset,subset):
         super(brilwsException, self).__init__(message)
         self.runnum = runnum
         self.superset = superset
@@ -103,8 +103,35 @@ def consecutive(npdata, stepsize=1):
     output: list of ndarrays
     '''
     return np.split(npdata, np.where(np.diff(npdata) != stepsize )[0]+1)
-
-def mergerangeseries(x,y,requiresuperset=True):
+    
+def checksuperset(iovseries,cmsseries):
+    '''
+    input:
+        iovseries: pd.Series 
+        cmsseries: pd.Series from dict {run:[[]],}
+    output:
+      throw NotSupersetError exception if not superset
+    '''
+    iovdict = {}
+    for data in iovseries:
+        runnum = data.index.tolist()[0]
+        v = pd.Series(data[runnum]).apply(expandrange)
+        v = v.apply(np.unique)
+        vi = np.hstack(v.values)
+        if not iovdict.has_key(runnum):            
+            iovdict[runnum] = []            
+        iovdict[runnum] = iovdict[runnum]+vi.tolist()
+    for runnum in sorted(iovdict.keys()):
+        lsrange = iovdict[runnum]
+        if runnum in cmsseries.index:
+            cmslsvals = pd.Series(cmsseries[runnum]).apply(expandrange)
+            cmslsvals_flat = np.unique(np.hstack(cmslsvals.values))
+            if not set(lsrange).issuperset(cmslsvals_flat):
+                supersetlist = [[min(x),max(x)] for x in consecutive(np.array(lsrange))]
+                subsetlist = cmsseries[runnum]
+                raise NotSupersetError('NotSupersetError',runnum,supersetlist,subsetlist)
+        
+def mergerangeseries(x,y):
     '''
     merge two range type series
     x [[x1min,x1max],[x2min,x2max],...]
@@ -115,12 +142,7 @@ def mergerangeseries(x,y,requiresuperset=True):
     a = pd.Series(x).apply(expandrange)
     ai = np.hstack(a.values)
     b = pd.Series(y).apply(expandrange)
-    bi = np.hstack(b.values)
-    if requiresuperset:
-        issuperset = set(np.unique(ai)).issuperset(np.unique(bi))
-        if not issuperset:
-            raise NotSupersetError('NotSupersetError',0,pd.Series(x),pd.Series(y))
-            #raise ValueError('Error %s is not a superset of %s'%(pd.Series(x).to_string(),pd.Series(y).to_string()))
+    bi = np.hstack(b.values)    
     i = np.intersect1d(np.unique(ai),np.unique(bi),assume_unique=True)
     scatter = consecutive(i)
     return scatter
@@ -130,7 +152,7 @@ def merge_two_dicts(x,y):
     z.update(y)
     return z
 
-def mergeiovrunls(iovselect,cmsselect,requiresuperset=True):
+def mergeiovrunls(iovselect,cmsselect):
     '''
     merge iovselect list and cms runls select dict
     input:
@@ -147,12 +169,7 @@ def mergeiovrunls(iovselect,cmsselect,requiresuperset=True):
         selectedruns = np.intersect1d(cmsselect_runs,iovtagruns)
         if selectedruns.size == 0: continue
         for runnum in selectedruns:
-            scatter = []
-            try:                
-                scatter = mergerangeseries(iovtagrunls[runnum],cmsselect[runnum],requiresuperset=requiresuperset)
-            except NotSupersetError,e:
-                e.runnum = runnum
-                raise e
+            scatter = mergerangeseries(iovtagrunls[runnum],cmsselect[runnum])
             for c in scatter:
                 if len(c)==0: continue
                 runlsdict.setdefault(runnum,[]).append([np.min(c),np.max(c)])                

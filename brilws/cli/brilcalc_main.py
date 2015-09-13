@@ -311,11 +311,12 @@ def brilcalc_main(progname=sys.argv[0]):
                       if pargs.runlsSeries is None:
                           mergedselect = normtag
                       else:
-                          mergedselect = []
                           try:
-                              mergedselect = api.mergeiovrunls(normtag,pargs.runlsSeries,requiresuperset=True)
+                              api.checksuperset([x[1] for x in normtag],pargs.runlsSeries)
                           except api.NotSupersetError,e:
-                              log.error('run %d, %s is not a superset of %s'%(e.runnum,np.array_str(e.superset.values),np.array_str(e.subset.values)))
+                              log.error('run %d, %s is not a superset of %s'%(e.runnum,str(e.superset),str(e.subset)))
+                              sys.exit(1)
+                          mergedselect = api.mergeiovrunls(normtag,pargs.runlsSeries)                          
                       normtagname = 'composite'
                       for item in mergedselect:
                           iovtag = item[0]
@@ -333,7 +334,8 @@ def brilcalc_main(progname=sys.argv[0]):
                       datasources.append( [lumiquerytype,normtag,datasource.lower(),pargs.runlsSeries ])
                      
           else:
-              if not pargs.lumitype: raise ValueError('--type is required with --without-correction')
+              if not pargs.lumitype:
+                  raise ValueError('--type is required with --without-correction')
               datasources.append( [lumiquerytype,None,pargs.lumitype.lower(),pargs.runlsSeries ])
               
           log.debug('lumiquerytype %s'%lumiquerytype)          
