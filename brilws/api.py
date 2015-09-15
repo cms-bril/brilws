@@ -1755,13 +1755,13 @@ def build_query_condition(runmin=None,runmax=None,fillmin=None,tssecmin=None,tss
                 binddict[lminname] = lmin
             for lmaxname,lmax in var_lmaxs.items():                
                 binddict[lmaxname] = lmax
-    else:
-        if runmin:
-            qPieces.append('runnum>=:runmin')
-            binddict['runmin'] = runmin
-        if runmax:
-            qPieces.append('runnum<=:runmax')
-            binddict['runmax'] = runmax
+    
+    if runmin:
+        qPieces.append('runnum>=:runmin')
+        binddict['runmin'] = runmin
+    if runmax:
+        qPieces.append('runnum<=:runmax')
+        binddict['runmax'] = runmax
 
     if not qPieces: return ('',{})
     qCondition = ' and '.join(qPieces)
