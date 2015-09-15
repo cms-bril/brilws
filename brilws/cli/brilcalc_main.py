@@ -297,14 +297,17 @@ def brilcalc_main(progname=sys.argv[0]):
 
           lumiquerytype = 'detraw'
           normtag = normtagname = 'withoutcorrection'
+          parseerrors = []
           if not pargs.withoutcorrection:
               normtag = pargs.iovtagSelect
-              if not normtag:
+              if not normtag:                  
                   if pargs.lumitype:
                       lumiquerytype = 'detresultonline'
                       datasources.append( ['detresultonline',normtag,pargs.lumitype.lower(),pargs.runlsSeries] )
+                      normtagname = 'onlineresult'
                   else:
                       lumiquerytype = 'bestresultonline'
+                      normtagname = 'onlineresult'
                       datasources.append( ['bestresultonline',normtag,'best',pargs.runlsSeries] )
               else:
                   if isinstance(normtag,list): #normtag is list
@@ -314,8 +317,8 @@ def brilcalc_main(progname=sys.argv[0]):
                           try:
                               api.checksuperset([x[1] for x in normtag],pargs.runlsSeries)
                           except api.NotSupersetError,e:
-                              log.error('run %d, %s is not a superset of %s'%(e.runnum,str(e.superset),str(e.subset)))
-                              sys.exit(1)
+                              parseerrors.append(e)
+                              #log.error('run %d, %s is not a superset of %s'%(e.runnum,str(e.superset),str(e.subset)))
                           mergedselect = api.mergeiovrunls(normtag,pargs.runlsSeries)                          
                       normtagname = 'composite'
                       for item in mergedselect:
@@ -327,6 +330,7 @@ def brilcalc_main(progname=sys.argv[0]):
                           datasources.append( [lumiquerytype,iovtag,datasource,runlsdict] )
                   else:  #normtag is string 
                       datasource = pargs.lumitype
+                      normtagname = normtag
                       if datasource is None: #det lumi with correction
                           iovtag_meta = api.iov_gettag(dbengine,normtag,schemaname=dbschema)
                           if not iovtag_meta: raise ValueError('%s does not exist'%normtag)                   
@@ -390,6 +394,12 @@ def brilcalc_main(progname=sys.argv[0]):
                   print >> fh, '#'+','.join( [ '%d'%nfills,'%d'%nruns,'%d'%nls,'%d'%ncmsls,'%.3f'%(totdelivered),'%.3f'%(totrecorded)] )
 
           if fh and fh is not sys.stdout: fh.close()
+
+          if parseerrors:
+              print '\nWarning: problems found in merging -i and --normtag selections:'
+              for e in parseerrors:
+                  print '  run %d, %s is not a superset of %s'%(e.runnum,str(e.superset),str(e.subset))
+              print 
           sys.exit(0)
 
       elif args['<command>'] == 'beam':
