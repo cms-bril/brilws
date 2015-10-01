@@ -18,10 +18,11 @@ Options:
   --minBiasXsec MINBIASXSEC     Minbias cross-section in ub [default: 78400.0]
   --datatag DATATAG             Data tag name
   --normtag NORMTAG             correction tag or combined correction tag selection file or string
-  --begin BEGIN                 Min start time/fill/run 
-  --end END                     Max start time/fill/run
+  --begin BEGIN                 Min start time (MM/DD/YY HH24:MI:SS)/fill/run 
+  --end END                     Max start time (MM/DD/YY HH24:MI:SS)/fill/run
   --output-style OSTYLE         Screen output style. tab, html, csv [default: tab]
   --type LUMITYPE               Luminosity type. hfoc,bcm1f,pltzero,pxl
+  --hltpath HLTPATH             HLT path name or fnmatch pattern
   --byls                        Show result in ls granularity
   --xing                        Show result in bx granularity
   --without-correction          Show raw data without calibration
@@ -39,10 +40,11 @@ def validate(optdict):
     result={}
     #argdict = clicommonargs.argvalidators
     #extract sub argdict here
-    myvalidables = ['-c','-n','-f','-r','-i','-o','--amodetag','-b','--beamenergy','--datatag','--normtag','--begin','--end','--output-style','--type',str]
+    myvalidables = ['-c','-n','-f','-r','-i','-o','--amodetag','-b','--beamenergy','--datatag','--normtag','--begin','--end','--output-style','--type','--hltpath',str]
     argdict = dict((k,v) for k,v in clicommonargs.argvalidators.iteritems() if k in myvalidables)
     schema = Schema(argdict)
-    result = schema.validate(optdict)    
+    result = schema.validate(optdict)
+
     if not result['-i'] and not result['-f'] and not result['-r'] and not result['--begin']:
         print 'Error: at least one time selection option in %s is required'%(','.join(['-i','-f','-r','--begin']))
         sys.exit(0)

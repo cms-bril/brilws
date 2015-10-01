@@ -1841,35 +1841,79 @@ def translate_fntosql(pattern):
     sqlresult = sqlresult.replace('?','_')
     return sqlresult
 
-def hltl1seedinfoIter(engine,hltconfigid,hltpathnameorpattern='',schemaname='',chunksize=9999,):
+def get_hlttrgl1seedmap(engine,hltpath,schemaname=''):
     '''
-    
-    '''
-    seedtablename = 'L1SEEDMAP'
-    hlttrgtablename = 'TRGHLTSEEDMAP'
-    hltpathtablename = 'HLTPATHMAP'
-    if schemaname:
-        seedtablename = '.'.join([schemaname,seedtablename])
-        hlttrgtablename = '.'.join([schemaname,hlttrgtablename])
-        hltpathtablename = '.'.join([schemaname,hltpathtablename])
-        
-    q = '''select h.HLTPATHNAME as hltpath, s.L1SEED as l1seed from %s h, %s m, %s s where s.L1SEEDID=m.L1SEEDID and h.hltpathid=m.hltpathid and m.hltconfigid=:hltconfigid'''%(hltpathtablename,hlttrgtablename,seedtablename)
-    pathnamecondition = ''
-    result = None
-    if hltpathnameorpattern:
-        if hltpathnameorpattern.find('*')==-1 and hltpathnameorpattern.find('?')==-1 and hltpathnameorpattern.find('[')==-1:
-            pathnamecondition = 'h.HLTPATHNAME=:hltpathname'
-            q = q+' and '+pathnamecondition
-            result = pd.read_sql_query(q,engine,chunksize=chunksize,params={'hltconfigid':hltconfigid,'hltpathname':hltpathnameorpattern})
-            return result
-        else:
-            sqlpattern = translate_fntosql(hltpathnameorpattern)
-            q = q+" and h.HLTPATHNAME like '"+sqlpattern+"'"
-            result = pd.read_sql_query(q,engine,chunksize=chunksize,params={'hltconfigid':hltconfigid})
-            return result
-    result = pd.read_sql_query(q,engine,chunksize=chunksize,params={'hltconfigid':hltconfigid})
-    return result
+    input :
+        hltpath : hltpath name or pattern
 
+    output:
+       hlttrgl1seedmap : pd.DataFrame(columns=['hltconfigid','hltpathid','hltpathname','l1seed'])
+    '''
+    tablename = name = 'hltpathl1seedmap'
+    if schemaname:
+        tablename = '.'.join([schemaname,name])
+    hltpath_sqlexpr = hltpath
+    p = re.compile(r'\?|\*|\[|\]|!')
+    q = '''select hltconfigid, hltpathid, hltpathname, l1seed from %s '''%(tablename)
+    if p.findall(hltpath): # is pattern
+        hltpath_sqlexpr = hltpath_sqlexpr.replace('*','.*')
+        hltpath_sqlexpr = hltpath_sqlexpr.replace('?','.?')
+        hltpath_sqlexpr = hltpath_sqlexpr.replace('!','^')
+        q = q+'''where regexp_like(hltpathname,'%s')'''%(hltpath_sqlexpr)
+    else:
+        q = q+'''where hltpathname=%s'''%(hltpath_sqlexpr)
+
+    connection = engine.connect()
+    resultProxy = connection.execute(q)
+    hltpathl1seed = pd.DataFrame(list(resultProxy),columns=['hltconfigid','hltpathid','hltpathname','l1seed'])
+    hltpathl1seed['l1seed'] = hltpathl1seed['l1seed'].apply(parseL1Seed)
+    hltpathl1seed = hltpathl1seed[ hltpathl1seed['l1seed']!=('',None) ]
+    return hltpathl1seed
+
+def get_effectivescalers(engine,suffix,runnum,lsnum,hltpathid,l1seedexpr,ignorel1mask=False,schemaname=''):
+    '''
+    get 
+    output: 
+    pd.DataFrame(columns=['hltpathid','l1bitname','prescidx','trgprescval','hltprescval'])
+    '''
+    trgscalertable = 'trgscaler_'+str(suffix)
+    hltscalertable = 'hltscaler_'+str(suffix)
+    trgrunconftable = 'trgrunconfig'
+    if schemaname:
+        trgscalertable = '.'.join([schemaname,trgscalertable])
+        hltscalertable = '.'.join([schemaname,hltscalertable])
+        trgrunconftable = '.'.join([schemaname,trgrunconftable])
+    q = '''select l.prescidx, l.prescval, h.prescval from %(trgscalerT)s l, %(trgrunconfT) r, %(hltscalerT)s h where l.runnum=r.runnum and l.bitid=r.bitid and r.bitname=:l1bitname and h.datatagid=l.datatagid and h.prescidx=l.prescidx and h.hltpathid=:hltpathid and l.runnum=:runnum and l.lsnum=:lsnum'''%{'trgscalerT':trgscalertable,'hltscalerT':hltscalertable,'trgrunconfT':trgrunconftable}
+    if not ignorel1mask:
+        q = q+' and r.bitmask!=1'
+    connection = engine.connect()
+    resultProxy = connection.execute(q,{'runnum':runnum,'lsnum':lsnum})    
+    print list(resultProxy)
+    
+def parseL1Seed(l1seed):
+    '''
+    output: 
+    '''
+    sep=re.compile('(\sAND\s|\sOR\s)',re.IGNORECASE)
+    result=re.split(sep,l1seed)
+    cleanresult=[]
+    exptype='ONE'
+    notsep=re.compile('NOT\s',re.IGNORECASE)
+    andsep=re.compile('\sAND\s',re.IGNORECASE)
+    orsep=re.compile('\sOR\s',re.IGNORECASE)
+    for r in result:
+        if notsep.match(r) : #we don't know what to do with NOT
+            return ('',None)
+        if orsep.match(r):
+            exptype='OR'
+            continue
+        if andsep.match(r):
+            exptype='AND'
+            continue
+        #cleanresult.append(string.strip(r).replace('\"',''))
+        cleanresult.append(string.strip(r))
+    return (exptype,cleanresult)
+    
 def findUniqueSeed(hltPathname,l1seed):
     '''
     given a hltpath and its L1SeedExpression, find the L1 bit name

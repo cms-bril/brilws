@@ -56,8 +56,8 @@ def lumi_per_normtag(shards,lumiquerytype,dbengine,dbschema,runtot,datasource=No
             if not shardexists: continue
             rfields = ['fillnum','runnum','lsnum','timestampsec','cmson','beamstatusid','targetegev','delivered','recorded','avgpu','datasource']
             if withBX: rfields = rfields+['bxdeliveredblob']
-            lumiiter = api.online_resultIter(dbengine,tablename,schemaname=dbschema,fields=rfields,fillmin=fillmin,fillmax=fillmax,runmin=runmin,runmax=runmax,amodetagid=amodetagid,targetegev=egev,beamstatusid=beamstatusid,tssecmin=tssecmin,tssecmax=tssecmax,runlsselect=runlsSeries,sorted=True)
-                  
+            lumiiter = api.online_resultIter(dbengine,tablename,schemaname=dbschema,fields=rfields,fillmin=fillmin,fillmax=fillmax,runmin=runmin,runmax=runmax,amodetagid=amodetagid,targetegev=egev,beamstatusid=beamstatusid,tssecmin=tssecmin,tssecmax=tssecmax,runlsselect=runlsSeries,sorted=True)            
+            
         elif lumiquerytype == 'detresultonline':
             tablename = datasource.lower()+'_result_'+str(shard)
             shardexists = api.table_exists(dbengine,tablename,schemaname=dbschema)
@@ -66,7 +66,7 @@ def lumi_per_normtag(shards,lumiquerytype,dbengine,dbschema,runtot,datasource=No
             idfields = ['fillnum','runnum','lsnum','timestampsec','beamstatusid','cmson','deadtimefrac','targetegev']
             if withBX: rfields = rfields+['bxlumiblob']
             lumiiter = api.det_resultDataIter(dbengine,datasource,shard,datafields=rfields,idfields=idfields,schemaname=dbschema,fillmin=fillmin,fillmax=fillmax,runmin=runmin,runmax=runmax,amodetagid=amodetagid,targetegev=egev,beamstatusid=beamstatusid,tssecmin=tssecmin,tssecmax=tssecmax,runlsselect=runlsSeries,sorted=True)
-
+            
         elif lumiquerytype =='detraw':
             tablename = datasource+'_raw_'+str(shard)
             shardexists = api.table_exists(dbengine,tablename,schemaname=dbschema)
@@ -80,11 +80,14 @@ def lumi_per_normtag(shards,lumiquerytype,dbengine,dbschema,runtot,datasource=No
         for row in lumiiter:            
             fillnum = row['fillnum']
             runnum = row['runnum']
-            lsnum = row['lsnum']
+            lsnum = row['lsnum']            
             cmslsnum = lsnum
             timestampsec = row['timestampsec']
             cmson = row['cmson']
             if not cmson: cmslsnum = 0
+            if cmslsnum!=0:
+                print runnum,cmslsnum
+                #if hltpath, query scalers here
             beamstatusid = row['beamstatusid']
             beamstatus = params._idtobeamstatus[beamstatusid]
             if beamstatus not in ['FLAT TOP','STABLE BEAMS','SQUEEZE','ADJUST']: continue
@@ -250,6 +253,7 @@ def brilcalc_main(progname=sys.argv[0]):
           parseresult = brilcalc_lumi.validate(parseresult)          
           ##parse selection params
           pargs = clicommonargs.parser(parseresult)
+
           dbschema = ''
           if not pargs.dbconnect.find('oracle')!=-1: dbschema = 'cms_lumi_prod'
           dbengine = create_engine(pargs.connecturl)
@@ -276,7 +280,7 @@ def brilcalc_main(progname=sys.argv[0]):
               header = bylsheader+['[bxidx bxdelivered(/ub) bxrecorded(/ub)]']
           elif pargs.byls:
               header = bylsheader
-
+          
           header = vfunc_lumiunit(header,lumiunitstr).tolist()
           footer = vfunc_lumiunit(footer,lumiunitstr).tolist()
                     
@@ -362,7 +366,15 @@ def brilcalc_main(progname=sys.argv[0]):
           beamstatusid = pargs.beamstatusid
           tssecmin = pargs.tssecmin
           tssecmax = pargs.tssecmax
+
           
+          if pargs.hltpath:# get hlt,l1seed names and bits mask
+              hltl1seedmap = api.get_hlttrgl1seedmap(dbengine,pargs.hltpath,schemaname=dbschema)
+              '''[hltconfigid,hltpathid,hltpathname,l1seed]'''
+              for idx,hltl1row in hltl1seedmap.iterrows():
+                  print idx, hltl1row['hltconfigid'], hltl1row['hltpathid'], hltl1row['l1seed']
+                  
+              
           for [qtype,ntag,dsource,rselect] in datasources:
               #print ntag,dsource,rselect
               lumi_per_normtag(shards,qtype,dbengine,dbschema,runtot,datasource=dsource,normtag=ntag,withBX=pargs.withBX,byls=pargs.byls,fh=fh,csvwriter=csvwriter,ptable=ptable,scalefactor=scalefactor,totz=totz,fillmin=fillmin,fillmax=fillmax,runmin=runmin,runmax=runmax,amodetagid=amodetagid,egev=egev,beamstatusid=beamstatusid,tssecmin=tssecmin,tssecmax=tssecmax,runlsSeries=rselect)

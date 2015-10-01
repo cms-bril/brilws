@@ -45,6 +45,7 @@ class parser(object):
         self._pathinfo = False
         self._chunksize = None
         self._lumitype = None
+        self._hltpath = None
         self._ofilename = '-'
         self._fh = None
         self._totable = False
@@ -95,6 +96,8 @@ class parser(object):
             self._pathinfo = self._argdict['--pathinfo']
         if self._argdict.has_key('--type'):
             self._lumitype = self._argdict['--type']
+        if self._argdict.has_key('--hltpath'):
+            self._hltpath = self._argdict['--hltpath']
         if self._argdict.has_key('--applyto'):
             self._applyto = self._argdict['--applyto']
         if self._argdict.has_key('-y'):
@@ -240,6 +243,9 @@ class parser(object):
     def lumitype(self):
         return self._lumitype
     @property
+    def hltpath(self):
+        return self._hltpath
+    @property
     def applyto(self):
         return self._applyto
     @property
@@ -282,11 +288,12 @@ argvalidators = {
     '--amodetag': Or(None,And(str,lambda s: s.upper() in params._amodetagChoices), error='--amodetag must be in '+str(params._amodetagChoices) ),
     '--beamenergy': Or(None,And(Use(int), lambda n: n>0), error='--beamenergy should be integer >0'),
     '-b': Or(None, And(str, lambda s: s.upper() in params._beamstatusChoices), error='-b must be in '+str(params._beamstatusChoices) ),
-    '--begin': Or(None, And(str,Use(RegexValidator.RegexValidator(params._timeopt_pattern))), error='wrong format'),
-    '--end': Or(None, And(str,Use(RegexValidator.RegexValidator(params._timeopt_pattern))), error='wrong format'),
+    '--begin': Or(None, And(str,Use(RegexValidator.RegexValidator(params._timeopt_pattern))), error='--begin wrong format'),
+    '--end': Or(None, And(str,Use(RegexValidator.RegexValidator(params._timeopt_pattern))), error='--end wrong format'),
     '--output-style': And(str,Use(str.lower), lambda s: s in params._outstyle, error='--output-style choice must be in '+str(params._outstyle) ),
-    '--chunk-size':  And(Use(int), lambda n: n>0, error='--chunk-size should be integer >0'),
+#    '--chunk-size':  And(Use(int), lambda n: n>0, error='--chunk-size should be integer >0'),
     '--type': Or(None, And(str, lambda s: s.upper() in params._lumitypeChoices), error='--type must be in '+str(params._lumitypeChoices) ),
+    '--hltpath': Or(None, And(str, Use(RegexValidator.RegexValidator(params._hltpath_pattern))),  error='--hltpath wrong format'), 
     '--applyto': Or(None, And(str, lambda s: s.upper() in params._applytoChoices), error='--applyto must be in '+str(params._applytoChoices) ),
     '--siteconfpath': Or(None, str, error='--siteconfpath should be string'),
     '-c': str,
@@ -295,8 +302,8 @@ argvalidators = {
     '--normtag': Or(None,str),
     '-i': Or(None,str),
     '-o': Or(None,str),    
-    '-f': Or(None, And(Use(RegexValidator.RegexValidator(params._fillnum_pattern)),Use(int)), error='-f FILL has wrong format'), 
+    '-f': Or(None, And(Use(RegexValidator.RegexValidator(params._fillnum_pattern)),Use(int)), error='-f wrong format'), 
     '-n': And(Use(float), lambda f: f>0, error='-n SCALEFACTOR should be float >0'),      
-    '-r': Or(None, And(Use(RegexValidator.RegexValidator(params._runnum_pattern)),Use(int)), error='-r RUN has wrong format'),
+    '-r': Or(None, And(Use(RegexValidator.RegexValidator(params._runnum_pattern)),Use(int)), error='-r wrong format'),
     str:object # catch all
 }
