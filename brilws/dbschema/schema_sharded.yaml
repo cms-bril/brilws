@@ -25,31 +25,29 @@ BEAM_&suffix:         #per ls
     - ncollidables: uint16
     - collidable: blob
    pk: [datatagid]
-
-TRG_&suffix:               #per ls, per trg bit
+   
+TRGSCALER_&suffix:               #per ls, per trg bit
    columns:
     - datatagid: int64
     - runnum: uint32
     - lsnum: uint32
-    - bitid: uint16
-    - bitname: string 
+    - bitid: uint16              #0-127 algo, 128-191 techbits
     - prescidx: uint16
     - prescval: uint32
-    - mask: bool
-    - counts: uint32
    pk: [datatagid,bitid]
+   unique: [[runnum,lsnum,bitid]]
    
-HLT_&suffix:  #per ls, per hltpath
+HLTSCALER_&suffix:               #per ls, per hltpath
    columns:
     - datatagid: int64
     - runnum: uint32
     - lsnum: uint32
+    - hltconfigid: uint32
     - hltpathid: uint32
     - prescidx: uint16
     - prescval: uint32
-    - l1pass: uint32
-    - hltaccept: uint32
    pk: [datatagid,hltpathid]
+   unique: [[runnum,lsnum,hltconfigid,hltpathid]]
 
 HFOC_RAW_&suffix:
    columns:

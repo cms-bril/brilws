@@ -50,52 +50,30 @@ IDS_DATATAG:     #per ls
    pk: [datatagid] 
    unique: [ [datatagnameid,runnum,lsnum] ]
    
-RUNINFO:          #per run
-   columns:
-    - fillnum: uint32
-    - runnum: uint32
-    - hltkey: string
-    - hltconfigid: uint32
-    - gt_rs_key: string    
-    - fillscheme: string
-    - nbperls: uint16
-   pk: [runnum]
-
 ##### Map tables #####
 
-TRGBITMAP:
-   columns:    
-    - bitnameid: uint32            #0-63 reserved for techbits
-    - bitid: uint16                #0-127 algo, 128-191 techbits
-    - bitname: string              #alias used in l1seed expression
-   pk: [bitnameid]
-   unique: [ bitname ]
-   
-TRGHLTSEEDMAP:
+HLTPATHL1SEEDMAP:
    columns:
     - hltpathid: uint32
     - hltconfigid: uint32
-    - l1seedid: uint32
-   pk: [hltpathid,hltconfigid,l1seedid]
-
-L1SEEDMAP:
-   columns:
-    - l1seedid: uint32
-    - l1seed: string
-   pk: [l1seedid]
-    
-HLTPATHMAP:    #static map
-   columns:
-    - hltpathid: uint32
     - hltpathname: string
-   pk: [hltpathid]
+    - l1seed: string
+   pk: [hltpathid,hltconfigid]
+   
+TRGRUNCONFIG:
+   columns:
+    - runnum: uint32
+    - bitid: uint16        #0-127 algo, 128-191 techbits
+    - bitname: string      #bit alias used in hlt l1seed expression
+    - mask: bool
+   pk: [runnum,bitid]
 
 DATASETMAP:   #static map
    columns:
     - datasetid: uint32
     - datasetname: string
    pk: [datasetid]
-
+   
 HLTSTREAMDATASET:  #static map , hlt stream, dataset, path map           
    columns:
     - hltpathid: uint32
