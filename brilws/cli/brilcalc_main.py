@@ -379,6 +379,7 @@ def brilcalc_main(progname=sys.argv[0]):
           
           if pargs.hltpath:# get hlt,l1seed names and bits mask
               hltl1seedmap = api.get_hlttrgl1seedmap(dbengine,pargs.hltpath,schemaname=dbschema)
+              
               '''[hltconfigid,hltpathid,hltpathname,l1seed]'''
               #for idx,hltl1row in hltl1seedmap.iterrows():
               #    print idx, hltl1row['hltconfigid'], hltl1row['hltpathid'], hltl1row['l1seed']
