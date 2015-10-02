@@ -40,7 +40,9 @@ class Unbuffered(object):
         return getattr(self.stream.attr)
 sys.stdout = Unbuffered(sys.stdout)
 
-def lumi_per_normtag(shards,lumiquerytype,dbengine,dbschema,runtot,datasource=None,normtag=None,withBX=False,byls=None,fh=None,csvwriter=None,ptable=None,scalefactor=1,totz=utctmzone,fillmin=None,fillmax=None,runmin=None,runmax=None,amodetagid=None,egev=None,beamstatusid=None,tssecmin=None,tssecmax=None,runlsSeries=None):
+def lumi_per_normtag(shards,lumiquerytype,dbengine,dbschema,runtot,datasource=None,normtag=None,withBX=False,byls=None,fh=None,csvwriter=None,ptable=None,scalefactor=1,totz=utctmzone,fillmin=None,fillmax=None,runmin=None,runmax=None,amodetagid=None,egev=None,beamstatusid=None,tssecmin=None,tssecmax=None,runlsSeries=None,hltl1seedmap=None):
+    if hltl1seedmap is not None:
+        hltpathids = hltl1seedmap['hltpathid'].unique()
     validitychecker = None
     lastvalidity = None
     if normtag and normtag is not 'withoutcorrection':
@@ -85,9 +87,16 @@ def lumi_per_normtag(shards,lumiquerytype,dbengine,dbschema,runtot,datasource=No
             timestampsec = row['timestampsec']
             cmson = row['cmson']
             if not cmson: cmslsnum = 0
-            if cmslsnum!=0:
+            
+            if cmslsnum!=0:                
                 print runnum,cmslsnum
-                #if hltpath, query scalers here
+                #for hltpathid in hltpathids:
+                pathinfo = hltl1seedmap[ hltl1seedmap['hltpathid']==hltpathids ]
+                #for idx,p in pathinfo.iterrows():
+                #    print idx,p[0],p[1],p[2],p[3]
+                r = api.get_effectivescalers(dbengine,shard,runnum,cmslsnum,pathinfo,ignorel1mask=False,schemaname=dbschema)
+                #hltpathid = 
+                #api.get_effectivescalers(dbengine,shard,runnum,lsnum,hltpathid,l1seedexpr,ignorel1mask=False,schemaname=dbschema):
             beamstatusid = row['beamstatusid']
             beamstatus = params._idtobeamstatus[beamstatusid]
             if beamstatus not in ['FLAT TOP','STABLE BEAMS','SQUEEZE','ADJUST']: continue
@@ -371,13 +380,13 @@ def brilcalc_main(progname=sys.argv[0]):
           if pargs.hltpath:# get hlt,l1seed names and bits mask
               hltl1seedmap = api.get_hlttrgl1seedmap(dbengine,pargs.hltpath,schemaname=dbschema)
               '''[hltconfigid,hltpathid,hltpathname,l1seed]'''
-              for idx,hltl1row in hltl1seedmap.iterrows():
-                  print idx, hltl1row['hltconfigid'], hltl1row['hltpathid'], hltl1row['l1seed']
+              #for idx,hltl1row in hltl1seedmap.iterrows():
+              #    print idx, hltl1row['hltconfigid'], hltl1row['hltpathid'], hltl1row['l1seed']
                   
               
           for [qtype,ntag,dsource,rselect] in datasources:
               #print ntag,dsource,rselect
-              lumi_per_normtag(shards,qtype,dbengine,dbschema,runtot,datasource=dsource,normtag=ntag,withBX=pargs.withBX,byls=pargs.byls,fh=fh,csvwriter=csvwriter,ptable=ptable,scalefactor=scalefactor,totz=totz,fillmin=fillmin,fillmax=fillmax,runmin=runmin,runmax=runmax,amodetagid=amodetagid,egev=egev,beamstatusid=beamstatusid,tssecmin=tssecmin,tssecmax=tssecmax,runlsSeries=rselect)
+              lumi_per_normtag(shards,qtype,dbengine,dbschema,runtot,datasource=dsource,normtag=ntag,withBX=pargs.withBX,byls=pargs.byls,fh=fh,csvwriter=csvwriter,ptable=ptable,scalefactor=scalefactor,totz=totz,fillmin=fillmin,fillmax=fillmax,runmin=runmin,runmax=runmax,amodetagid=amodetagid,egev=egev,beamstatusid=beamstatusid,tssecmin=tssecmin,tssecmax=tssecmax,runlsSeries=rselect,hltl1seedmap=hltl1seedmap)
           
           if runtot:              
               df_runtot = pd.DataFrame.from_dict(runtot,orient='index')

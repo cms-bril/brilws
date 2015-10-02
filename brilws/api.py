@@ -1870,9 +1870,11 @@ def get_hlttrgl1seedmap(engine,hltpath,schemaname=''):
     hltpathl1seed = hltpathl1seed[ hltpathl1seed['l1seed']!=('',None) ]
     return hltpathl1seed
 
-def get_effectivescalers(engine,suffix,runnum,lsnum,hltpathid,l1seedexpr,ignorel1mask=False,schemaname=''):
+def get_effectivescalers(engine,suffix,runnum,lsnum,pathinfo,ignorel1mask=False,schemaname=''):
     '''
     get 
+    input: 
+    pathinfo: pd.DataFrame(columns=['hltconfigid','hltpathid','hltpathname','l1seed'])
     output: 
     pd.DataFrame(columns=['hltpathid','l1bitname','prescidx','trgprescval','hltprescval'])
     '''
@@ -1883,12 +1885,20 @@ def get_effectivescalers(engine,suffix,runnum,lsnum,hltpathid,l1seedexpr,ignorel
         trgscalertable = '.'.join([schemaname,trgscalertable])
         hltscalertable = '.'.join([schemaname,hltscalertable])
         trgrunconftable = '.'.join([schemaname,trgrunconftable])
-    q = '''select l.prescidx, l.prescval, h.prescval from %(trgscalerT)s l, %(trgrunconfT) r, %(hltscalerT)s h where l.runnum=r.runnum and l.bitid=r.bitid and r.bitname=:l1bitname and h.datatagid=l.datatagid and h.prescidx=l.prescidx and h.hltpathid=:hltpathid and l.runnum=:runnum and l.lsnum=:lsnum'''%{'trgscalerT':trgscalertable,'hltscalerT':hltscalertable,'trgrunconfT':trgrunconftable}
-    if not ignorel1mask:
-        q = q+' and r.bitmask!=1'
+    q = '''select l.prescidx as prescidx, l.prescval as l1prescval, h.prescval as hltprescval from %(trgscalerT)s l, %(trgrunconfT)s r, %(hltscalerT)s h where l.runnum=r.runnum and l.bitid=r.bitid and r.bitname=:l1bitname and h.datatagid=l.datatagid and h.prescidx=l.prescidx and h.hltpathid=:hltpathid and l.runnum=:runnum and l.lsnum=:lsnum'''%{'trgscalerT':trgscalertable,'hltscalerT':hltscalertable,'trgrunconfT':trgrunconftable}
+    if not ignorel1mask: q = q+' and r.mask!=1'
     connection = engine.connect()
-    resultProxy = connection.execute(q,{'runnum':runnum,'lsnum':lsnum})    
-    print list(resultProxy)
+    for idx, p in pathinfo.iterrows():
+        hltconfigid = p['hltconfigid']
+        hltpathid = p['hltpathid']
+        l1seed = p['l1seed']
+        seedtype = l1seed[0]
+        seedbits = l1seed[1]
+        #print seedtype,seedbits
+        for l1bitname in seedbits:
+            resultProxy = connection.execute(q,{'runnum':runnum,'lsnum':lsnum,'hltpathid':hltpathid,'l1bitname':l1bitname})    
+            for row in resultProxy:
+                print 'prescinfo ',int(row['prescidx']),int(row['l1prescval']),int(row['hltprescval'])
     
 def parseL1Seed(l1seed):
     '''
