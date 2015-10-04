@@ -1847,7 +1847,7 @@ def get_hlttrgl1seedmap(engine,hltpath,schemaname=''):
         hltpath : hltpath name or pattern
 
     output:
-       hlttrgl1seedmap : pd.DataFrame(columns=['hltconfigid','hltpathid','hltpathname','l1seed'])
+       hlttrgl1seedmap : pd.DataFrame(columns=['hltconfigid','hltpathid','hltpathname','seedtype','seedvalue'])
     '''
     tablename = name = 'hltpathl1seedmap'
     if schemaname:
@@ -1859,47 +1859,73 @@ def get_hlttrgl1seedmap(engine,hltpath,schemaname=''):
         hltpath_sqlexpr = hltpath_sqlexpr.replace('*','.*')
         hltpath_sqlexpr = hltpath_sqlexpr.replace('?','.?')
         hltpath_sqlexpr = hltpath_sqlexpr.replace('!','^')
-        q = q+'''where regexp_like(hltpathname,'%s')'''%(hltpath_sqlexpr)
+        q = q+"where regexp_like(hltpathname,'%s')"%(hltpath_sqlexpr)
     else:
-        q = q+'''where hltpathname=%s'''%(hltpath_sqlexpr)
+        q = q+"where hltpathname='%s'"%(hltpath_sqlexpr)
 
     connection = engine.connect()
     resultProxy = connection.execute(q)
     hltpathl1seed = pd.DataFrame(list(resultProxy),columns=['hltconfigid','hltpathid','hltpathname','l1seed'])
     hltpathl1seed['l1seed'] = hltpathl1seed['l1seed'].apply(parseL1Seed)
-    hltpathl1seed = hltpathl1seed[ hltpathl1seed['l1seed']!=('',None) ]
-    return hltpathl1seed
+    hltpathl1seed = hltpathl1seed[ hltpathl1seed['l1seed']!=None ]
+    tmp_df = hltpathl1seed['l1seed'].apply( lambda x: pd.Series( [x[0],x[1:]] ) )
+    tmp_df.rename(columns={0:'seedtype',1:'seedvalue'},inplace=True)
+    result = hltpathl1seed.join(tmp_df)
+    del hltpathl1seed
+    del tmp_df
+    return result
 
-def get_effectivescalers(engine,suffix,runnum,lsnum,pathinfo,ignorel1mask=False,schemaname=''):
+def get_ls_trglastscaled(engine,runnum,lsnum,schemaname=''):
+    '''
+    '''    
+    prescidxchangetable = 'prescidxchange'
+    result = 0
+    if schemaname:
+        prescidxchangetable = '.'.join([schemaname,prescidxchangetable])   
+    q = """select max(lsnum) as lslastscaler from %s where runnum=:runnum and lsnum<=:lsnum"""%prescidxchangetable
+    connection = engine.connect()
+    result = connection.execute(q,{'runnum':runnum,'lsnum':lsnum}).fetchone()[0]
+    return result
+
+def get_trgprescale(engine,runnum,lsnum,pathids,l1candidates=[],ignorel1mask=False,schemaname=''):
     '''
     get 
     input: 
-    pathinfo: pd.DataFrame(columns=['hltconfigid','hltpathid','hltpathname','l1seed'])
+    
     output: 
-    pd.DataFrame(columns=['hltpathid','l1bitname','prescidx','trgprescval','hltprescval'])
+    pd.DataFrame(columns=['prescidx','hltpathid','hltprescval','bitname','trgprescval'])
     '''
-    trgscalertable = 'trgscaler_'+str(suffix)
-    hltscalertable = 'hltscaler_'+str(suffix)
+    prescidxchangetable = 'prescidxchange'
+    trgscalertable = 'trgscaler'
+    hltscalertable = 'hltscaler'
     trgrunconftable = 'trgrunconfig'
     if schemaname:
-        trgscalertable = '.'.join([schemaname,trgscalertable])
-        hltscalertable = '.'.join([schemaname,hltscalertable])
-        trgrunconftable = '.'.join([schemaname,trgrunconftable])
-    q = '''select l.prescidx as prescidx, l.prescval as l1prescval, h.prescval as hltprescval from %(trgscalerT)s l, %(trgrunconfT)s r, %(hltscalerT)s h where l.runnum=r.runnum and l.bitid=r.bitid and r.bitname=:l1bitname and h.datatagid=l.datatagid and h.prescidx=l.prescidx and h.hltpathid=:hltpathid and l.runnum=:runnum and l.lsnum=:lsnum'''%{'trgscalerT':trgscalertable,'hltscalerT':hltscalertable,'trgrunconfT':trgrunconftable}
-    if not ignorel1mask: q = q+' and r.mask!=1'
+        prescidxchangetable = '.'.join([schemaname,prescidxchangetable])   #'p'
+        trgscalertable = '.'.join([schemaname,trgscalertable])   #'l'
+        hltscalertable = '.'.join([schemaname,hltscalertable])   #'h'       
+        trgrunconftable = '.'.join([schemaname,trgrunconftable]) #'r'
+    q = '''select p.prescidx as prescidx, h.hltpathid as hltpathid, h.hltprescval as hltprescval, r.bitname as bitname, l.trgprescval as trgprescval from %(prescidxchangeT)s p, %(trgscalerT)s l, %(trgrunconfT)s r, %(hltscalerT)s h where p.runnum=l.runnum and p.runnum=h.runnum and p.runnum=r.runnum and p.lsnum=l.lsnum and p.lsnum=h.lsnum and p.prescidx=l.prescidx and p.prescidx=h.prescidx and l.bitid=r.bitid and p.runnum=:runnum and p.lsnum=:lsnum'''%{'prescidxchangeT':prescidxchangetable,'trgscalerT':trgscalertable,'hltscalerT':hltscalertable,'trgrunconfT':trgrunconftable}   
+    if not ignorel1mask: q = q+' and r.mask!=1 '
+    binddict = {'runnum':runnum,'lsnum':lsnum}
+    if len(pathids)>1:
+        hstr = ','.join( [str(h) for h in pathids] )
+        hltpathStr = ' and hltpathid in (%s)'%hstr
+    else:
+        hltpathStr = ' and hltpathid=:hltpathid'
+        binddict['hltpathid'] = pathids[0]
+    q = q+hltpathStr
+    qbitsStr = ','.join(["\'%s\'"%t for t in l1candidates])
+    if qbitsStr:
+        q = q+' and r.bitname in (%s)'%qbitsStr
     connection = engine.connect()
-    for idx, p in pathinfo.iterrows():
-        hltconfigid = p['hltconfigid']
-        hltpathid = p['hltpathid']
-        l1seed = p['l1seed']
-        seedtype = l1seed[0]
-        seedbits = l1seed[1]
-        #print seedtype,seedbits
-        for l1bitname in seedbits:
-            resultProxy = connection.execute(q,{'runnum':runnum,'lsnum':lsnum,'hltpathid':hltpathid,'l1bitname':l1bitname})    
-            for row in resultProxy:
-                print 'prescinfo ',int(row['prescidx']),int(row['l1prescval']),int(row['hltprescval'])
-    
+    resultProxy = connection.execute(q,binddict)
+    result = None
+    #r = list(resultProxy)
+    if resultProxy:
+        result = pd.DataFrame( list(resultProxy), columns=['prescidx','hltpathid','hltprescval','bitname','trgprescval'] )
+    #print resultProxy.rowcount
+    return result
+
 def parseL1Seed(l1seed):
     '''
     output: 
@@ -1913,7 +1939,7 @@ def parseL1Seed(l1seed):
     orsep=re.compile('\sOR\s',re.IGNORECASE)
     for r in result:
         if notsep.match(r) : #we don't know what to do with NOT
-            return ('',None)
+            return None
         if orsep.match(r):
             exptype='OR'
             continue
@@ -1922,7 +1948,7 @@ def parseL1Seed(l1seed):
             continue
         #cleanresult.append(string.strip(r).replace('\"',''))
         cleanresult.append(string.strip(r))
-    return (exptype,cleanresult)
+    return [exptype]+cleanresult
     
 def findUniqueSeed(hltPathname,l1seed):
     '''

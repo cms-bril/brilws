@@ -41,8 +41,11 @@ class Unbuffered(object):
 sys.stdout = Unbuffered(sys.stdout)
 
 def lumi_per_normtag(shards,lumiquerytype,dbengine,dbschema,runtot,datasource=None,normtag=None,withBX=False,byls=None,fh=None,csvwriter=None,ptable=None,scalefactor=1,totz=utctmzone,fillmin=None,fillmax=None,runmin=None,runmax=None,amodetagid=None,egev=None,beamstatusid=None,tssecmin=None,tssecmax=None,runlsSeries=None,hltl1seedmap=None):
-    if hltl1seedmap is not None:
-        hltpathids = hltl1seedmap['hltpathid'].unique()
+    if hltl1seedmap is not None: #hltconfigid,hltpathid,hltpathname,l1seed
+        pathids = hltl1seedmap['hltpathid'].unique()
+        #print pathids
+        #print 'lumi_per_normtag ',hltl1seedmap['l1seed'].values
+        
     validitychecker = None
     lastvalidity = None
     if normtag and normtag is not 'withoutcorrection':
@@ -78,7 +81,8 @@ def lumi_per_normtag(shards,lumiquerytype,dbengine,dbschema,runtot,datasource=No
             if withBX: rfields = rfields+['bxlumiblob']
             lumiiter = api.det_rawDataIter(dbengine,datasource,shard,datafields=rfields,idfields=idfields,schemaname=dbschema,fillmin=fillmin,fillmax=fillmax,runmin=runmin,runmax=runmax,amodetagid=amodetagid,targetegev=egev,beamstatusid=beamstatusid,tssecmin=tssecmin,tssecmax=tssecmax,runlsselect=runlsSeries,sorted=True)
                   
-        if not lumiiter: continue                      
+        if not lumiiter: continue
+        ls_trglastscaled_old = 0
         for row in lumiiter:            
             fillnum = row['fillnum']
             runnum = row['runnum']
@@ -88,15 +92,26 @@ def lumi_per_normtag(shards,lumiquerytype,dbengine,dbschema,runtot,datasource=No
             cmson = row['cmson']
             if not cmson: cmslsnum = 0
             
-            if cmslsnum!=0:                
-                print runnum,cmslsnum
-                #for hltpathid in hltpathids:
-                pathinfo = hltl1seedmap[ hltl1seedmap['hltpathid']==hltpathids ]
-                #for idx,p in pathinfo.iterrows():
-                #    print idx,p[0],p[1],p[2],p[3]
-                r = api.get_effectivescalers(dbengine,shard,runnum,cmslsnum,pathinfo,ignorel1mask=False,schemaname=dbschema)
-                #hltpathid = 
-                #api.get_effectivescalers(dbengine,shard,runnum,lsnum,hltpathid,l1seedexpr,ignorel1mask=False,schemaname=dbschema):
+            if cmslsnum!=0:
+                ls_trglastscaled = api.get_ls_trglastscaled(dbengine,runnum,cmslsnum,schemaname=dbschema)                
+                if ls_trglastscaled_old!=ls_trglastscaled:
+#                    foo = lambda x: pd.Series( [x[0],x[1:]] )
+                    #s = hltl1seedmap['l1seed'].apply( lambda x: pd.Series( [x[0],x[1:]] ) )
+                    #s.rename(columns={0:'seedtype',1:'seedvalue'},inplace=True)
+                    #l = hltl1seedmap.join(s)
+                    #del l['l1seed']
+                    l1bits = np.unique(np.hstack( hltl1seedmap['seedvalue'].values))
+                    print 'l1bits ',l1bits
+                    tmp_df = api.get_trgprescale(dbengine,runnum,ls_trglastscaled,pathids,l1candidates=l1bits,ignorel1mask=False,schemaname=dbschema)
+                    print tmp_df
+                    if tmp_df is not None:
+                        tmp_df['totpresc'] = tmp_df['hltprescval']*tmp_df['trgprescval']
+                        presc_df = tmp_df.merge(hltl1seedmap,on='hltpathid',how='inner')
+                        print 'presc_df ',presc_df
+                    else:
+                        print 'no l1path found'
+                    ls_trglastscaled_old = ls_trglastscaled
+                    
             beamstatusid = row['beamstatusid']
             beamstatus = params._idtobeamstatus[beamstatusid]
             if beamstatus not in ['FLAT TOP','STABLE BEAMS','SQUEEZE','ADJUST']: continue
