@@ -1,41 +1,32 @@
-"""Usage: brilcalc.py trg [options] 
+"""Usage: brilcalc trg [options] 
 
-Options:
-  -h, --help                   Show this screen
-  -c CONNECT                   Connect string to DB [default: frontier://LumiCalc/CMS_LUMI_PROD]
-  -p AUTHPATH                  Path to authentication.xml 
-  -f FILL                      Fill number
+options:
+  -h,  --help                  Show this screen.
+  -c CONNECT                   DB Service name [default: offline]
+  -p AUTHPATH                  Authentication file
   -r RUN                       Run number
-  -i INPUTFILE                 Input selection file
-  -o OUTPUTFILE                Output file
-  -b BEAMSTATUS                Beam mode. FLAT TOP,SQUEEZE,ADJUST,STABLE BEAMS
-  --siteconfpath SITECONFPATH  Path to SITECONF/local/JobConfig/site-local-config.xml [default: $CMS_PATH] 
-  --amodetag AMODETAG          Accelerator mode 
-  --beamenergy BEAMENERGY      Target single beam energy in GeV
-  --datatag DATATAG            Data tag name
-  --begin BEGIN                Min start time/fill/run
-  --end END                    Max start time/fill/run
+  -o OUTPUTFILE                Output csv file. Special file '-' for stdout.
+  --name NAME                  hltconfig id, key/pattern or hltpath name/pattern
+  --hltconfig                  Show HLT configurations
+  --prescale                   Show trigger prescale
+  --ignore-mask                Ignore trigger bit masks
   --output-style OSTYLE        Screen output style. tab, html, csv [default: tab]
-  --chunk-size CHUNKSIZE       Main data chunk size [default: 100]
-  --name BITNAME               L1bit name/pattern. To use with --bybit
-  --bitinfo                    Show per bit info
-  --without-mask               Not considering trigger mask [default: False]
-  --nowarning                  Suppress warning messages
-  --debug                      Debug
-
+ 
 """
+
+import os
 from docopt import docopt
 from schema import Schema
-from brilws import clicommonargs
+from brilws.cli import clicommonargs
 
 def validate(optdict):
     result={}
     argdict = clicommonargs.argvalidators
     #extract sub argdict here
-    myvalidables = ['-c','-f','-r','-i','-o','--amodetag','-b','--beamenergy','--datatag','--begin','--end','--output-style','--name','--chunk-size','--siteconfpath',str]
+    myvalidables = ['-c','-r','--name',str]
     argdict = dict((k,v) for k,v in clicommonargs.argvalidators.iteritems() if k in myvalidables)
     schema = Schema(argdict)
-    result=schema.validate(optdict)
+    result = schema.validate(optdict)
     return result
 
 if __name__ == '__main__':

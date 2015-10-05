@@ -517,183 +517,72 @@ def brilcalc_main(progname=sys.argv[0]):
               del ptable
           if fh and fh is not sys.stdout: fh.close()    
           sys.exit(0)    
-      elif args['<command>'] == 'trg':
-          raise NotImplementedError           
-      """
-      import brilcalc_trg
-      parseresult = docopt.docopt(brilcalc_trg.__doc__,argv=cmmdargv)
+      elif args['<command>'] == 'trg':      
+          import brilcalc_trg
+          parseresult = docopt.docopt(brilcalc_trg.__doc__,argv=cmmdargv)
           parseresult = brilcalc_trg.validate(parseresult)
-          
           ##parse selection params
-          trgargs = clicommonargs.parser(parseresult)
+          pargs = clicommonargs.parser(parseresult)
 
           ##db params
-          dbengine = create_engine(trgargs.dbconnect)
-          authpath = trgargs.authpath
-
-          ##display params
-          csize = trgargs.chunksize
-          bybit = trgargs.bybit
-          totable = trgargs.totable
+          dbschema = ''
+          if not pargs.dbconnect.find('oracle')!=-1: dbschema = 'cms_lumi_prod'
+          dbengine = create_engine(pargs.connecturl)
+                  
+          ##display params          
           fh = None
           ptable = None
           csvwriter = None
-          shards = [1,2]
-          header = ['fill','run','ls','time','deadfrac']          
-          if bybit:
-              header = ['fill','run','ls','id','name','pidx','pval','counts']
-          if not totable:
-              fh = trgargs.ofilehandle
-              print >> fh, '#'+','.join(header)
-              csvwriter = csv.writer(fh)
-          else:
-              ptable = display.create_table(header,header=True)
-          datatagname = trgargs.datatagname
-          datatagnameid = 0
-          if not datatagname:
-              r = api.max_datatagname(dbengine)
-              if not r:
-                  raise 'no tag found'
-              datatagname = r[0]
-              datatagnameid = r[1]
-          else:
-              datatagnameid = api.datatagnameid(dbengine,datatagname=datatagname)
-          print 'data tag : ',datatagname
+          header = ['hltconfigid','hltkey']
+          is_hltconfig = parseresult['--hltconfig']
+          is_prescale = parseresult['--prescale']
+          name = pargs.name          
           
-          it = api.datatagIter(dbengine,datatagnameid,fillmin=trgargs.fillmin,fillmax=trgargs.fillmax,runmin=trgargs.runmin,runmax=trgargs.runmax,amodetag=trgargs.amodetag,targetegev=trgargs.egev,beamstatus=trgargs.beamstatus,tssecmin=trgargs.tssecmin,tssecmax=trgargs.tssecmax,runlsselect=trgargs.runlsSeries ,chunksize=csize,fields=['fillnum','runnum','lsnum','timestampsec'])
-          if not it: exit(1)
-          for idchunk in it:
-              dataids = idchunk.index
-              for shardid in shards:
-                  if not bybit:
-                      for deadtimechunk in api.deadtimeIter(dbengine,dataids,str(shardid),chunksize=csize):
-                          finalchunk = idchunk.join(deadtimechunk,how='inner',on=None,lsuffix='l',rsuffix='r',sort=False) 
-                          for datatagid,row in finalchunk.iterrows():
-                              timestampsec = row['timestampsec']
-                              dtime = datetime.fromtimestamp(int(timestampsec)).strftime(params._datetimefm)                   
-                              display.add_row( ['%d'%row['fillnum'],'%d'%row['runnum'],'%d'%row['lsnum'],dtime,'%.4f'%(row['deadtimefrac']) ] , fh=fh, csvwriter=csvwriter, ptable=ptable )
-                          del finalchunk
-                          del deadtimechunk
-                  else:
-                      for trginfochunk in api.trgInfoIter(dbengine,dataids,str(shardid),schemaname='',bitnamepattern=trgargs.name,chunksize=csize*192):
-                          finalchunk = idchunk.join(trginfochunk,how='inner',on=None,lsuffix='l',rsuffix='r',sort=False)
-                          for datatagid,row in finalchunk.iterrows():
-                              display.add_row( [ '%d'%row['fillnum'],'%d'%row['runnum'],'%d'%row['lsnum'],'%d'%row['bitid'],row['bitname'],'%d'%row['prescidx'],'%d'%row['presc'],'%d'%row['counts'] ], fh=fh, csvwriter=csvwriter, ptable=ptable )
-                          del finalchunk
-                          del trginfochunk
-                      ptable.max_width['bitname']=20
-                      ptable.align='l'
-              del idchunk
-              
-          if ptable:
-              display.show_table(ptable,trgargs.outputstyle)
-              del ptable     
-          if fh and fh is not sys.stdout: fh.close()
-      """     
-      #elif args['<command>'] == 'hlt':
-      #    raise NotImplementedError
-      """
-          import brilcalc_hlt
-          parseresult = docopt.docopt(brilcalc_hlt.__doc__,argv=cmmdargv)
-          parseresult = brilcalc_hlt.validate(parseresult)
-          ##parse selection params
-          hltargs = clicommonargs.parser(parseresult)
-
-          ##db params
-          dbengine = create_engine(hltargs.dbconnect)
-          authpath = hltargs.authpath
-
-          ##display params
-          csize = hltargs.chunksize
-          bybit = hltargs.bybit
-          totable = hltargs.totable
-          fh = None
-          ptable = None
-          csvwriter = None
-
-          header = ['fill','run','hltkey','hltpath','l1seed']
-          if  hltargs.pathinfo:
-              header = ['fill','run','ls','hltpath','pidx','pval','l1pass','accept']
-          shards = [1,2]
-          if not totable:
-              fh = hltargs.ofilehandle
-              print >> fh, '#'+','.join(header)
-              csvwriter = csv.writer(fh)
-          else:
-              ptable = display.create_table(header,header=True)
-          datatagname = hltargs.datatagname
-          datatagnameid = 0
-          if not datatagname:
-              r = api.max_datatagname(dbengine)
-              if not r:
-                  raise 'no tag found'
-              datatagname = r[0]
-              datatagnameid = r[1]
-          else:
-              datatagnameid = api.datatagnameid(dbengine,datatagname=datatagname)
-          print 'data tag : ',datatagname
+          if is_hltconfig:
+              header = ['run','cmsls','prescidx']
+              hltconfig_df = api.get_hltconfig_trglastscaled(dbengine,hltconfigidorname=pargs.name,runnum=pargs.runmin,schemaname=dbschema)
+              hltkey = hltconfig_df['hltkey'].unique()[0]
+              hltconfigid = hltconfig_df['hltconfigid'].unique()[0]
+              del hltconfig_df['hltkey']
+              del hltconfig_df['hltconfigid']
           
-          it = None
-          if hltargs.pathinfo:
-              it = api.datatagIter(dbengine,datatagnameid,fillmin=hltargs.fillmin,fillmax=hltargs.fillmax,runmin=hltargs.runmin,runmax=hltargs.runmax,amodetag=hltargs.amodetag,targetegev=hltargs.egev,beamstatus=hltargs.beamstatus,tssecmin=hltargs.tssecmin,tssecmax=hltargs.tssecmax,runlsselect=hltargs.runlsSeries,chunksize=csize,fields=['fillnum','runnum','lsnum','timestampsec'])
-          else:
-              it = api.rundatatagIter(dbengine,datatagnameid,fillmin=hltargs.fillmin,fillmax=hltargs.fillmax,runmin=hltargs.runmin,runmax=hltargs.runmax,amodetag=hltargs.amodetag,targetegev=hltargs.egev,tssecmin=hltargs.tssecmin,tssecmax=hltargs.tssecmax,runlsselect=hltargs.runlsSeries ,chunksize=csize)
-          if not it: exit(1)
-          
-          for idchunk in it:
-              if hltargs.pathinfo:
-                  dataids = idchunk.index
-                  for shardid in shards:
-                      for hltchunk in api.hltInfoIter(dbengine,dataids,str(shardid),schemaname='',hltpathnamepattern=hltargs.name,chunksize=csize):
-                          finalchunk = idchunk.join(hltchunk,how='inner',on=None,lsuffix='l',rsuffix='r',sort=False)
-                          for datatagid, row in finalchunk.iterrows():
-                              display.add_row( [row['fillnum'],row['runnum'],row['lsnum'],row['hltpathname'],row['prescidx'],row['prescval'],row['l1pass'],row['hltaccept'] ],fh=fh, csvwriter=csvwriter, ptable=ptable )                      
-                          del finalchunk
-                          del hltchunk
-                  if ptable:
-                      ptable.max_width = 80
-                      ptable.max_width['hltpath']=40
-                      ptable.align='l'
-
+              if not pargs.totable:
+                  fh = pargs.ofilehandle
+                  print >> fh, '# hltkey:%s , hltconfigid:%d'%(hltkey, hltconfigid)
+                  print >> fh, '# '+','.join(header)
+                  csvwriter = csv.writer(fh)
               else:
-                  rundataids = idchunk.index              
-                  for runchunk in api.runinfoIter(dbengine,rundataids,chunksize=csize,fields=['hltconfigid','hltkey']):
-                      finalchunk = idchunk.join(runchunk,how='inner',on=None,lsuffix='l',rsuffix='r',sort=False)
-                      for rundatatagid,row in finalchunk.iterrows():
-                          fill = row['fillnum']
-                          run = row['runnum']
-                          hltkey = row['hltkey']
-                          hltconfigid = row['hltconfigid']
-                          for hltpathchunk in api.hltl1seedinfoIter(dbengine,hltconfigid,hltpathnameorpattern=hltargs.name):
-                              for idx,hltpathinfo in hltpathchunk.iterrows():                              
-                                  hltpathname = hltpathinfo['hltpath']                              
-                                  l1seedexp = hltpathinfo['l1seed']
-                                  l1bits = api.findUniqueSeed(hltpathname,l1seedexp)
-                                  if l1bits is not None:
-                                      l1logic = str(l1bits[1])
-                                      if not l1bits[0]:
-                                          l1logic = l1bits[1][0]
-                                      else:
-                                          l1logic = l1bits[0]+' '+' '.join(l1bits[1])
-                                      display.add_row( [fill,run,hltkey,hltpathname,l1logic], fh=fh, csvwriter=csvwriter, ptable=ptable )
-                              del hltpathchunk
-                      del finalchunk
-                      if ptable:                          
-                          ptable.max_width['hltkey']=20
-                          ptable.max_width['hltpath']=60
-                          ptable.max_width['l1seed']=20
-                          ptable.align='l'
-
-          if ptable:
-              display.show_table(ptable,hltargs.outputstyle)
-              del ptable                 
+                  print '# hltkey:%s , hltconfigid:%d'%(hltkey, hltconfigid)
+                  ptable = display.create_table(header,header=True,maxwidth=200)
+              if hltconfig_df is not None:
+                  for v in hltconfig_df.values:
+                      display.add_row( ['%d'%v[0], '%d'%v[1], '%d'%v[2]], fh=fh, csvwriter=csvwriter, ptable=ptable )
+                  del hltconfig_df    
+                  if ptable:
+                      display.show_table(ptable,pargs.outputstyle)         
+                      del ptable
+          elif is_prescale:
+              header = ['run','cmsls','hltpath/prescval','l1seedtype','l1seeds/prescval']
+              print pargs.hltpath
+              
+          else:
+              overview_df = api.get_distinct_hltconfigs(dbengine,hltkeypattern=pargs.name,schemaname=dbschema)
+              if not pargs.totable:
+                  fh = pargs.ofilehandle
+                  print >> fh, '# '+','.join(header)
+                  csvwriter = csv.writer(fh)
+              else:
+                  ptable = display.create_table(header,header=True,maxwidth=80)
+              for v in overview_df.values:
+                  display.add_row( [ '%d'%v[0], '%s'%v[1] ], fh=fh, csvwriter=csvwriter, ptable=ptable )      
+              del overview_df
+              if ptable:
+                  display.show_table(ptable,pargs.outputstyle)         
+                  del ptable
+                  
           if fh and fh is not sys.stdout: fh.close()
+          sys.exit(0)
           
-      elif args['<command>'] == 'bkg':
-          raise NotImplementedError
-      else:
-          exit("%r is not a brilcalc command. See 'brilcalc --help'."%args['<command>'])
-          """
     except docopt.DocoptExit:
       raise docopt.DocoptExit('Error: incorrect input format for '+args['<command>'])            
     except schema.SchemaError as e:

@@ -44,7 +44,7 @@ class parser(object):
         self._bybit = False
         self._pathinfo = False
         self._chunksize = None
-        self._lumitype = None
+        self._lumitype = None        
         self._hltpath = None
         self._ofilename = '-'
         self._fh = None
@@ -97,7 +97,7 @@ class parser(object):
         if self._argdict.has_key('--type'):
             self._lumitype = self._argdict['--type']
         if self._argdict.has_key('--hltpath'):
-            self._hltpath = self._argdict['--hltpath']
+            self._hltpath = self._argdict['--hltpath']        
         if self._argdict.has_key('--applyto'):
             self._applyto = self._argdict['--applyto']
         if self._argdict.has_key('-y'):
@@ -244,7 +244,7 @@ class parser(object):
         return self._lumitype
     @property
     def hltpath(self):
-        return self._hltpath
+        return self._hltpath    
     @property
     def applyto(self):
         return self._applyto
