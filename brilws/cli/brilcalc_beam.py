@@ -9,7 +9,7 @@ options:
   -r RUN                       Run number
   -i INPUTFILE                 Input selection file
   -o OUTPUTFILE                Output csv file. Special file '-' for stdout.
-  -b BEAMSTATUS                 Beam mode. FLAT TOP,SQUEEZE,ADJUST,STABLE BEAMS
+  -b BEAMSTATUS                Beam mode. FLAT TOP,SQUEEZE,ADJUST,STABLE BEAMS
   --amodetag AMODETAG          Accelerator mode 
   --beamenergy BEAMENERGY      Target single beam energy in GeV  
   --datatag DATATAG            Data tag name
