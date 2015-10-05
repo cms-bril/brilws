@@ -1874,6 +1874,7 @@ def get_hlttrgl1seedmap(engine,hltpath,schemaname=''):
     hltpathl1seed = hltpathl1seed[ hltpathl1seed['l1seed']!=None ]
     tmp_df = hltpathl1seed['l1seed'].apply( lambda x: pd.Series( [x[0],x[1:]] ) )
     tmp_df.rename(columns={0:'seedtype',1:'seedvalue'},inplace=True)
+    del hltpathl1seed['l1seed']
     result = hltpathl1seed.join(tmp_df)
     del hltpathl1seed
     del tmp_df
@@ -1928,20 +1929,6 @@ def get_hltconfig_trglastscaled(engine,hltconfigidorname=None,runnum=None,schema
         result = pd.DataFrame(list(resultProxy), columns=['hltconfigid','hltkey','runnum','lslastscaler','prescidx'])    
     return result
 
-def get_run_trglastscaled(engine,runnum,schemaname=''):
-    '''
-    '''
-    prescidxchangetable =  'prescidxchange'
-    if schemaname:
-        prescidxchangetable = '.'.join([schemaname,prescidxchangetable])   
-    q = """select lsnum as lslastscaler from %s where runnum=:runnum"""%prescidxchangetable
-    connection = engine.connect()
-    resultProxy = connection.execute(q,{'runnum':runnum})
-    result = None
-    if resultProxy:
-        result = pd.DataFrame(list(resultProxy), columns=['lslastscaler'])    
-    return result
-
 def get_ls_trglastscaled(engine,runnum,lsnum,schemaname=''):
     '''
     '''    
@@ -1960,7 +1947,7 @@ def get_trgprescale(engine,runnum,lsnum,pathids,l1candidates=[],ignorel1mask=Fal
     input: 
     
     output: 
-    pd.DataFrame(columns=['prescidx','hltpathid','hltprescval','bitname','trgprescval'])
+    pd.DataFrame(columns=['prescidx','hltpathid','hltprescval','bitname','trgprescval','bitmask'])
     '''
     prescidxchangetable = 'prescidxchange'
     trgscalertable = 'trgscaler'
@@ -1971,7 +1958,8 @@ def get_trgprescale(engine,runnum,lsnum,pathids,l1candidates=[],ignorel1mask=Fal
         trgscalertable = '.'.join([schemaname,trgscalertable])   #'l'
         hltscalertable = '.'.join([schemaname,hltscalertable])   #'h'       
         trgrunconftable = '.'.join([schemaname,trgrunconftable]) #'r'
-    q = '''select p.prescidx as prescidx, h.hltpathid as hltpathid, h.hltprescval as hltprescval, r.bitname as bitname, l.trgprescval as trgprescval from %(prescidxchangeT)s p, %(trgscalerT)s l, %(trgrunconfT)s r, %(hltscalerT)s h where p.runnum=l.runnum and p.runnum=h.runnum and p.runnum=r.runnum and p.lsnum=l.lsnum and p.lsnum=h.lsnum and p.prescidx=l.prescidx and p.prescidx=h.prescidx and l.bitid=r.bitid and p.runnum=:runnum and p.lsnum=:lsnum'''%{'prescidxchangeT':prescidxchangetable,'trgscalerT':trgscalertable,'hltscalerT':hltscalertable,'trgrunconfT':trgrunconftable}   
+    q = '''select p.prescidx as prescidx, h.hltpathid as hltpathid, h.hltprescval as hltprescval, r.bitname as bitname, l.trgprescval as trgprescval, r.mask as bitmask from %(prescidxchangeT)s p, %(trgscalerT)s l, %(trgrunconfT)s r, %(hltscalerT)s h where p.runnum=l.runnum and p.runnum=h.runnum and p.runnum=r.runnum and p.lsnum=l.lsnum and p.lsnum=h.lsnum and p.prescidx=l.prescidx and p.prescidx=h.prescidx and l.bitid=r.bitid and p.runnum=:runnum and p.lsnum=:lsnum'''%{'prescidxchangeT':prescidxchangetable,'trgscalerT':trgscalertable,'hltscalerT':hltscalertable,'trgrunconfT':trgrunconftable}
+
     if not ignorel1mask: q = q+' and r.mask!=1 '
     binddict = {'runnum':runnum,'lsnum':lsnum}
     if len(pathids)>1:
@@ -1981,16 +1969,22 @@ def get_trgprescale(engine,runnum,lsnum,pathids,l1candidates=[],ignorel1mask=Fal
         hltpathStr = ' and hltpathid=:hltpathid'
         binddict['hltpathid'] = pathids[0]
     q = q+hltpathStr
-    qbitsStr = ','.join(["\'%s\'"%t for t in l1candidates])
-    if qbitsStr:
-        q = q+' and r.bitname in (%s)'%qbitsStr
+    if l1candidates:
+        if len(l1candidates)>1:
+            qbitsStr = ','.join(["\'%s\'"%t for t in l1candidates])
+            q = q+" and r.bitname in (%s)"%qbitsStr
+        else:
+            q = q+' and r.bitname=:bitname'
+            binddict['bitname']=l1candidates[0]        
     connection = engine.connect()
     resultProxy = connection.execute(q,binddict)
     result = None
-    #r = list(resultProxy)
     if resultProxy:
-        result = pd.DataFrame( list(resultProxy), columns=['prescidx','hltpathid','hltprescval','bitname','trgprescval'] )
-    #print resultProxy.rowcount
+        result = pd.DataFrame( list(resultProxy) )
+        if result.size==0:
+            return None
+        else:
+            result.columns=['prescidx','hltpathid','hltprescval','bitname','trgprescval','bitmask']
     return result
 
 def parseL1Seed(l1seed):

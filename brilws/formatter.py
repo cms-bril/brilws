@@ -4,6 +4,11 @@ def bxlumi(x):
 def bxintensity(x):
     return '%d %.4e %.4e'%(x[0],x[1],x[2])
 
+def bitprescFormatter(x):
+    bitname = x[0]
+    prescval = x[1]
+    return '%s/%d'%(bitname,prescval)
+
 lumiunit_to_scalefactor={    
     '/kb':1.0e-09,
     '1e21/cm2':1.0e-09,

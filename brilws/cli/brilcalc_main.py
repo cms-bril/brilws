@@ -536,7 +536,6 @@ def brilcalc_main(progname=sys.argv[0]):
           header = ['hltconfigid','hltkey']
           is_hltconfig = parseresult['--hltconfig']
           is_prescale = parseresult['--prescale']
-          name = pargs.name          
           
           if is_hltconfig:
               header = ['run','cmsls','prescidx']
@@ -553,7 +552,7 @@ def brilcalc_main(progname=sys.argv[0]):
                   csvwriter = csv.writer(fh)
               else:
                   print '# hltkey:%s , hltconfigid:%d'%(hltkey, hltconfigid)
-                  ptable = display.create_table(header,header=True,maxwidth=200)
+                  ptable = display.create_table(header,header=True,maxwidth=60)
               if hltconfig_df is not None:
                   for v in hltconfig_df.values:
                       display.add_row( ['%d'%v[0], '%d'%v[1], '%d'%v[2]], fh=fh, csvwriter=csvwriter, ptable=ptable )
@@ -562,9 +561,70 @@ def brilcalc_main(progname=sys.argv[0]):
                       display.show_table(ptable,pargs.outputstyle)         
                       del ptable
           elif is_prescale:
-              header = ['run','cmsls','hltpath/prescval','l1seedtype','l1seeds/prescval']
-              print pargs.hltpath
-              
+              header = ['run','cmsls','prescidx','prescval','hltpath/prescval','logic','l1bit/prescval']
+              hltpathpattern = re.compile('^HLT_')
+              hltpath = pargs.name
+              if not pargs.runmin:
+                  print '-r RUN argument is required'
+                  sys.exit(0)
+              if pargs.name is not None:
+                  if not hltpathpattern.match(pargs.name):
+                      print 'wrong hltpath format'
+                      sys.exit(0)
+              else:
+                  hltpath='HLT_*'                  
+              hltpathl1seedmap_df = api.get_hlttrgl1seedmap(dbengine,hltpath,schemaname=dbschema)
+              #print hltpathl1seedmap_df
+              hltconfig_df = api.get_hltconfig_trglastscaled(dbengine,hltconfigidorname=None,runnum=pargs.runmin,schemaname=dbschema)
+              del hltconfig_df['hltkey']
+              #print hltconfig_df 
+              tmp_df = hltconfig_df.merge(hltpathl1seedmap_df, on='hltconfigid', how='inner')
+              #print 'tmp_df ',tmp_df
+              del hltpathl1seedmap_df
+              del hltconfig_df              
+              lslist = tmp_df['lslastscaler'].unique()
+              if not pargs.totable:
+                  fh = pargs.ofilehandle
+                  print >> fh, '# '+','.join(header)
+                  csvwriter = csv.writer(fh)
+              else:
+                  ptable = display.create_table(header,header=True,maxwidth=60)
+              for lsnum in lslist:
+                  p = tmp_df[ (tmp_df['lslastscaler']==lsnum)&(tmp_df['runnum']==pargs.runmin) ]        
+                  pathinfo = np.unique( p[['hltconfigid','hltpathid']].values.ravel() )
+                  hltconfigid = pathinfo[0]
+                  hltpathids = pathinfo[1:]
+                  #print 'hltconfigid ',hltconfigid
+                  #print 'hltpathids ',hltpathids
+                  for hltpathid in hltpathids:
+                      l1candidates = np.hstack( p[ p['hltpathid']==hltpathid ]['seedvalue'].values )                      
+                      r = api.get_trgprescale(dbengine,pargs.runmin,lsnum,[hltpathid],l1candidates=list(l1candidates),ignorel1mask=parseresult['--ignore-mask'],schemaname=dbschema)
+                      if r is not None:
+                          thisdf = p[ (p['hltpathid']==hltpathid)&(p['hltconfigid']==hltconfigid) ]
+                          hltpathname = thisdf['hltpathname'].values[0]
+                          prescidx = thisdf['prescidx'].values[0]
+                          l1bits = np.dstack([r['bitname'].values,r['trgprescval'].values])[0]
+                          l1inner = map(formatter.bitprescFormatter,l1bits)
+                          l1bitsStr = ','.join(l1inner)                          
+                          l1seedlogic = thisdf['seedtype'].values[0]
+                          hltprescval = r['hltprescval'].values[0]
+                          hltpathStr = '/'.join([hltpathname,str(hltprescval)])                          
+                          totpresc = 0                        
+                          if np.all(r['trgprescval'].values==1):
+                              totpresc = hltprescval
+                          elif l1seedlogic=='ONE':
+                              totpresc = hltprescval*r['trgprescval'].values[0]
+                          elif l1seedlogic=='OR':
+                              totpresc = hltprescval*np.min(r['trgprescval'].values)
+                          elif l1seedlogic=='AND':
+                              totpresc = hltprescval*np.max(r['trgprescval'].values)
+                          del r
+                          display.add_row( [ '%d'%pargs.runmin, '%d'%lsnum, '%d'%prescidx, '%d'%totpresc,'%s'%hltpathStr, '%s'%l1seedlogic, '%s'%l1bitsStr  ], fh=fh, csvwriter=csvwriter, ptable=ptable )                  
+                  del p
+              del tmp_df
+              if ptable:
+                  display.show_table(ptable,pargs.outputstyle)         
+                  del ptable
           else:
               overview_df = api.get_distinct_hltconfigs(dbengine,hltkeypattern=pargs.name,schemaname=dbschema)
               if not pargs.totable:
