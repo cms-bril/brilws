@@ -1848,11 +1848,11 @@ def translate_fntosql(pattern):
     sqlresult = sqlresult.replace('!','^')    
     return sqlresult
 
-def get_hlttrgl1seedmap(engine,hltpath=None,hltconfigid=0,schemaname=''):
+def get_hlttrgl1seedmap(engine,hltpath=None,hltconfigids=[],schemaname=''):
     '''
     input :
-        hltpath : hltpath name or pattern
-        hltconfigid : hltconfigid
+        hltpath : hltpath name string or pattern
+        hltconfigids : number of list of numbers
     output:
        hlttrgl1seedmap : pd.DataFrame(columns=['hltconfigid','hltpathid','hltpathname','seedtype','seedvalue'])
     '''
@@ -1861,10 +1861,10 @@ def get_hlttrgl1seedmap(engine,hltpath=None,hltconfigid=0,schemaname=''):
         tablename = '.'.join([schemaname,name])
     q = "select hltconfigid, hltpathid, hltpathname, l1seed from %s "%(tablename)
     binddict = {}
-    if hltpath is not None or hltconfigid!=0:
+    if hltpath or hltconfigids:
         q = q+' where '
         qfields = []
-        if hltpath is not None:
+        if hltpath:
             hltpath_sqlexpr = hltpath
             if _is_strpattern(hltpath): # is pattern
                 hltpath_sqlexpr = translate_fntosql(hltpath)
@@ -1872,11 +1872,14 @@ def get_hlttrgl1seedmap(engine,hltpath=None,hltconfigid=0,schemaname=''):
             else:
                 qfields.append("hltpathname=:hltpathname")
                 binddict['hltpathname'] = hltpath_sqlexpr
-        if hltconfigid!=0:
-            qfields.append("hltconfigid=:hltconfigid")
-            binddict['hltconfigid'] = tconfigid
+        if hltconfigids:
+            if isinstance(hltconfigids,int):
+                qfields.append("hltconfigid=:hltconfigid")
+                binddict['hltconfigid'] = hltconfigids
+            elif isinstance(hltconfigids,list):
+                qfields.append("hltconfigid in (%s)")%(','.join([str(i) for i in hltconfigids]))
         q = q+' and '.join(qfields)
-    log.debug(q)
+    log.debug(q+','+str(binddict))
     connection = engine.connect()
     resultProxy = connection.execute(q,binddict)    
     hltpathl1seed = pd.DataFrame( list(resultProxy) )
@@ -1892,39 +1895,18 @@ def get_hlttrgl1seedmap(engine,hltpath=None,hltconfigid=0,schemaname=''):
     result = hltpathl1seed.join(tmp_df)
     del hltpathl1seed
     del tmp_df
-    return result
-
-def get_distinct_hltconfigs(engine,hltkeypattern=None,hltconfigid=0,schemaname=''):
-    hltrunconfigtable = 'hltrunconfig'
-    if schemaname:
-        hltrunconfigtable = '.'.join([schemaname,hltrunconfigtable])
-    q = "select distinct hltconfigid, hltkey from %s"%(hltrunconfigtable)
-    binddict = {}
-    if hltkeypattern or hltconfigid:
-        q = q+" where "
-        qfields = []
-        if hltkeypattern:
-            if not _is_strpattern(hltkeypattern):
-                qfields.append("hltkey=:hltkey")
-                binddict['hltkey'] = hltkeypattern
-            else:
-                sqlpattern = translate_fntosql(hltkeypattern)
-                qfields.append("regexp_like(hltkey, '%s')"%sqlpattern)
-        if hltconfigid!=0:
-            qfields.append("hltconfigid=:hltconfigid")
-            binddict['hltconfigid'] = hltconfigid
-        q = q+" and ".join(qfields)     
-    connection = engine.connect()
-    resultProxy = connection.execute(q,binddict)    
-    result =  pd.DataFrame(list(resultProxy))
     if result.size==0:
         return None
     else:
-        result.columns=['hltconfigid','hltkey'] 
+        result.columns = ['hltconfigid','hltpathid','hltpathname','seedtype','seedvalue']
         return result
     
-def get_hltconfig_trglastscaled(engine,hltconfigidorname=None,runnum=None,schemaname=''):
+def get_hltconfig_trglastscaled(engine,hltconfigids=[],hltkey=None,runnums=[],schemaname=''):
     '''
+    input:
+       hltconfigids : number or list of numbers
+       hltkey: string or string patter
+       runnums: number of list of numbers
     output: pd.DataFrame(columns=['hltconfigid','hltkey','runnum','lslastscaler','prescidx'])
     '''
     prescidxchangetable = 'prescidxchange'
@@ -1934,27 +1916,34 @@ def get_hltconfig_trglastscaled(engine,hltconfigidorname=None,runnum=None,schema
         hltrunconfigtable = '.'.join([schemaname,hltrunconfigtable])
     q = "select r.hltconfigid as hltconfigid, r.hltkey as hltkey, p.runnum as runnum, p.lsnum as lslastscaler, p.prescidx as prescidx from %(prescidxchangeT)s p, %(hltrunconfigT)s r where r.runnum=p.runnum"%{'prescidxchangeT':prescidxchangetable,'hltrunconfigT':hltrunconfigtable}
     binddict = {}
-    if runnum or hltconfigidorname:
-        qfields = []
-        if runnum:
-            qfields.append("r.runnum=:runnum")
-            binddict['runnum'] = runnum
-        if hltconfigidorname:
-            if hltconfigidorname.isdigit():
+    if runnums or hltconfigids or hltkey:
+        qfields = []    
+        if runnums:
+            if isinstance(runnums,int):
+                qfields.append("r.runnum=:runnum")
+                binddict['runnum'] = runnums
+            elif isinstance(runnums,list):
+                qfields.append( "r.runnum in (%s)"%(''.join([str(i) for i in runnums])) )
+                
+        if hltconfigids:
+            if isinstance(hltconfigids,int):
                 qfields.append("r.hltconfigid=:hltconfigid")
-                binddict['hltconfigid'] = hltconfigidorname
+                binddict['hltconfigid'] = hltconfigids
+            elif isinstance(hltconfigids,list):
+                qfields.append( "r.hltconfigid in (%s)"%(''.join([str(i) for i in hltconfigids])) )
+                
+        if hltkey:
+            if not _is_str_pattern(hltkey):
+                qfields.append("r.hltkey=:hltkey")
+                binddict['hltkey'] = hltkey
             else:
-                if not _is_str_pattern( hltconfigidorname):
-                    qfields.append("r.hltkey=:hltconfigid")
-                    binddict['hltconfigid'] = hltconfigidorname
-                else:
-                    sqlpattern = translate_fntosql(hltconfigidorname)
-                    qfields.append("regexp_like(r.hltkey, '%s')"%(sqlpattern))
+                sqlpattern = translate_fntosql(hltkey)
+                qfields.append("regexp_like(r.hltkey, '%s')"%(sqlpattern))
         q = q+" and "+" and ".join(qfields)
-    log.debug(q)
+    log.debug(q+','+str(binddict))
     connection = engine.connect()
     resultProxy = connection.execute(q,binddict)
-    result = pd.DataFrame(list(resultProxy) )
+    result = pd.DataFrame( list(resultProxy) )
     if result.size==0:
         return None
     else:
@@ -1975,18 +1964,19 @@ def get_hltrunconfig(engine,hltconfigid=0,hltkey=None,runnum=None,schemaname='')
         qfields = []
         if hltconfigid:
             qfields.append("hltconfigid=:hltconfigid")
+            binddict['hltconfigid'] = hltconfigid
         if hltkey:
             if _is_strpattern(hltkey): # is pattern
-                qfields.append("regexp_like(hltkey,%s)"%hltkey)
+                qfields.append("regexp_like(hltkey,'%s')"%hltkey)
             else:
                 qfields.append("hltkey=:hltkey")
-                bind['hltkey'] = hltkey
+                binddict['hltkey'] = hltkey
         if runnum:
             qfields.append("runnum=:runnum")
-            bind['runnum'] = runnum
+            binddict['runnum'] = runnum
         q = q+' and '.join(qfields)
-    log.debug(q)
-    connection = engine.connect()
+    log.debug(q + ' , ' + str(binddict) )
+    connection = engine.connect()    
     result = pd.DataFrame( list(connection.execute(q,binddict)) )
     if result.size==0:
         return None
@@ -2007,7 +1997,7 @@ def get_ls_trglastscaled(engine,runnum,lsnum,schemaname=''):
     result = connection.execute(q,{'runnum':runnum,'lsnum':lsnum}).fetchone()[0]
     return result
 
-def get_trgprescale(engine,runnum,lsnum,pathids=[],l1candidates=[],ignorel1mask=False,schemaname=''):
+def get_trgprescale(engine,runnum,lsnum,pathids=[],l1candidates=[],prescidxs=None,ignorel1mask=False,schemaname=''):
     '''
     get 
     input: 
@@ -2025,24 +2015,35 @@ def get_trgprescale(engine,runnum,lsnum,pathids=[],l1candidates=[],ignorel1mask=
         hltscalertable = '.'.join([schemaname,hltscalertable])   #'h'       
         trgrunconftable = '.'.join([schemaname,trgrunconftable]) #'r'
     q = '''select p.prescidx as prescidx, h.hltpathid as hltpathid, h.hltprescval as hltprescval, r.bitname as bitname, l.trgprescval as trgprescval, r.mask as bitmask from %(prescidxchangeT)s p, %(trgscalerT)s l, %(trgrunconfT)s r, %(hltscalerT)s h where p.runnum=l.runnum and p.runnum=h.runnum and p.runnum=r.runnum and p.lsnum=l.lsnum and p.lsnum=h.lsnum and p.prescidx=l.prescidx and p.prescidx=h.prescidx and l.bitid=r.bitid and p.runnum=:runnum and p.lsnum=:lsnum'''%{'prescidxchangeT':prescidxchangetable,'trgscalerT':trgscalertable,'hltscalerT':hltscalertable,'trgrunconfT':trgrunconftable}
+    
     if not ignorel1mask: q = q+' and r.mask!=1 '
     
     binddict = {'runnum':runnum,'lsnum':lsnum}
     if pathids:
-        if len(pathids)>1:
+        if isinstance(pathids,list):
             hstr = ','.join( [str(h) for h in pathids] )
-            hltpathStr = ' and hltpathid in (%s)'%hstr
-        else:
-            hltpathStr = ' and hltpathid=:hltpathid'
-            binddict['hltpathid'] = pathids[0]
+            hltpathStr = ' and h.hltpathid in (%s)'%hstr
+        elif isinstance(pathids,int):
+            hltpathStr = ' and h.hltpathid=:hltpathid'
+            binddict['hltpathid'] = pathids
         q = q+hltpathStr
     if l1candidates:
-        if len(l1candidates)>1:
-            qbitsStr = ','.join(["\'%s\'"%t for t in l1candidates])
-            q = q+" and r.bitname in (%s)"%qbitsStr
-        else:
-            q = q+' and r.bitname=:bitname'
-            binddict['bitname']=l1candidates[0]        
+        if isinstance(l1candidates,list):
+            bstr = ','.join(["\'%s\'"%t for t in l1candidates])
+            l1bitStr = " and r.bitname in (%s)"%bstr
+        elif isinstance(l1candidates,str):
+            l1bitStr = ' and r.bitname=:bitname'
+            binddict['bitname']=l1candidates
+        q = q+l1bitStr
+    if prescidxs is not None:#zero is valid prescidx
+        if isinstance(prescidxs,list):
+            pstr = ','.join( [str(p) for p in prescidxs] )
+            prescStr = ' and p.rescidx in (%s)'%pstr
+        elif isinstance(prescidxs,int):
+            prescStr = ' and p.prescidx=:prescidx'
+            binddict['prescidx'] = prescidxs
+        q = q+prescStr
+    log.debug( q+','+str(binddict) )
     connection = engine.connect()
     resultProxy = connection.execute(q,binddict)
     result = None

@@ -41,11 +41,11 @@ class parser(object):
         self._iovtagSelect = None
         self._withBX = False
         self._byls = False
-        self._bybit = False
-        self._pathinfo = False
         self._chunksize = None
         self._lumitype = None        
         self._hltpath = None
+        self._hltkey = None
+        self._hltconfigid = 0
         self._ofilename = '-'
         self._fh = None
         self._totable = False
@@ -89,15 +89,18 @@ class parser(object):
         if self._argdict.has_key('--xing'):
             self._withBX = self._argdict['--xing']
         if self._argdict.has_key('--byls'):
-            self._byls = self._argdict['--byls']
-        if self._argdict.has_key('--bitinfo'):
-            self._bybit = self._argdict['--bitinfo']
-        if self._argdict.has_key('--pathinfo'):
-            self._pathinfo = self._argdict['--pathinfo']
+            self._byls = self._argdict['--byls']        
         if self._argdict.has_key('--type'):
             self._lumitype = self._argdict['--type']
         if self._argdict.has_key('--hltpath'):
-            self._hltpath = self._argdict['--hltpath']        
+            self._hltpath = self._argdict['--hltpath']
+        if self._argdict.has_key('--hltconfig'):
+            hltconfig = self._argdict['--hltconfig']
+            if hltconfig:
+                if hltconfig.isdigit():
+                    self._hltconfigid = int(hltconfig)
+                else:
+                    self._hltkey = hltconfig
         if self._argdict.has_key('--applyto'):
             self._applyto = self._argdict['--applyto']
         if self._argdict.has_key('-y'):
@@ -226,13 +229,7 @@ class parser(object):
         return self._outputstyle
     @property
     def totable(self):
-        return self._totable    
-    @property
-    def bybit(self):
-        return self._bybit
-    @property
-    def pathinfo(self):
-        return self._pathinfo
+        return self._totable        
     @property
     def name(self):
         return self._name
@@ -244,7 +241,13 @@ class parser(object):
         return self._lumitype
     @property
     def hltpath(self):
-        return self._hltpath    
+        return self._hltpath
+    @property
+    def hltconfigid(self):
+        return self._hltconfigid
+    @property
+    def hltkey(self):
+        return self._hltkey
     @property
     def applyto(self):
         return self._applyto
@@ -293,7 +296,8 @@ argvalidators = {
     '--output-style': And(str,Use(str.lower), lambda s: s in params._outstyle, error='--output-style choice must be in '+str(params._outstyle) ),
 #    '--chunk-size':  And(Use(int), lambda n: n>0, error='--chunk-size should be integer >0'),
     '--type': Or(None, And(str, lambda s: s.upper() in params._lumitypeChoices), error='--type must be in '+str(params._lumitypeChoices) ),
-    '--hltpath': Or(None, And(str, Use(RegexValidator.RegexValidator(params._hltpath_pattern))),  error='--hltpath wrong format'), 
+    '--hltpath': Or(None, And(str, Use(RegexValidator.RegexValidator(params._hltpath_pattern))),  error='--hltpath wrong format'),
+    '--hltconfig': Or(None, And(str, Use(RegexValidator.RegexValidator(params._hltconfig_pattern))),  error='--hltconfig wrong format'),
     '--applyto': Or(None, And(str, lambda s: s.upper() in params._applytoChoices), error='--applyto must be in '+str(params._applytoChoices) ),
     '--siteconfpath': Or(None, str, error='--siteconfpath should be string'),
     '-c': str,

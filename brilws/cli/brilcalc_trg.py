@@ -6,9 +6,10 @@ options:
   -p AUTHPATH                  Authentication file
   -r RUN                       Run number
   -o OUTPUTFILE                Output csv file. Special file '-' for stdout.
-  --name NAME                  hltconfig id, key/pattern or hltpath name/pattern
-  --hltconfig                  Show HLT configurations
-  --prescale                   Show trigger prescale
+  --pathinfo                   Show hltpath, l1seed expression
+  --prescale                   Show trigger prescale changes
+  --hltpath HLTPATH            hltpath name/pattern 
+  --hltconfig HLTCONFIG        HLT configid or hltkey/pattern  
   --ignore-mask                Ignore trigger bit masks
   --output-style OSTYLE        Screen output style. tab, html, csv [default: tab]
  
@@ -23,7 +24,7 @@ def validate(optdict):
     result={}
     argdict = clicommonargs.argvalidators
     #extract sub argdict here
-    myvalidables = ['-c','-r','--name',str]
+    myvalidables = ['-c','-r','--hltpath','--hltconfig',str]
     argdict = dict((k,v) for k,v in clicommonargs.argvalidators.iteritems() if k in myvalidables)
     schema = Schema(argdict)
     result = schema.validate(optdict)

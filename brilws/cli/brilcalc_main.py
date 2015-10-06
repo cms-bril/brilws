@@ -533,89 +533,87 @@ def brilcalc_main(progname=sys.argv[0]):
           fh = None
           ptable = None
           csvwriter = None
-          header = ['hltconfigid','hltkey','run']
-          is_hltconfig = parseresult['--hltconfig']
+
+          is_pathinfo = parseresult['--pathinfo']
           is_prescale = parseresult['--prescale']
-          
-          if is_hltconfig:
-              header = ['run','cmsls','prescidx']
-              hltconfig_df = api.get_hltconfig_trglastscaled(dbengine,hltconfigidorname=pargs.name,runnum=pargs.runmin,schemaname=dbschema)
-              if hltconfig_df is None:
-                  print 'No hlt configuration found'
-                  sys.exit(0)
-              hltkey = hltconfig_df['hltkey'].unique()[0]
-              hltconfigid = hltconfig_df['hltconfigid'].unique()[0]
-              del hltconfig_df['hltkey']
-              del hltconfig_df['hltconfigid']
-          
-              if not pargs.totable:
-                  fh = pargs.ofilehandle
-                  print >> fh, '# hltkey:%s , hltconfigid:%d'%(hltkey, hltconfigid)
-                  print >> fh, '# '+','.join(header)
-                  csvwriter = csv.writer(fh)
-              else:
-                  print '# hltkey:%s , hltconfigid:%d'%(hltkey, hltconfigid)
-                  ptable = display.create_table(header,header=True,maxwidth=60)
-              if hltconfig_df is not None:
-                  for v in hltconfig_df.values:
-                      display.add_row( ['%d'%v[0], '%d'%v[1], '%d'%v[2]], fh=fh, csvwriter=csvwriter, ptable=ptable )
-                  del hltconfig_df    
-                  if ptable:
-                      display.show_table(ptable,pargs.outputstyle)         
-                      del ptable
-          elif is_prescale:
-              header = ['run','cmsls','prescidx','prescval','hltpath/prescval','logic','l1bit/prescval']
-              hltpathpattern = re.compile('^HLT_')
-              hltpath = pargs.name
-              if not pargs.runmin:
-                  print '-r RUN argument is required'
-                  sys.exit(0)
-              if pargs.name is not None:
-                  if not hltpathpattern.match(pargs.name):
-                      print 'wrong hltpath format'
+            
+          if is_pathinfo:
+              header = ['hltpath','logic','l1bit']
+              hltrunconfig_df = None
+              hltconfigids = []
+              if pargs.hltconfigid or pargs.hltkey or pargs.runmin:
+                  hltrunconfig_df = api.get_hltrunconfig(dbengine,hltconfigid=pargs.hltconfigid,hltkey=pargs.hltkey,runnum=pargs.runmin,schemaname=dbschema) #pd.DataFrame(columns=['runnum','hltconfigid','hltkey'])
+                  if hltrunconfig_df is None:
+                      print 'hltconfig not found'
                       sys.exit(0)
+                  hltconfigids = np.unique(hltrunconfig_df['hltconfigid'].values)
+              seedmap_df = api.get_hlttrgl1seedmap(dbengine,hltpath=pargs.hltpath,hltconfigids=hltconfigids,schemaname=dbschema)#['hltconfigid','hltpathid','hltpathname','seedtype','seedvalue']
+              if seedmap_df is None:
+                  print 'hltl1seed mapping not found'
+                  sys.exit(0)                  
+
+              if not pargs.totable:
+                  fh = pargs.ofilehandle
+                  print >> fh, '# '+','.join(header)
+                  csvwriter = csv.writer(fh)
               else:
-                  hltpath='HLT_*'                  
-              hltpathl1seedmap_df = api.get_hlttrgl1seedmap(dbengine,hltpath,schemaname=dbschema)
-              if hltpathl1seedmap_df is None:
-                  print 'No hltpathl1seedmap found'
+                  ptable = display.create_table(header,header=True,maxwidth=80)
+                  
+              grouped = seedmap_df.groupby( ['hltconfigid','hltpathname'] )
+              for name,group in grouped:
+                  hltpathname = str(name[1])
+                  seedtype = group['seedtype'].values[0]
+                  seedvals = group['seedvalue'].values[0]
+                  seedstr = ' '.join([str(i) for i in seedvals])
+                  display.add_row( [ '%s'%hltpathname , '%s'%seedtype, '%s'%seedstr], fh=fh, csvwriter=csvwriter, ptable=ptable )                
+              if ptable:
+                  display.show_table(ptable,pargs.outputstyle)         
+                  del ptable
+          elif is_prescale:                    
+              header = ['run','cmsls','prescidx']
+              if pargs.hltpath is not None: 
+                  header = header+['totprescval','hltpath/prescval','logic','l1bit/prescval']
+                  
+              presc_df = api.get_hltconfig_trglastscaled(dbengine,hltconfigids=pargs.hltconfigid,hltkey=pargs.hltkey,runnums=pargs.runmin,schemaname=dbschema)
+              #['hltconfigid','hltkey','runnum','lslastscaler','prescidx']
+              
+              if presc_df is None:
+                  print 'No prescale found'
                   sys.exit(0)
-              hltconfig_df = api.get_hltconfig_trglastscaled(dbengine,hltconfigidorname=None,runnum=pargs.runmin,schemaname=dbschema)
-              if hltconfig_df is None:
-                  print 'No hltconfig found'
-                  sys.exit(0)
-              del hltconfig_df['hltkey']
-              #print hltconfig_df 
-              tmp_df = hltconfig_df.merge(hltpathl1seedmap_df, on='hltconfigid', how='inner')
-              #print 'tmp_df ',tmp_df
-              del hltpathl1seedmap_df
-              del hltconfig_df              
-              lslist = tmp_df['lslastscaler'].unique()
+                  
               if not pargs.totable:
                   fh = pargs.ofilehandle
                   print >> fh, '# '+','.join(header)
                   csvwriter = csv.writer(fh)
               else:
                   ptable = display.create_table(header,header=True,maxwidth=60)
-              for lsnum in lslist:
-                  p = tmp_df[ (tmp_df['lslastscaler']==lsnum)&(tmp_df['runnum']==pargs.runmin) ]        
-                  pathinfo = np.unique( p[['hltconfigid','hltpathid']].values.ravel() )
-                  hltconfigid = pathinfo[0]
-                  hltpathids = pathinfo[1:]
-                  for hltpathid in hltpathids:
-                      l1candidates = np.hstack( p[ p['hltpathid']==hltpathid ]['seedvalue'].values )                      
-                      r = api.get_trgprescale(dbengine,pargs.runmin,lsnum,[hltpathid],l1candidates=list(l1candidates),ignorel1mask=parseresult['--ignore-mask'],schemaname=dbschema)
+                  
+              if pargs.hltpath is not None:                  
+                  hltpathl1seedmap_df = api.get_hlttrgl1seedmap(dbengine,hltpath=pargs.hltpath,hltconfigids=pargs.hltconfigid,schemaname=dbschema)
+                  #['hltconfigid','hltpathid','hltpathname','seedtype','seedvalue']
+                  if hltpathl1seedmap_df is None:
+                      print 'No hltpathl1seed mapping found'
+                      sys.exit(0)
+                  tmp_df = presc_df.merge(hltpathl1seedmap_df, on='hltconfigid', how='inner')
+                  del hltpathl1seedmap_df
+                  grouped = tmp_df.groupby(['hltconfigid','runnum','lslastscaler','hltpathid'])
+                  for name,group in grouped:
+                      runnum = int(name[1])
+                      lsnum = int(name[2])
+                      hltpathid = int(name[3])
+                      hltpathname = str( group['hltpathname'].values[0] )
+                      prescidx = int( group['prescidx'].values[0] )                      
+                      l1candidates = list(np.hstack( group['seedvalue'].values ))
+                      l1seedlogic = group['seedtype'].values[0]
+                      r = api.get_trgprescale(dbengine,runnum,lsnum,pathids=hltpathid,l1candidates=l1candidates,ignorel1mask=parseresult['--ignore-mask'],schemaname=dbschema)
+                      ##['prescidx','hltpathid','hltprescval','bitname','trgprescval','bitmask']
+                      totpresc = 0
                       if r is not None:
-                          thisdf = p[ (p['hltpathid']==hltpathid)&(p['hltconfigid']==hltconfigid) ]
-                          hltpathname = thisdf['hltpathname'].values[0]
-                          prescidx = thisdf['prescidx'].values[0]
+                          hltprescval = r['hltprescval'].values[0]
                           l1bits = np.dstack([r['bitname'].values,r['trgprescval'].values])[0]
                           l1inner = map(formatter.bitprescFormatter,l1bits)
-                          l1bitsStr = ','.join(l1inner)                          
-                          l1seedlogic = thisdf['seedtype'].values[0]
-                          hltprescval = r['hltprescval'].values[0]
-                          hltpathStr = '/'.join([hltpathname,str(hltprescval)])                          
-                          totpresc = 0                        
+                          l1bitsStr = ' '.join(l1inner)                          
+                          hltpathStr = '/'.join([hltpathname,str(hltprescval)])
                           if np.all(r['trgprescval'].values==1):
                               totpresc = hltprescval
                           elif l1seedlogic=='ONE':
@@ -624,19 +622,25 @@ def brilcalc_main(progname=sys.argv[0]):
                               totpresc = hltprescval*np.min(r['trgprescval'].values)
                           elif l1seedlogic=='AND':
                               totpresc = hltprescval*np.max(r['trgprescval'].values)
+                          display.add_row( [ '%d'%runnum, '%d'%lsnum, '%d'%prescidx, '%d'%totpresc,'%s'%hltpathStr, '%s'%l1seedlogic, '%s'%l1bitsStr], fh=fh, csvwriter=csvwriter, ptable=ptable )        
                           del r
-                          display.add_row( [ '%d'%pargs.runmin, '%d'%lsnum, '%d'%prescidx, '%d'%totpresc,'%s'%hltpathStr, '%s'%l1seedlogic, '%s'%l1bitsStr  ], fh=fh, csvwriter=csvwriter, ptable=ptable )                  
-                  del p
-              del tmp_df
+                  del tmp_df
+              else:
+                  for row in presc_df.values:
+                      runnum = int(row[2])
+                      lsnum = int(row[3])
+                      prescidx = int(row[4]) 
+                      display.add_row( [ '%d'%runnum, '%d'%lsnum, '%d'%prescidx ], fh=fh, csvwriter=csvwriter, ptable=ptable )        
+              del presc_df              
               if ptable:
                   display.show_table(ptable,pargs.outputstyle)         
-                  del ptable
-          else:              
-              hltrunconfig_df = api.get_hltrunconfig(dbengine,schemaname=dbschema)
+                  del ptable          
+          else:
+              hltrunconfig_df = api.get_hltrunconfig(dbengine,hltconfigid=pargs.hltconfigid,hltkey=pargs.hltkey,runnum=pargs.runmin,schemaname=dbschema) #pd.DataFrame(columns=['runnum','hltconfigid','hltkey'])
               if hltrunconfig_df is None:
                   print 'hltconfig not found'
                   sys.exit(0)
-                  
+              header = ['hltconfigid','hltkey','run']    
               if not pargs.totable:
                   fh = pargs.ofilehandle
                   print >> fh, '# '+','.join(header)
@@ -645,7 +649,6 @@ def brilcalc_main(progname=sys.argv[0]):
                   ptable = display.create_table(header,header=True,maxwidth=80)
                   
               grouped = hltrunconfig_df.groupby(['hltconfigid','hltkey'])
-              header = ['hltconfigid','hltkey','run']
               for name,group in grouped:
                   hltconfigid = int(name[0])
                   hltkey = str(name[1])
@@ -654,8 +657,8 @@ def brilcalc_main(progname=sys.argv[0]):
               if ptable:
                   display.show_table(ptable,pargs.outputstyle)         
                   del ptable
+                  
               del hltrunconfig_df
-              
           if fh and fh is not sys.stdout: fh.close()
           sys.exit(0)
           
