@@ -43,6 +43,7 @@ HLTSCALER:               #per ls, per hltpath, per prescidx change
     - runnum: uint32
     - lsnum: uint32
     - prescidx: uint16
+    - hltconfigid: uint32
     - hltpathid: uint32
     - hltprescval: uint32
    pk: [runnum,lsnum,hltpathid]

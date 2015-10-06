@@ -540,6 +540,9 @@ def brilcalc_main(progname=sys.argv[0]):
           if is_hltconfig:
               header = ['run','cmsls','prescidx']
               hltconfig_df = api.get_hltconfig_trglastscaled(dbengine,hltconfigidorname=pargs.name,runnum=pargs.runmin,schemaname=dbschema)
+              if hltconfig_df is None:
+                  print 'No hlt configuration found'
+                  sys.exit(0)
               hltkey = hltconfig_df['hltkey'].unique()[0]
               hltconfigid = hltconfig_df['hltconfigid'].unique()[0]
               del hltconfig_df['hltkey']
@@ -574,8 +577,13 @@ def brilcalc_main(progname=sys.argv[0]):
               else:
                   hltpath='HLT_*'                  
               hltpathl1seedmap_df = api.get_hlttrgl1seedmap(dbengine,hltpath,schemaname=dbschema)
-              #print hltpathl1seedmap_df
+              if hltpathl1seedmap_df is None:
+                  print 'No hltpathl1seedmap found'
+                  sys.exit(0)
               hltconfig_df = api.get_hltconfig_trglastscaled(dbengine,hltconfigidorname=None,runnum=pargs.runmin,schemaname=dbschema)
+              if hltconfig_df is None:
+                  print 'No hltconfig found'
+                  sys.exit(0)
               del hltconfig_df['hltkey']
               #print hltconfig_df 
               tmp_df = hltconfig_df.merge(hltpathl1seedmap_df, on='hltconfigid', how='inner')
@@ -594,8 +602,6 @@ def brilcalc_main(progname=sys.argv[0]):
                   pathinfo = np.unique( p[['hltconfigid','hltpathid']].values.ravel() )
                   hltconfigid = pathinfo[0]
                   hltpathids = pathinfo[1:]
-                  #print 'hltconfigid ',hltconfigid
-                  #print 'hltpathids ',hltpathids
                   for hltpathid in hltpathids:
                       l1candidates = np.hstack( p[ p['hltpathid']==hltpathid ]['seedvalue'].values )                      
                       r = api.get_trgprescale(dbengine,pargs.runmin,lsnum,[hltpathid],l1candidates=list(l1candidates),ignorel1mask=parseresult['--ignore-mask'],schemaname=dbschema)

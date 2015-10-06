@@ -1831,7 +1831,9 @@ def runinfoIter(engine,runs,schemaname='',chunksize=9999,fields=[]):
         q = q+''' from %s where DATATAGID in (%s)'''%(tablename,idstrings)
         result = pd.read_sql_query(q,engine,chunksize=chunksize,params={},index_col='datatagid')
     return result
-
+###############
+# trg queries
+###############
 def translate_fntosql(pattern):
     '''
     translate fnmatch pattern to sql pattern 
@@ -1839,37 +1841,46 @@ def translate_fntosql(pattern):
     sqlresult = pattern
     sqlresult = sqlresult.replace('*','.*')
     sqlresult = sqlresult.replace('?','.?')
-    sqlresult = sqlresult.replace('!','^')
-    #sqlresult = sqlresult.replace('_','\_')
-    #sqlresult = sqlresult.replace('*','%')
-    #sqlresult = sqlresult.replace('?','_')
+    sqlresult = sqlresult.replace('!','^')    
     return sqlresult
 
-def get_hlttrgl1seedmap(engine,hltpath,schemaname=''):
+def get_hlttrgl1seedmap(engine,hltpath=None,hltconfigid=0,schemaname=''):
     '''
     input :
         hltpath : hltpath name or pattern
-
+        hltconfigid : hltconfigid
     output:
        hlttrgl1seedmap : pd.DataFrame(columns=['hltconfigid','hltpathid','hltpathname','seedtype','seedvalue'])
     '''
     tablename = name = 'hltpathl1seedmap'
     if schemaname:
         tablename = '.'.join([schemaname,name])
-    hltpath_sqlexpr = hltpath
-    p = re.compile(r'\?|\*|\[|\]|!')
-    q = '''select hltconfigid, hltpathid, hltpathname, l1seed from %s '''%(tablename)
-    if p.findall(hltpath): # is pattern
-        hltpath_sqlexpr = hltpath_sqlexpr.replace('*','.*')
-        hltpath_sqlexpr = hltpath_sqlexpr.replace('?','.?')
-        hltpath_sqlexpr = hltpath_sqlexpr.replace('!','^')
-        q = q+"where regexp_like(hltpathname,'%s')"%(hltpath_sqlexpr)
-    else:
-        q = q+"where hltpathname='%s'"%(hltpath_sqlexpr)
-
+    q = "select hltconfigid, hltpathid, hltpathname, l1seed from %s "%(tablename)
+    binddict = {}
+    if hltpath is not None or hltconfigid!=0:
+        q = q+' where '
+        qfields = []
+        if hltpath is not None:
+            hltpath_sqlexpr = hltpath
+            p = re.compile(r'\?|\*|\[|\]|!')
+            if p.findall(hltpath): # is pattern
+                hltpath_sqlexpr = translate_fntosql(hltpath)
+                qfields.append("regexp_like(hltpathname,'%s')"%(hltpath_sqlexpr))
+            else:
+                qfields.append("hltpathname=:hltpathname")
+                binddict['hltpathname'] = hltpath_sqlexpr
+        if hltconfigid!=0:
+            qfields.append("hltconfigid=:hltconfigid")
+            binddict['hltconfigid'] = tconfigid
+        q = q+' and '.join(qfields)
+    log.debug(q)
     connection = engine.connect()
-    resultProxy = connection.execute(q)
-    hltpathl1seed = pd.DataFrame(list(resultProxy),columns=['hltconfigid','hltpathid','hltpathname','l1seed'])
+    resultProxy = connection.execute(q,binddict)    
+    hltpathl1seed = pd.DataFrame( list(resultProxy) )
+    if hltpathl1seed.size==0:
+        return None
+    else:
+        hltpathl1seed.columns = ['hltconfigid','hltpathid','hltpathname','l1seed']        
     hltpathl1seed['l1seed'] = hltpathl1seed['l1seed'].apply(parseL1Seed)
     hltpathl1seed = hltpathl1seed[ hltpathl1seed['l1seed']!=None ]
     tmp_df = hltpathl1seed['l1seed'].apply( lambda x: pd.Series( [x[0],x[1:]] ) )
@@ -1880,63 +1891,82 @@ def get_hlttrgl1seedmap(engine,hltpath,schemaname=''):
     del tmp_df
     return result
 
-def get_distinct_hltconfigs(engine,hltkeypattern=None,schemaname=''):
+def get_distinct_hltconfigs(engine,hltkeypattern=None,hltconfigid=0,schemaname=''):
     hltrunconfigtable = 'hltrunconfig'
     if schemaname:
         hltrunconfigtable = '.'.join([schemaname,hltrunconfigtable])
-    q = """select distinct hltconfigid, hltkey from %s"""%(hltrunconfigtable)
+    q = "select distinct hltconfigid, hltkey from %s"%(hltrunconfigtable)
     binddict = {}
-    if hltkeypattern not in [None,'','*']:
-        if hltkeypattern.find('*')==-1 and hltkeypattern.find('?')==-1 and hltkeypattern.find('[')==-1:#is not pattern
-            q = q+" where hltkey=:hltkey"
-            binddict['hltkey'] = hltkeypattern
-        else:
-            sqlpattern = translate_fntosql(hltkeypattern)
-            q = q+" where regexp_like(hltkey, '%s')"%sqlpattern
+    if hltkeypattern or hltconfigid:
+        q = q+" where "
+        qfields = []
+        if hltkeypattern:
+            if hltkeypattern.find('*')==-1 and hltkeypattern.find('?')==-1 and hltkeypattern.find('[')==-1:#is not pattern
+                qfields.append("hltkey=:hltkey")
+                binddict['hltkey'] = hltkeypattern
+            else:
+                sqlpattern = translate_fntosql(hltkeypattern)
+                qfields.append("regexp_like(hltkey, '%s')"%sqlpattern)
+        if hltconfigid!=0:
+            qfields.append("hltconfigid=:hltconfigid")
+            binddict['hltconfigid'] = hltconfigid
+        q = q+" and ".join(qfields)     
     connection = engine.connect()
-    resultProxy = connection.execute(q,binddict)
-    return pd.DataFrame(list(resultProxy))
+    resultProxy = connection.execute(q,binddict)    
+    result =  pd.DataFrame(list(resultProxy))
+    if result.size==0:
+        return None
+    else:
+        result.columns=['hltconfigid','hltkey'] 
+        return result
     
 def get_hltconfig_trglastscaled(engine,hltconfigidorname=None,runnum=None,schemaname=''):
     '''
+    output: pd.DataFrame(columns=['hltconfigid','hltkey','runnum','lslastscaler','prescidx'])
     '''
-    prescidxchangetable =  'prescidxchange'
+    prescidxchangetable = 'prescidxchange'
     hltrunconfigtable = 'hltrunconfig'
     if schemaname:
         prescidxchangetable = '.'.join([schemaname,prescidxchangetable])
         hltrunconfigtable = '.'.join([schemaname,hltrunconfigtable])
-    q = "select r.hltconfigid,r.hltkey,p.runnum as runnum, p.lsnum as lslastscaler, p.prescidx as prescidx from %(prescidxchangeT)s p, %(hltrunconfigT)s r where r.runnum=p.runnum"%{'prescidxchangeT':prescidxchangetable,'hltrunconfigT':hltrunconfigtable}
+    q = "select r.hltconfigid as hltconfigid, r.hltkey as hltkey, p.runnum as runnum, p.lsnum as lslastscaler, p.prescidx as prescidx from %(prescidxchangeT)s p, %(hltrunconfigT)s r where r.runnum=p.runnum"%{'prescidxchangeT':prescidxchangetable,'hltrunconfigT':hltrunconfigtable}
     binddict = {}
-    if runnum is not None:
-        q = q + " and r.runnum=:runnum"
-        binddict['runnum'] = runnum
-    if hltconfigidorname not in [None,'','*']:
-        if hltconfigidorname.isdigit():
-            q = q + " and r.hltconfigid=:hltconfigid"
-            binddict['hltconfigid'] = hltconfigidorname
-        else:
-            if hltconfigidorname.find('*')==-1 and hltconfigidorname.find('?')==-1 and hltconfigidorname.find('[')==-1:#is not pattern
-                q = q + " and r.hltkey=:hltconfigid"
+    if runnum or hltconfigidorname:
+        qfields = []
+        if runnum:
+            qfields.append("r.runnum=:runnum")
+            binddict['runnum'] = runnum
+        if hltconfigidorname:
+            if hltconfigidorname.isdigit():
+                qfields.append("r.hltconfigid=:hltconfigid")
                 binddict['hltconfigid'] = hltconfigidorname
             else:
-                sqlpattern = translate_fntosql(hltconfigidorname)
-                q = q + " and regexp_like(r.hltkey, '%s')"%(sqlpattern)
-    
+                if hltconfigidorname.find('*')==-1 and hltconfigidorname.find('?')==-1 and hltconfigidorname.find('[')==-1:#is not pattern
+                    qfields.append("r.hltkey=:hltconfigid")
+                    binddict['hltconfigid'] = hltconfigidorname
+                else:
+                    sqlpattern = translate_fntosql(hltconfigidorname)
+                    qfields.append("regexp_like(r.hltkey, '%s')"%(sqlpattern))
+        q = q+" and "+" and ".join(qfields)
+    log.debug(q)
     connection = engine.connect()
     resultProxy = connection.execute(q,binddict)
-    result = None
-    if resultProxy:
-        result = pd.DataFrame(list(resultProxy), columns=['hltconfigid','hltkey','runnum','lslastscaler','prescidx'])    
-    return result
+    result = pd.DataFrame(list(resultProxy) )
+    if result.size==0:
+        return None
+    else:
+        result.columns=['hltconfigid','hltkey','runnum','lslastscaler','prescidx'] 
+        return result
 
 def get_ls_trglastscaled(engine,runnum,lsnum,schemaname=''):
     '''
+    output: lastscaled ls value valid for the input lsnum
     '''    
     prescidxchangetable = 'prescidxchange'
     result = 0
     if schemaname:
         prescidxchangetable = '.'.join([schemaname,prescidxchangetable])   
-    q = """select max(lsnum) as lslastscaler from %s where runnum=:runnum and lsnum<=:lsnum"""%prescidxchangetable
+    q = "select max(lsnum) as lslastscaler from %s where runnum=:runnum and lsnum<=:lsnum"%prescidxchangetable
     connection = engine.connect()
     result = connection.execute(q,{'runnum':runnum,'lsnum':lsnum}).fetchone()[0]
     return result
