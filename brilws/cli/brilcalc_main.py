@@ -533,7 +533,7 @@ def brilcalc_main(progname=sys.argv[0]):
           fh = None
           ptable = None
           csvwriter = None
-          header = ['hltconfigid','hltkey']
+          header = ['hltconfigid','hltkey','run']
           is_hltconfig = parseresult['--hltconfig']
           is_prescale = parseresult['--prescale']
           
@@ -631,21 +631,31 @@ def brilcalc_main(progname=sys.argv[0]):
               if ptable:
                   display.show_table(ptable,pargs.outputstyle)         
                   del ptable
-          else:
-              overview_df = api.get_distinct_hltconfigs(dbengine,hltkeypattern=pargs.name,schemaname=dbschema)
+          else:              
+              hltrunconfig_df = api.get_hltrunconfig(dbengine,schemaname=dbschema)
+              if hltrunconfig_df is None:
+                  print 'hltconfig not found'
+                  sys.exit(0)
+                  
               if not pargs.totable:
                   fh = pargs.ofilehandle
                   print >> fh, '# '+','.join(header)
                   csvwriter = csv.writer(fh)
               else:
                   ptable = display.create_table(header,header=True,maxwidth=80)
-              for v in overview_df.values:
-                  display.add_row( [ '%d'%v[0], '%s'%v[1] ], fh=fh, csvwriter=csvwriter, ptable=ptable )      
-              del overview_df
+                  
+              grouped = hltrunconfig_df.groupby(['hltconfigid','hltkey'])
+              header = ['hltconfigid','hltkey','run']
+              for name,group in grouped:
+                  hltconfigid = int(name[0])
+                  hltkey = str(name[1])
+                  runsStr = ','.join([str(i) for i in group['runnum'].values])
+                  display.add_row( [ '%d'%hltconfigid, '%s'%hltkey , '%s'%runsStr], fh=fh, csvwriter=csvwriter, ptable=ptable )                
               if ptable:
                   display.show_table(ptable,pargs.outputstyle)         
                   del ptable
-                  
+              del hltrunconfig_df
+              
           if fh and fh is not sys.stdout: fh.close()
           sys.exit(0)
           

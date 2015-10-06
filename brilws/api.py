@@ -795,6 +795,10 @@ def _get_iovpayload(connection,payloadid,payloadfields,schemaname=None):
         result.append( [fieldname,ttype,val] )
     return result
  """
+
+def _is_strpattern(istr):
+    p = re.compile(r'\?|\*|\[|\]|!')
+    return p.findall(istr) # is pattern
     
 def iov_insertdata(engine,iovtagname,datasource,iovdata,applyto='lumi',isdefault=False,comments='',schemaname=None ):
     '''
@@ -1862,8 +1866,7 @@ def get_hlttrgl1seedmap(engine,hltpath=None,hltconfigid=0,schemaname=''):
         qfields = []
         if hltpath is not None:
             hltpath_sqlexpr = hltpath
-            p = re.compile(r'\?|\*|\[|\]|!')
-            if p.findall(hltpath): # is pattern
+            if _is_strpattern(hltpath): # is pattern
                 hltpath_sqlexpr = translate_fntosql(hltpath)
                 qfields.append("regexp_like(hltpathname,'%s')"%(hltpath_sqlexpr))
             else:
@@ -1901,7 +1904,7 @@ def get_distinct_hltconfigs(engine,hltkeypattern=None,hltconfigid=0,schemaname='
         q = q+" where "
         qfields = []
         if hltkeypattern:
-            if hltkeypattern.find('*')==-1 and hltkeypattern.find('?')==-1 and hltkeypattern.find('[')==-1:#is not pattern
+            if not _is_strpattern(hltkeypattern):
                 qfields.append("hltkey=:hltkey")
                 binddict['hltkey'] = hltkeypattern
             else:
@@ -1941,7 +1944,7 @@ def get_hltconfig_trglastscaled(engine,hltconfigidorname=None,runnum=None,schema
                 qfields.append("r.hltconfigid=:hltconfigid")
                 binddict['hltconfigid'] = hltconfigidorname
             else:
-                if hltconfigidorname.find('*')==-1 and hltconfigidorname.find('?')==-1 and hltconfigidorname.find('[')==-1:#is not pattern
+                if not _is_str_pattern( hltconfigidorname):
                     qfields.append("r.hltkey=:hltconfigid")
                     binddict['hltconfigid'] = hltconfigidorname
                 else:
@@ -1958,6 +1961,39 @@ def get_hltconfig_trglastscaled(engine,hltconfigidorname=None,runnum=None,schema
         result.columns=['hltconfigid','hltkey','runnum','lslastscaler','prescidx'] 
         return result
 
+def get_hltrunconfig(engine,hltconfigid=0,hltkey=None,runnum=None,schemaname=''):
+    '''
+    output: pd.DataFrame(columns=['runnum','hltconfigid','hltkey'])
+    '''
+    hltrunconftable = 'hltrunconfig'
+    if schemaname:
+        hltrunconftable = '.'.join([schemaname,hltrunconftable])
+    q = "select runnum,hltconfigid,hltkey from %s"%(hltrunconftable)
+    binddict = {}
+    if hltconfigid or hltkey or runnum:
+        q = q+" where "
+        qfields = []
+        if hltconfigid:
+            qfields.append("hltconfigid=:hltconfigid")
+        if hltkey:
+            if _is_strpattern(hltkey): # is pattern
+                qfields.append("regexp_like(hltkey,%s)"%hltkey)
+            else:
+                qfields.append("hltkey=:hltkey")
+                bind['hltkey'] = hltkey
+        if runnum:
+            qfields.append("runnum=:runnum")
+            bind['runnum'] = runnum
+        q = q+' and '.join(qfields)
+    log.debug(q)
+    connection = engine.connect()
+    result = pd.DataFrame( list(connection.execute(q,binddict)) )
+    if result.size==0:
+        return None
+    else:
+        result.columns = ['runnum','hltconfigid','hltkey']
+        return result
+    
 def get_ls_trglastscaled(engine,runnum,lsnum,schemaname=''):
     '''
     output: lastscaled ls value valid for the input lsnum
@@ -1971,7 +2007,7 @@ def get_ls_trglastscaled(engine,runnum,lsnum,schemaname=''):
     result = connection.execute(q,{'runnum':runnum,'lsnum':lsnum}).fetchone()[0]
     return result
 
-def get_trgprescale(engine,runnum,lsnum,pathids,l1candidates=[],ignorel1mask=False,schemaname=''):
+def get_trgprescale(engine,runnum,lsnum,pathids=[],l1candidates=[],ignorel1mask=False,schemaname=''):
     '''
     get 
     input: 
@@ -1989,16 +2025,17 @@ def get_trgprescale(engine,runnum,lsnum,pathids,l1candidates=[],ignorel1mask=Fal
         hltscalertable = '.'.join([schemaname,hltscalertable])   #'h'       
         trgrunconftable = '.'.join([schemaname,trgrunconftable]) #'r'
     q = '''select p.prescidx as prescidx, h.hltpathid as hltpathid, h.hltprescval as hltprescval, r.bitname as bitname, l.trgprescval as trgprescval, r.mask as bitmask from %(prescidxchangeT)s p, %(trgscalerT)s l, %(trgrunconfT)s r, %(hltscalerT)s h where p.runnum=l.runnum and p.runnum=h.runnum and p.runnum=r.runnum and p.lsnum=l.lsnum and p.lsnum=h.lsnum and p.prescidx=l.prescidx and p.prescidx=h.prescidx and l.bitid=r.bitid and p.runnum=:runnum and p.lsnum=:lsnum'''%{'prescidxchangeT':prescidxchangetable,'trgscalerT':trgscalertable,'hltscalerT':hltscalertable,'trgrunconfT':trgrunconftable}
-
     if not ignorel1mask: q = q+' and r.mask!=1 '
+    
     binddict = {'runnum':runnum,'lsnum':lsnum}
-    if len(pathids)>1:
-        hstr = ','.join( [str(h) for h in pathids] )
-        hltpathStr = ' and hltpathid in (%s)'%hstr
-    else:
-        hltpathStr = ' and hltpathid=:hltpathid'
-        binddict['hltpathid'] = pathids[0]
-    q = q+hltpathStr
+    if pathids:
+        if len(pathids)>1:
+            hstr = ','.join( [str(h) for h in pathids] )
+            hltpathStr = ' and hltpathid in (%s)'%hstr
+        else:
+            hltpathStr = ' and hltpathid=:hltpathid'
+            binddict['hltpathid'] = pathids[0]
+        q = q+hltpathStr
     if l1candidates:
         if len(l1candidates)>1:
             qbitsStr = ','.join(["\'%s\'"%t for t in l1candidates])
@@ -2040,7 +2077,8 @@ def parseL1Seed(l1seed):
         #cleanresult.append(string.strip(r).replace('\"',''))
         cleanresult.append(string.strip(r))
     return [exptype]+cleanresult
-    
+
+"""    
 def findUniqueSeed(hltPathname,l1seed):
     '''
     given a hltpath and its L1SeedExpression, find the L1 bit name
@@ -2091,7 +2129,8 @@ def findUniqueSeed(hltPathname,l1seed):
             continue
         cleanresult.append(string.strip(r).replace('\"',''))
     return (exptype,cleanresult)
-    
+"""
+
 def beamInfoIter(engine,suffix,datafields=[],idfields=[],schemaname='',runmin=None,runmax=None,fillmin=None,tssecmin=None,tssecmax=None,fillmax=None,beamstatus=None,beamstatusid=None,amodetag=None,amodetagid=None,targetegev=None,runlsselect=None,sorted=False):
     '''
     output: iterator
@@ -2163,56 +2202,5 @@ def trgMask(engine,datatagid):
     result = pd.read_sql_query(q,engine,params={'datatagid':datatagid})
     return result
 
-def trgInfoIter(engine,datatagids,suffix,schemaname='',bitnamepattern='',chunksize=9999):
-    '''
-    input: datatagids []
-    output: dataframe iterator
-    [datatagid,bitid,bitname,prescidx,presc,counts]
-    '''
-    basetablename = 'TRG'
-    tablename = '_'.join([basetablename,suffix])
-    maptablename = 'TRGBITMAP'
-    if schemaname:
-        tablename = '.'.join([schemaname,tablename])
-        maptablename = '.'.join([schemaname,maptablename])
-    idstrings = ','.join([str(x) for x in datatagids])
 
-    q = '''select t.DATATAGID as datatagid,t.BITID as bitid,m.BITNAME as bitname, t.PRESCIDX as prescidx,t.PRESCVAL as presc,t.COUNTS as counts from %s t, %s m where m.BITNAMEID=t.BITNAMEID and t.BITID=m.BITID and t.DATATAGID in (%s)'''%(tablename,maptablename,idstrings)
 
-    if bitnamepattern:
-        namefilter = ''
-        if bitnamepattern.find('*')==-1:#is not pattern
-            namefilter = 'm.BITNAME=:bitname'
-            q = '''select t.DATATAGID as datatagid,t.BITID as bitid,m.BITNAME as bitname, t.PRESCIDX as prescidx,t.PRESCVAL as presc,t.COUNTS as counts from %s t, %s m where m.BITNAMEID=t.BITNAMEID and t.BITID=m.BITID and %s and t.DATATAGID in (%s)'''%(tablename,maptablename,namefilter,idstrings)
-            result = pd.read_sql_query(q,engine,chunksize=chunksize,params={'bitname':bitnamepattern},index_col='datatagid')
-            return result
-    result = pd.read_sql_query(q,engine,chunksize=chunksize,params={},index_col='datatagid')
-    return result
-
-def hltInfoIter(engine,datatagids,suffix,schemaname='',hltpathnamepattern='',chunksize=9999):
-    '''
-    
-    '''
-    basetablename = 'HLT'
-    tablename = '_'.join([basetablename,suffix])
-    maptablename = 'HLTPATHMAP'
-    if schemaname:
-        tablename = '.'.join([schemaname,tablename])
-        maptablename = '.'.join([schemaname,maptablename])
-    idstrings = ','.join([str(x) for x in datatagids])
-    
-    q = '''select h.DATATAGID as datatagid,m.HLTPATHNAME as hltpathname, h.PRESCIDX as prescidx,h.PRESCVAL as prescval,h.L1PASS as l1pass,h.HLTACCEPT as hltaccept from %s m, %s h where m.HLTPATHID=h.HLTPATHID and h.DATATAGID IN (%s)'''%(maptablename,tablename,idstrings)
-    pathnamecondition = ''
-    if hltpathnamepattern:
-        if hltpathnamepattern.find('*')==-1 and hltpathnamepattern.find('?')==-1 and hltpathnamepattern.find('[')==-1:#is not pattern
-            pathnamecondition = 'm.HLTPATHNAME=:hltpathname'
-            q = q+' and '+pathnamecondition
-            result = pd.read_sql_query(q,engine,chunksize=chunksize,params={'hltpathname':hltpathnamepattern},index_col='datatagid')
-            return result
-        else:
-            sqlpattern = translate_fntosql(hltpathnamepattern)
-            q = q+" and m.HLTPATHNAME like '"+sqlpattern+"'"
-            result = pd.read_sql_query(q,engine,chunksize=chunksize,params={'hltpathname':hltpathnamepattern},index_col='datatagid')
-            return result
-    result = pd.read_sql_query(q,engine,chunksize=chunksize,params={},index_col='datatagid')
-    return result
