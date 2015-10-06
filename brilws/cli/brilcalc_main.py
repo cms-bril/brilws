@@ -40,9 +40,9 @@ class Unbuffered(object):
         return getattr(self.stream.attr)
 sys.stdout = Unbuffered(sys.stdout)
 
-def lumi_per_normtag(shards,lumiquerytype,dbengine,dbschema,runtot,datasource=None,normtag=None,withBX=False,byls=None,fh=None,csvwriter=None,ptable=None,scalefactor=1,totz=utctmzone,fillmin=None,fillmax=None,runmin=None,runmax=None,amodetagid=None,egev=None,beamstatusid=None,tssecmin=None,tssecmax=None,runlsSeries=None,hltl1seedmap=None):
-    if hltl1seedmap is not None: #hltconfigid,hltpathid,hltpathname,l1seed
-        pathids = hltl1seedmap['hltpathid'].unique()
+def lumi_per_normtag(shards,lumiquerytype,dbengine,dbschema,runtot,datasource=None,normtag=None,withBX=False,byls=None,fh=None,csvwriter=None,ptable=None,scalefactor=1,totz=utctmzone,fillmin=None,fillmax=None,runmin=None,runmax=None,amodetagid=None,egev=None,beamstatusid=None,tssecmin=None,tssecmax=None,runlsSeries=None,hltpath=None):
+    #if hltpathl1seedmap is not None: #[hltconfigid,hltpathid,hltpathname,seedtype,seedvalue]          
+    #    pathids = list( hltpathl1seedmap['hltpathid'].unique() )
         #print pathids
         #print 'lumi_per_normtag ',hltl1seedmap['l1seed'].values
         
@@ -82,7 +82,11 @@ def lumi_per_normtag(shards,lumiquerytype,dbengine,dbschema,runtot,datasource=No
             lumiiter = api.det_rawDataIter(dbengine,datasource,shard,datafields=rfields,idfields=idfields,schemaname=dbschema,fillmin=fillmin,fillmax=fillmax,runmin=runmin,runmax=runmax,amodetagid=amodetagid,targetegev=egev,beamstatusid=beamstatusid,tssecmin=tssecmin,tssecmax=tssecmax,runlsselect=runlsSeries,sorted=True)
                   
         if not lumiiter: continue
-        ls_trglastscaled_old = 0
+
+        g_run_old = 0
+        g_ls_trglastscaled_old = 0
+        g_hltconfigid_old = None
+        
         for row in lumiiter:            
             fillnum = row['fillnum']
             runnum = row['runnum']
@@ -92,25 +96,51 @@ def lumi_per_normtag(shards,lumiquerytype,dbengine,dbschema,runtot,datasource=No
             cmson = row['cmson']
             if not cmson: cmslsnum = 0
             
-            if cmslsnum!=0:
-                ls_trglastscaled = api.get_ls_trglastscaled(dbengine,runnum,cmslsnum,schemaname=dbschema)                
-                if ls_trglastscaled_old!=ls_trglastscaled:
-#                    foo = lambda x: pd.Series( [x[0],x[1:]] )
-                    #s = hltl1seedmap['l1seed'].apply( lambda x: pd.Series( [x[0],x[1:]] ) )
-                    #s.rename(columns={0:'seedtype',1:'seedvalue'},inplace=True)
-                    #l = hltl1seedmap.join(s)
-                    #del l['l1seed']
-                    l1bits = np.unique(np.hstack( hltl1seedmap['seedvalue'].values))
-                    print 'l1bits ',l1bits
-                    tmp_df = api.get_trgprescale(dbengine,runnum,ls_trglastscaled,pathids,l1candidates=l1bits,ignorel1mask=False,schemaname=dbschema)
-                    print tmp_df
-                    if tmp_df is not None:
-                        tmp_df['totpresc'] = tmp_df['hltprescval']*tmp_df['trgprescval']
-                        presc_df = tmp_df.merge(hltl1seedmap,on='hltpathid',how='inner')
-                        print 'presc_df ',presc_df
-                    else:
-                        print 'no l1path found'
-                    ls_trglastscaled_old = ls_trglastscaled
+            if hltpath is not None :
+                if cmslsnum==0: continue #cms is not running, skip.                
+                ls_trglastscaled = api.get_ls_trglastscaled(dbengine,runnum,cmslsnum,schemaname=dbschema)
+                if g_run_old!=runnum: #on each new run, get hltconfigid
+                    hltrunconfig_df = api.get_hltrunconfig(dbengine,runnum=runnum,schemaname=dbschema) #['runnum','hltconfigid','hltkey']
+                    hltconfigid = int(np.unique(hltrunconfig_df['hltconfigid'].values)[0])
+                    if hltconfigid != g_hltconfigid_old:
+                        print 'trigger l1seed map query'
+                        hltl1map_df = api.get_hlttrgl1seedmap(dbengine,hltpath=hltpath,hltconfigids=hltconfigid,schemaname=dbschema)
+                        #['hltconfigid','hltpathid','hltpathname','seedtype','seedvalue']
+                        pathids = list(np.unique( hltl1map_df['hltpathid'].values ) )
+                        print pathids
+                        g_hltconfigid_old = hltconfigid
+                        #print hltl1map_df
+                    presc_df = api.get_hltconfig_trglastscaled(dbengine,hltconfigids=hltconfigid,runnums=runnum,schemaname=dbschema)
+                    #['hltconfigid','hltkey','runnum','lslastscaler','prescidx']
+                    if presc_df is None: continue
+                    #print presc_df
+                    #del presc_df
+                    #del hltrunconfig_df
+                    g_run_old = runnum
+                if g_ls_trglastscaled_old != ls_trglastscaled:
+                    tmp_df = presc_df.merge(hltl1map_df, on='hltconfigid', how='inner')
+                    if tmp_df is None: continue
+                    grouped = tmp_df.groupby(['hltconfigid','runnum','lslastscaler','hltpathid'])
+                    for name,group in grouped:
+                        l1candidates = list(np.hstack( group['seedvalue'].values ))
+                        l1seedlogic = group['seedtype'].values[0]
+                        r = api.get_trgprescale(dbengine,runnum,ls_trglastscaled,pathids=pathids,l1candidates=l1candidates,ignorel1mask=True,schemaname=dbschema)
+                                        #['prescidx','hltpathid','hltprescval','bitname','trgprescval','bitmask']
+                        #print r
+                        totpresc = 0
+                        if r is None: continue
+                        hltprescval = r['hltprescval'].values[0]                        
+                        if np.all(r['trgprescval'].values==1):
+                            totpresc = hltprescval
+                        elif l1seedlogic=='ONE':
+                            totpresc = hltprescval*r['trgprescval'].values[0]
+                        elif l1seedlogic=='OR':
+                            totpresc = hltprescval*np.min(r['trgprescval'].values)
+                        elif l1seedlogic=='AND':
+                            totpresc = hltprescval*np.max(r['trgprescval'].values)
+                        #print 'totpresc ',totpresc
+                    g_ls_trglastscaled_old = ls_trglastscaled
+                    #print ls_trglastscaled
                     
             beamstatusid = row['beamstatusid']
             beamstatus = params._idtobeamstatus[beamstatusid]
@@ -292,7 +322,7 @@ def brilcalc_main(progname=sys.argv[0]):
           vfunc_lumiunit = np.vectorize(formatter.lumiunit)
           header = ['run:fill','time','nls','ncms','delivered(/ub)','recorded(/ub)']
           footer = ['nfill','nrun','nls','ncms','totdelivered(/ub)','totrecorded(/ub)']
-          bylsheader = ['run:fill','ls','time','beamstatus','E(GeV)','delivered(/ub)','recorded(/ub)','avgpu','source']
+          bylsheader = ['run:fill','ls','time','beamstatus','E(GeV)','delivered(/ub)','recorded(/ub)','avgpu','source']          
           scalefactor = pargs.scalefactor
           
           lumiunitstr = parseresult['-u']         
@@ -391,18 +421,17 @@ def brilcalc_main(progname=sys.argv[0]):
           tssecmin = pargs.tssecmin
           tssecmax = pargs.tssecmax
 
-          
-          if pargs.hltpath:# get hlt,l1seed names and bits mask
-              hltl1seedmap = api.get_hlttrgl1seedmap(dbengine,pargs.hltpath,schemaname=dbschema)
-              
-              '''[hltconfigid,hltpathid,hltpathname,l1seed]'''
-              #for idx,hltl1row in hltl1seedmap.iterrows():
-              #    print idx, hltl1row['hltconfigid'], hltl1row['hltpathid'], hltl1row['l1seed']
+          if pargs.hltpath is not None:# get hlt,l1seed names and bits mask
+              hltpathl1seedmap_df = api.get_hlttrgl1seedmap(dbengine,hltpath=pargs.hltpath,schemaname=dbschema)              
+              #[hltconfigid,hltpathid,hltpathname,seedtype,seedvalue]  
+              if hltpathl1seedmap_df is None:
+                  print 'no hltl1seed mapping not found for %s'%(pargs.hltpath)
+                  sys.exit(0)
                   
-              
           for [qtype,ntag,dsource,rselect] in datasources:
               #print ntag,dsource,rselect
-              lumi_per_normtag(shards,qtype,dbengine,dbschema,runtot,datasource=dsource,normtag=ntag,withBX=pargs.withBX,byls=pargs.byls,fh=fh,csvwriter=csvwriter,ptable=ptable,scalefactor=scalefactor,totz=totz,fillmin=fillmin,fillmax=fillmax,runmin=runmin,runmax=runmax,amodetagid=amodetagid,egev=egev,beamstatusid=beamstatusid,tssecmin=tssecmin,tssecmax=tssecmax,runlsSeries=rselect,hltl1seedmap=hltl1seedmap)
+              #lumi_per_normtag(shards,qtype,dbengine,dbschema,runtot,datasource=dsource,normtag=ntag,withBX=pargs.withBX,byls=pargs.byls,fh=fh,csvwriter=csvwriter,ptable=ptable,scalefactor=scalefactor,totz=totz,fillmin=fillmin,fillmax=fillmax,runmin=runmin,runmax=runmax,amodetagid=amodetagid,egev=egev,beamstatusid=beamstatusid,tssecmin=tssecmin,tssecmax=tssecmax,runlsSeries=rselect,hltl1seedmap=hltpathl1seedmap_df)
+              lumi_per_normtag(shards,qtype,dbengine,dbschema,runtot,datasource=dsource,normtag=ntag,withBX=pargs.withBX,byls=pargs.byls,fh=fh,csvwriter=csvwriter,ptable=ptable,scalefactor=scalefactor,totz=totz,fillmin=fillmin,fillmax=fillmax,runmin=runmin,runmax=runmax,amodetagid=amodetagid,egev=egev,beamstatusid=beamstatusid,tssecmin=tssecmin,tssecmax=tssecmax,runlsSeries=rselect,hltpath=pargs.hltpath)
           
           if runtot:              
               df_runtot = pd.DataFrame.from_dict(runtot,orient='index')
