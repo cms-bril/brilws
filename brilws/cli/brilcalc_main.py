@@ -40,12 +40,12 @@ class Unbuffered(object):
         return getattr(self.stream.attr)
 sys.stdout = Unbuffered(sys.stdout)
 
-def lumi_per_normtag(shards,lumiquerytype,dbengine,dbschema,runtot,datasource=None,normtag=None,withBX=False,byls=None,fh=None,csvwriter=None,ptable=None,scalefactor=1,totz=utctmzone,fillmin=None,fillmax=None,runmin=None,runmax=None,amodetagid=None,egev=None,beamstatusid=None,tssecmin=None,tssecmax=None,runlsSeries=None,hltpath=None):
-    #if hltpathl1seedmap is not None: #[hltconfigid,hltpathid,hltpathname,seedtype,seedvalue]          
-    #    pathids = list( hltpathl1seedmap['hltpathid'].unique() )
-        #print pathids
-        #print 'lumi_per_normtag ',hltl1seedmap['l1seed'].values
-        
+np.seterr(divide='ignore', invalid='ignore')
+
+
+def lumi_per_normtag(shards,lumiquerytype,dbengine,dbschema,datasource=None,normtag=None,withBX=False,byls=None,fh=None,csvwriter=None,ptable=None,scalefactor=1,totz=utctmzone,fillmin=None,fillmax=None,runmin=None,runmax=None,amodetagid=None,egev=None,beamstatusid=None,tssecmin=None,tssecmax=None,runlsSeries=None,hltpath=None):   
+    runtot_df = pd.DataFrame(columns=['run','fill','time','nls','ncms','delivered','recorded','hltpath'])
+    
     validitychecker = None
     lastvalidity = None
     if normtag and normtag is not 'withoutcorrection':
@@ -94,9 +94,10 @@ def lumi_per_normtag(shards,lumiquerytype,dbengine,dbschema,runtot,datasource=No
             cmslsnum = lsnum
             timestampsec = row['timestampsec']
             cmson = row['cmson']
-            if not cmson: cmslsnum = 0
-            
+            if not cmson: cmslsnum = 0            
+            prescale_map = {}
             if hltpath is not None :
+                totpresc = 0
                 if cmslsnum==0: continue #cms is not running, skip.                
                 ls_trglastscaled = api.get_ls_trglastscaled(dbengine,runnum,cmslsnum,schemaname=dbschema)
                 if g_run_old!=runnum: #on each new run, get hltconfigid
@@ -127,7 +128,6 @@ def lumi_per_normtag(shards,lumiquerytype,dbengine,dbschema,runtot,datasource=No
                         r = api.get_trgprescale(dbengine,runnum,ls_trglastscaled,pathids=pathids,l1candidates=l1candidates,ignorel1mask=True,schemaname=dbschema)
                                         #['prescidx','hltpathid','hltprescval','bitname','trgprescval','bitmask']
                         #print r
-                        totpresc = 0
                         if r is None: continue
                         hltprescval = r['hltprescval'].values[0]                        
                         if np.all(r['trgprescval'].values==1):
@@ -138,9 +138,11 @@ def lumi_per_normtag(shards,lumiquerytype,dbengine,dbschema,runtot,datasource=No
                             totpresc = hltprescval*np.min(r['trgprescval'].values)
                         elif l1seedlogic=='AND':
                             totpresc = hltprescval*np.max(r['trgprescval'].values)
-                        #print 'totpresc ',totpresc
+                        hltpathname = str( group['hltpathname'].values[0] )
+                        #print 'hltpath,totpresc ',hltpathname,totpresc
+                        prescale_map[hltpathname] = totpresc                        
+                        del r                        
                     g_ls_trglastscaled_old = ls_trglastscaled
-                    #print ls_trglastscaled
                     
             beamstatusid = row['beamstatusid']
             beamstatus = params._idtobeamstatus[beamstatusid]
@@ -152,16 +154,25 @@ def lumi_per_normtag(shards,lumiquerytype,dbengine,dbschema,runtot,datasource=No
                 dtime = d.astimezone(totz).strftime(params._datetimefm)
 
             delivered = recorded = avgpu = livefrac = 0.
+            
+            if not (runtot_df['run']==runnum).any(): #new run
+                if hltpath is not None:
+                    for p in prescale_map.keys():
+                        runtot_df.loc[ len(runtot_df)+1 ] = [runnum,fillnum,dtime,0,0,0.,0.,p]
+                else:
+                    runtot_df.loc[ len(runtot_df)+1 ] = [runnum,fillnum,dtime,0,0,0.,0.,None]
+                    
             if lumiquerytype == 'bestresultonline':
                 if row.has_key('delivered') and row['delivered']:
-                    delivered = row['delivered']*lslengthsec/scalefactor
+                    delivered = np.divide(row['delivered']*lslengthsec,scalefactor)
                 if delivered>0 and row.has_key('recorded') and row['recorded']:
-                    recorded = row['recorded']*lslengthsec/scalefactor
+                    recorded = np.divide(row['recorded']*lslengthsec,scalefactor)
                 if delivered>0 and row.has_key('avgpu') and row['avgpu']:
                     avgpu = row['avgpu']
                 ds = 'UNKNOWN' 
-                if row.has_key('datasource') and row['datasource']: ds = row['datasource']
-                if delivered: livefrac = np.divide(recorded,delivered)
+                if row.has_key('datasource') and row['datasource']:
+                    ds = row['datasource']
+                livefrac = np.divide(recorded,delivered)
                 if withBX:
                     bxlumi = None
                     bxlumistr = '[]'
@@ -169,17 +180,32 @@ def lumi_per_normtag(shards,lumiquerytype,dbengine,dbschema,runtot,datasource=No
                         bxdeliveredarray = np.array(api.unpackBlobtoArray(row['bxdeliveredblob'],'f'))
                         bxidx = np.nonzero(bxdeliveredarray)
                         if bxidx[0].size>0:
-                            bxdelivered = bxdeliveredarray[bxidx]*lslengthsec/scalefactor
+                            bxdelivered = np.divide( bxdeliveredarray[bxidx]*lslengthsec,scalefactor )
                             bxlumi = np.transpose( np.array([bxidx[0]+1,bxdelivered,bxdelivered*livefrac]) )
                         del bxdeliveredarray
                         del bxidx
-                    if bxlumi is not None:
-                        a = map(formatter.bxlumi,bxlumi)  
-                        bxlumistr = '['+' '.join(a)+']'                              
-                    display.add_row( ['%d:%d'%(runnum,fillnum),'%d:%d'%(lsnum,cmslsnum),dtime,beamstatus,'%d'%tegev,'%.3f'%(delivered),'%.3f'%(recorded),'%.1f'%(avgpu),ds,'%s'%bxlumistr] , fh=fh, csvwriter=csvwriter, ptable=ptable)
+                        
+                        if hltpath is not None:
+                            for pth in prescale_map.keys():
+                                totpresc = prescale_map[pth]
+                                if bxlumi is not None:
+                                    a = map(formatter.bxlumi,bxlumi/totpresc)  
+                                    bxlumistr = '['+' '.join(a)+']'
+                                display.add_row( ['%d:%d'%(runnum,fillnum),'%d:%d'%(lsnum,cmslsnum),dtime,pth,'%.3f'%(np.divide(delivered/totpresc)),'%.3f'%(recorded/totpresc),ds,'%s'%bxlumistr] , fh=fh, csvwriter=csvwriter, ptable=ptable)      
+                        else:
+                            if bxlumi is not None:
+                                a = map(formatter.bxlumi,bxlumi)
+                                bxlumistr = '['+' '.join(a)+']'
+                            display.add_row( ['%d:%d'%(runnum,fillnum),'%d:%d'%(lsnum,cmslsnum),dtime,beamstatus,'%d'%tegev,'%.3f'%(delivered),'%.3f'%(recorded),'%.1f'%(avgpu),ds,'%s'%bxlumistr] , fh=fh, csvwriter=csvwriter, ptable=ptable)
                     del bxlumi
                 elif byls:
-                    display.add_row( ['%d:%d'%(runnum,fillnum),'%d:%d'%(lsnum,cmslsnum),dtime,beamstatus,'%d'%tegev,'%.3f'%(delivered),'%.3f'%(recorded),'%.1f'%(avgpu),ds] , fh=fh, csvwriter=csvwriter, ptable=ptable)
+                    if hltpath is not None:
+                        for pth in prescale_map.keys():
+                            totpresc = prescale_map[pth]
+                            display.add_row( ['%d:%d'%(runnum,fillnum),'%d:%d'%(lsnum,cmslsnum),dtime,pth,'%.3f'%(np.divide(delivered/totpresc)),'%.3f'%(np.divide(recorded/totpresc)),ds] , fh=fh, csvwriter=csvwriter, ptable=ptable)
+                    else:
+                        display.add_row( ['%d:%d'%(runnum,fillnum),'%d:%d'%(lsnum,cmslsnum),dtime,beamstatus,'%d'%tegev,'%.3f'%(delivered),'%.3f'%(recorded),'%.1f'%(avgpu),ds] , fh=fh, csvwriter=csvwriter, ptable=ptable)
+            
             else:  #with lumi source
                 if row.has_key('deadtimefrac') and row['deadtimefrac'] is not None:
                     livefrac = 1.-row['deadtimefrac']
@@ -193,8 +219,9 @@ def lumi_per_normtag(shards,lumiquerytype,dbengine,dbschema,runtot,datasource=No
                     f_args = (avglumi,ncollidingbx)
                     f_kwds = ast.literal_eval(normparam)                          
                     avglumi = corrector.FunctionCaller(normfunc,*f_args,**f_kwds)    
-                delivered = avglumi*lslengthsec/scalefactor
+                delivered = np.divide(avglumi*lslengthsec,scalefactor)
                 recorded = delivered*livefrac
+
                 if withBX:
                     bxlumi = None
                     bxlumistr = '[]'
@@ -205,26 +232,47 @@ def lumi_per_normtag(shards,lumiquerytype,dbengine,dbschema,runtot,datasource=No
                             bxdeliveredarray = corrector.FunctionCaller(normfunc,*f_bxargs,**f_kwds)
                         bxidx = np.nonzero(bxdeliveredarray)
                         if bxidx[0].size>0:                                      
-                            bxdelivered = bxdeliveredarray[bxidx]*lslengthsec/scalefactor
+                            bxdelivered = np.divide( bxdeliveredarray[bxidx]*lslengthsec,scalefactor ) 
                             bxlumi = np.transpose( np.array([bxidx[0]+1,bxdelivered,bxdelivered*livefrac]) )               
                         del bxdeliveredarray
                         del bxidx
-                    if bxlumi is not None:                                  
-                        a = map(formatter.bxlumi,bxlumi)  
-                        bxlumistr = '['+' '.join(a)+']'                              
-                    display.add_row( ['%d:%d'%(runnum,fillnum),'%d:%d'%(lsnum,cmslsnum),dtime,beamstatus,'%d'%tegev,'%.3f'%(delivered),'%.3f'%(recorded),'%.1f'%(avgpu),datasource.upper(),'%s'%bxlumistr] , fh=fh, csvwriter=csvwriter, ptable=ptable)
+                    if hltpath is not None:
+                        for pth in prescale_map.keys():
+                            totpresc = prescale_map[pth]                            
+                            if bxlumi is not None:                                  
+                                a = map(formatter.bxlumi,bxlumi/totpresc)  
+                                bxlumistr = '['+' '.join(a)+']'
+                            display.add_row( ['%d:%d'%(runnum,fillnum),'%d:%d'%(lsnum,cmslsnum),dtime,pth,'%.3f'%(np.divide(delivered/totpresc)),'%.3f'%(recorded/totpresc),ds,'%s'%bxlumistr] , fh=fh, csvwriter=csvwriter, ptable=ptable)
+                    else:
+                        if bxlumi is not None:
+                            a = map(formatter.bxlumi,bxlumi)
+                            bxlumistr = '['+' '.join(a)+']'
+                        display.add_row( ['%d:%d'%(runnum,fillnum),'%d:%d'%(lsnum,cmslsnum),dtime,beamstatus,'%d'%tegev,'%.3f'%(delivered),'%.3f'%(recorded),'%.1f'%(avgpu),datasource.upper(),'%s'%bxlumistr] , fh=fh, csvwriter=csvwriter, ptable=ptable)
                     del bxlumi
                 elif byls:
-                    display.add_row( ['%d:%d'%(runnum,fillnum),'%d:%d'%(lsnum,cmslsnum),dtime,beamstatus,'%d'%tegev,'%.3f'%(delivered),'%.3f'%(recorded),'%.1f'%(avgpu),datasource.upper()] , fh=fh, csvwriter=csvwriter, ptable=ptable)
-
-            if runtot.has_key(runnum):#accumulate                          
-                runtot[runnum]['nls'] += 1
-                if cmson: runtot[runnum]['ncms'] += 1
-                runtot[runnum]['delivered'] += delivered
-                runtot[runnum]['recorded'] += recorded
+                    if hltpath is not None:
+                        for pth in prescale_map.keys():
+                            totpresc = prescale_map[pth]
+                            display.add_row( ['%d:%d'%(runnum,fillnum),'%d:%d'%(lsnum,cmslsnum),dtime,pth,'%.3f'%(np.divide(delivered/totpresc)),'%.3f'%(np.divide(recorded/totpresc)),ds] , fh=fh, csvwriter=csvwriter, ptable=ptable)
+                    else:
+                        display.add_row( ['%d:%d'%(runnum,fillnum),'%d:%d'%(lsnum,cmslsnum),dtime,beamstatus,'%d'%tegev,'%.3f'%(delivered),'%.3f'%(recorded),'%.1f'%(avgpu),datasource.upper()] , fh=fh, csvwriter=csvwriter, ptable=ptable)
+            if  hltpath is None:
+                runtot_df.loc[ runtot_df.run==runnum, 'nls' ] += 1
+                if cmson: runtot_df.loc[ runtot_df.run == runnum,'ncms' ] += 1
+                runtot_df.loc[runtot_df.run == runnum,'delivered'] += delivered
+                runtot_df.loc[runtot_df.run == runnum,'recorded'] += recorded
             else:
-                runtot[runnum] = {'fill':fillnum,'time':dtime,'nls':1,'ncms':int(cmson),'delivered':delivered,'recorded':recorded}
-    return runtot
+                print runnum,lsnum,cmslsnum
+                if not cmson: continue
+                print prescale_map
+                for pth in prescale_map.keys():
+                    totpresc = prescale_map[pth]
+                    print 'totpresc ',totpresc
+                    runtot_df.loc[ (runtot_df.run==runnum)&(runtot_df.hltpath==pth) ,'nls'] += 1
+                    if cmson: runtot_df.loc[ (runtot_df.run==runnum)&(runtot_df.hltpath==pth) ,'ncms'] += 1
+                    runtot_df.loc[ (runtot_df.run==runnum) & (runtot_df.hltpath==pth) ,'delivered'] += np.divide(delivered,totpresc)
+                    runtot_df.loc[ (runtot_df.run==runnum) & (runtot_df.hltpath==pth) ,'recorded'] += np.divide(recorded,totpresc)
+    return runtot_df
      
 class ValidityChecker(object):
     def __init__(self, normdata):
@@ -299,7 +347,7 @@ def brilcalc_main(progname=sys.argv[0]):
 
     log.debug('command arguments: %s',cmmdargv)
     parseresult = {}
-
+    
     try:
       if args['<command>'] == 'lumi':
           import brilcalc_lumi          
@@ -320,21 +368,43 @@ def brilcalc_main(progname=sys.argv[0]):
           ftable = None
           csvwriter = None
           vfunc_lumiunit = np.vectorize(formatter.lumiunit)
-          header = ['run:fill','time','nls','ncms','delivered(/ub)','recorded(/ub)']
-          footer = ['nfill','nrun','nls','ncms','totdelivered(/ub)','totrecorded(/ub)']
-          bylsheader = ['run:fill','ls','time','beamstatus','E(GeV)','delivered(/ub)','recorded(/ub)','avgpu','source']          
-          scalefactor = pargs.scalefactor
+
+          g_headers = {}
+          g_headers['runheader'] = ['run:fill','time','nls','ncms','delivered(/ub)','recorded(/ub)']
+          g_headers['footer'] = ['nfill','nrun','nls','ncms','totdelivered(/ub)','totrecorded(/ub)']
+          g_headers['bylsheader'] = ['run:fill','ls','time','beamstatus','E(GeV)','delivered(/ub)','recorded(/ub)','avgpu','source']
+          g_headers['runheader_hltpath'] = ['run:fill','time','ncms','hltpath','delivered(/ub)','recorded(/ub)']
+          g_headers['footer_hltpath'] = ['hltpath','nfill','nrun','ncms','totdelivered(/ub)','totrecorded(/ub)']
+          g_headers['bylsheader_hltpath'] = ['run:fill','ls','time','hltpath','delivered(/ub)','recorded(/ub)','source']
           
+          scalefactor = pargs.scalefactor
           lumiunitstr = parseresult['-u']         
           if lumiunitstr not in formatter.lumiunit_to_scalefactor.keys(): raise ValueError('%s not recognised as lumi unit'%lumiunit)
           lumiunitconversion = formatter.lumiunit_to_scalefactor[lumiunitstr]
           scalefactor = scalefactor*lumiunitconversion
-          
-          if pargs.withBX:
-              header = bylsheader+['[bxidx bxdelivered(/ub) bxrecorded(/ub)]']
-          elif pargs.byls:
-              header = bylsheader
-          
+
+          if pargs.byls:
+              if pargs.hltpath is None:
+                  header = g_headers['bylsheader']
+                  footer = g_headers['footer']
+              else:
+                  header = g_headers['bylsheader_hltpath']
+                  footer = g_headers['footer_hltpath']
+          elif pargs.withBX:
+              if pargs.hltpath is None:
+                  header = g_headers['bylsheader']+['[bxidx bxdelivered(/ub) bxrecorded(/ub)]']
+                  footer = g_headers['footer']
+              else:
+                  header = g_headers['bylsheader_hltpath']+['[bxidx bxdelivered(/ub) bxrecorded(/ub)]']
+                  footer = g_headers['footer_hltpath']
+          else:
+              if pargs.hltpath is None:
+                  header = g_headers['runheader']
+                  footer = g_headers['footer']
+              else:
+                  header = g_headers['runheader_hltpath']
+                  footer = g_headers['footer_hltpath']
+                  
           header = vfunc_lumiunit(header,lumiunitstr).tolist()
           footer = vfunc_lumiunit(footer,lumiunitstr).tolist()
                     
@@ -403,7 +473,7 @@ def brilcalc_main(progname=sys.argv[0]):
           log.debug('lumiquerytype %s'%lumiquerytype)          
           log.debug('scalefactor: %.2f'%pargs.scalefactor)                    
           #print datasources
-          runtot = {}# {run: {'fill':fillnum,'time':dtime,'nls':1,'ncms':int(cmson),'delivered':delivered,'recorded':recorded} }
+          #runtot = {}# {run: {'fill':fillnum,'time':dtime,'nls':1,'ncms':int(cmson),'delivered':delivered,'recorded':recorded} }          
           
           totz=utctmzone
           if pargs.cerntime:
@@ -420,44 +490,52 @@ def brilcalc_main(progname=sys.argv[0]):
           beamstatusid = pargs.beamstatusid
           tssecmin = pargs.tssecmin
           tssecmax = pargs.tssecmax
-
-          if pargs.hltpath is not None:# get hlt,l1seed names and bits mask
-              hltpathl1seedmap_df = api.get_hlttrgl1seedmap(dbengine,hltpath=pargs.hltpath,schemaname=dbschema)              
-              #[hltconfigid,hltpathid,hltpathname,seedtype,seedvalue]  
-              if hltpathl1seedmap_df is None:
-                  print 'no hltl1seed mapping not found for %s'%(pargs.hltpath)
-                  sys.exit(0)
-                  
-          for [qtype,ntag,dsource,rselect] in datasources:
-              #print ntag,dsource,rselect
-              #lumi_per_normtag(shards,qtype,dbengine,dbschema,runtot,datasource=dsource,normtag=ntag,withBX=pargs.withBX,byls=pargs.byls,fh=fh,csvwriter=csvwriter,ptable=ptable,scalefactor=scalefactor,totz=totz,fillmin=fillmin,fillmax=fillmax,runmin=runmin,runmax=runmax,amodetagid=amodetagid,egev=egev,beamstatusid=beamstatusid,tssecmin=tssecmin,tssecmax=tssecmax,runlsSeries=rselect,hltl1seedmap=hltpathl1seedmap_df)
-              lumi_per_normtag(shards,qtype,dbengine,dbschema,runtot,datasource=dsource,normtag=ntag,withBX=pargs.withBX,byls=pargs.byls,fh=fh,csvwriter=csvwriter,ptable=ptable,scalefactor=scalefactor,totz=totz,fillmin=fillmin,fillmax=fillmax,runmin=runmin,runmax=runmax,amodetagid=amodetagid,egev=egev,beamstatusid=beamstatusid,tssecmin=tssecmin,tssecmax=tssecmax,runlsSeries=rselect,hltpath=pargs.hltpath)
           
-          if runtot:              
-              df_runtot = pd.DataFrame.from_dict(runtot,orient='index')
-              nruns = len(df_runtot.index)
-              nfills = df_runtot['fill'].nunique()
-              nls = df_runtot['nls'].sum()
-              ncmsls = df_runtot['ncms'].sum()
-              totdelivered = df_runtot['delivered'].sum()
-              totrecorded = df_runtot['recorded'].sum()
-              display.add_row( [ nfills,nruns,nls,ncmsls,'%.3f'%(totdelivered),'%.3f'%(totrecorded)], fh=None, csvwriter=None, ptable=ftable)
-              del df_runtot
+          runtotdfs = []        
+          for [qtype,ntag,dsource,rselect] in datasources:
+              #print ntag,dsource,rselect              
+              r = lumi_per_normtag(shards,qtype,dbengine,dbschema,datasource=dsource,normtag=ntag,withBX=pargs.withBX,byls=pargs.byls,fh=fh,csvwriter=csvwriter,ptable=ptable,scalefactor=scalefactor,totz=totz,fillmin=fillmin,fillmax=fillmax,runmin=runmin,runmax=runmax,amodetagid=amodetagid,egev=egev,beamstatusid=beamstatusid,tssecmin=tssecmin,tssecmax=tssecmax,runlsSeries=rselect,hltpath=pargs.hltpath)
+              runtotdfs.append(r)
+                                
+          runtot_df = pd.concat(runtotdfs)          
+          if runtot_df['hltpath'].isnull().all():
+              nruns = runtot_df['run'].nunique()
+              nfills = runtot_df['fill'].nunique()
+              nls = runtot_df['nls'].sum()
+              ncmsls = runtot_df['ncms'].sum()
+              totdelivered = runtot_df['delivered'].sum()
+              totrecorded = runtot_df['recorded'].sum()
+              display.add_row( [ '%d'%nfills,'%d'%nruns,'%d'%nls,'%d'%ncmsls,'%.3f'%(totdelivered),'%.3f'%(totrecorded)], fh=None, csvwriter=None, ptable=ftable)
+
               if not pargs.byls and not pargs.withBX: #run table
-                  for run in sorted(runtot):
-                      display.add_row( ['%d:%d'%(run,runtot[run]['fill']),runtot[run]['time'],runtot[run]['nls'],runtot[run]['ncms'],'%.3f'%(runtot[run]['delivered']),'%.3f'%(runtot[run]['recorded'])] , fh=fh, csvwriter=csvwriter, ptable=ptable)
-        
-              if pargs.totable:              
-                  print '#Data tag : %s , Norm tag: %s'%(datatagname,normtagname)
-                  display.show_table(ptable,pargs.outputstyle)
-                  print "#Summary: "
-                  display.show_table(ftable,pargs.outputstyle)
-                  del ptable
-                  del ftable
-              else:              
-                  print >> fh, '#Summary:'                  
-                  print >> fh, '#'+','.join(footer)
-                  print >> fh, '#'+','.join( [ '%d'%nfills,'%d'%nruns,'%d'%nls,'%d'%ncmsls,'%.3f'%(totdelivered),'%.3f'%(totrecorded)] )
+                  for idx,row in runtot_df.iterrows():
+                      display.add_row( ['%d:%d'%(int(row['run']),int(row['fill'])),str(row['time']),int(row['nls']),int(row['ncms']),'%.3f'%(float(row['delivered'])),'%.3f'%(float(row['recorded'])) ] , fh=fh, csvwriter=csvwriter, ptable=ptable)
+          else:
+              grouped = runtot_df.groupby('hltpath')
+              for pathname,g in grouped:
+                  nruns = int(g['run'].nunique())
+                  nfills = int(g['fill'].nunique())
+                  ncmsls =  int(g['ncms'].sum())
+                  totdelivered = g['delivered'].sum()
+                  totrecorded = g['recorded'].sum()
+                  display.add_row( [ pathname, nfills,nruns,ncmsls,'%.3f'%(totdelivered),'%.3f'%(totrecorded)], fh=None, csvwriter=None, ptable=ftable)
+              if not pargs.byls and not pargs.withBX: #hltpath, run table 
+                  for p,g in grouped:
+                      for idx,row in g.iterrows():
+                          print p,row
+          del runtot_df
+          
+          if pargs.totable:              
+              print '#Data tag : %s , Norm tag: %s'%(datatagname,normtagname)
+              display.show_table(ptable,pargs.outputstyle)
+              print "#Summary: "
+              display.show_table(ftable,pargs.outputstyle)
+              del ptable
+              del ftable
+          else:              
+              print >> fh, '#Summary:'                  
+              print >> fh, '#'+','.join(footer)
+              print >> fh, '#'+','.join( [ '%d'%nfills,'%d'%nruns,'%d'%nls,'%d'%ncmsls,'%.3f'%(totdelivered),'%.3f'%(totrecorded)] )
 
           if fh and fh is not sys.stdout: fh.close()
 
