@@ -13,6 +13,7 @@ import sys
 import ast
 import logging
 import string
+import collections
 from brilws import params
 #from ConfigParser import SafeConfigParser
 
@@ -1770,7 +1771,16 @@ def build_query_condition(runmin=None,runmax=None,fillmin=None,tssecmin=None,tss
     if not qPieces: return ('',{})
     qCondition = ' and '.join(qPieces)
     return (qCondition,binddict)
-    
+
+def build_or_collection(varname,varnamealias,mycollection):
+    f = []
+    binddict = {}
+    for i,h in enumerate(mycollection):
+        thisalias = '%s%d'%(varnamealias,i)
+        f.append( '%s=:%s'%(varname,thisalias) )
+        binddict[ thisalias ] = h
+    return [' or '.join(f), binddict]
+
 def online_resultIter(engine,tablename,schemaname='',runmin=None,runmax=None,fillmin=None,tssecmin=None,tssecmax=None,fillmax=None,beamstatus=None,beamstatusid=None,amodetag=None,amodetagid=None,targetegev=None,runlsselect=None,fields=[],sorted=False):
     '''
     get list of run/ls of the online tag
@@ -1876,8 +1886,10 @@ def get_hlttrgl1seedmap(engine,hltpath=None,hltconfigids=[],schemaname=''):
             if isinstance(hltconfigids,int):
                 qfields.append("hltconfigid=:hltconfigid")
                 binddict['hltconfigid'] = hltconfigids
-            elif isinstance(hltconfigids,list):
-                qfields.append("hltconfigid in (%s)")%(','.join([str(i) for i in hltconfigids]))
+            elif isinstance(hltconfigids,collections.Iterable):
+                (qf,s) = build_or_collection('hltconfigid','hltconfigid',hltconfigids)
+                qfields.append(qf)
+                binddict = merge_two_dicts(binddict,s)                                
         q = q+' and '.join(qfields)
     log.debug(q+','+str(binddict))
     connection = engine.connect()
@@ -1922,15 +1934,19 @@ def get_hltconfig_trglastscaled(engine,hltconfigids=[],hltkey=None,runnums=[],sc
             if isinstance(runnums,int):
                 qfields.append("r.runnum=:runnum")
                 binddict['runnum'] = runnums
-            elif isinstance(runnums,list):
-                qfields.append( "r.runnum in (%s)"%(''.join([str(i) for i in runnums])) )
+            elif isinstance(runnums,collections.Iterable):
+                (qf,s) = build_or_collection('r.runnum','runnum',runnums)
+                qfields.append(qf)
+                binddict = merge_two_dicts(binddict,s)
                 
         if hltconfigids:
             if isinstance(hltconfigids,int):
                 qfields.append("r.hltconfigid=:hltconfigid")
                 binddict['hltconfigid'] = hltconfigids
-            elif isinstance(hltconfigids,list):
-                qfields.append( "r.hltconfigid in (%s)"%(''.join([str(i) for i in hltconfigids])) )
+            elif isinstance(hltconfigids,collections.Iterable):
+                (qf,s) = build_or_collection('r.hltconfigid','hltconfigid',hltconfigids)
+                qfields.append(qf)
+                binddict = merge_two_dicts(binddict,s)                
                 
         if hltkey:
             if not _is_str_pattern(hltkey):
@@ -2020,28 +2036,34 @@ def get_trgprescale(engine,runnum,lsnum,pathids=[],l1candidates=[],prescidxs=Non
     
     binddict = {'runnum':runnum,'lsnum':lsnum}
     if pathids:
-        if isinstance(pathids,list):
-            hstr = ','.join( [str(h) for h in pathids] )
-            hltpathStr = ' and h.hltpathid in (%s)'%hstr
-        elif isinstance(pathids,int):
+        if isinstance(pathids,int):
             hltpathStr = ' and h.hltpathid=:hltpathid'
             binddict['hltpathid'] = pathids
+        elif isinstance(pathids,collections.Iterable):
+            (qf,s) = build_or_collection('h.hltpathid','hltpath',pathids)
+            hltpathStr = ' and '+qf
+            binddict = merge_two_dicts(binddict,s)            
+            #hstr = ','.join( [str(h) for h in pathids] )
+            #hltpathStr = ' and h.hltpathid in (%s)'%hstr        
         q = q+hltpathStr
     if l1candidates:
-        if isinstance(l1candidates,list):
-            bstr = ','.join(["\'%s\'"%t for t in l1candidates])
-            l1bitStr = " and r.bitname in (%s)"%bstr
-        elif isinstance(l1candidates,str):
+        if isinstance(l1candidates,str):
             l1bitStr = ' and r.bitname=:bitname'
             binddict['bitname']=l1candidates
+        elif isinstance(l1candidates,collections.Iterable):
+            bstr = ','.join(["\'%s\'"%t for t in l1candidates])
+            l1bitStr = " and r.bitname in (%s)"%bstr            
         q = q+l1bitStr
     if prescidxs is not None:#zero is valid prescidx
-        if isinstance(prescidxs,list):
-            pstr = ','.join( [str(p) for p in prescidxs] )
-            prescStr = ' and p.rescidx in (%s)'%pstr
-        elif isinstance(prescidxs,int):
+        if isinstance(prescidxs,int):
             prescStr = ' and p.prescidx=:prescidx'
             binddict['prescidx'] = prescidxs
+        elif isinstance(prescidxs,collections.Iterable):
+            (qf,s) = build_or_collection('p.prescidx','prescidx',prescidxs)
+            prescStr = ' and '+qf
+            binddict = merge_two_dicts(binddict,s)     
+            #pstr = ','.join( [str(p) for p in prescidxs] )
+            #prescStr = ' and p.rescidx in (%s)'%pstr        
         q = q+prescStr
     log.debug( q+','+str(binddict) )
     connection = engine.connect()
