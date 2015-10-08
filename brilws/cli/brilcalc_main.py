@@ -43,8 +43,7 @@ sys.stdout = Unbuffered(sys.stdout)
 np.seterr(divide='ignore', invalid='ignore')
 
 
-def lumi_per_normtag(shards,lumiquerytype,dbengine,dbschema,datasource=None,normtag=None,withBX=False,byls=None,fh=None,csvwriter=None,ptable=None,scalefactor=1,totz=utctmzone,fillmin=None,fillmax=None,runmin=None,runmax=None,amodetagid=None,egev=None,beamstatusid=None,tssecmin=None,tssecmax=None,runlsSeries=None,hltpath=None):   
-    runtot_df = pd.DataFrame(columns=['run','fill','time','nls','ncms','delivered','recorded','hltpath'])
+def lumi_per_normtag(shards,lumiquerytype,dbengine,dbschema,runtot_df,datasource=None,normtag=None,withBX=False,byls=None,fh=None,csvwriter=None,ptable=None,scalefactor=1,totz=utctmzone,fillmin=None,fillmax=None,runmin=None,runmax=None,amodetagid=None,egev=None,beamstatusid=None,tssecmin=None,tssecmax=None,runlsSeries=None,hltpath=None):   
     
     validitychecker = None
     lastvalidity = None
@@ -268,7 +267,6 @@ def lumi_per_normtag(shards,lumiquerytype,dbengine,dbschema,datasource=None,norm
                     if cmson: runtot_df.loc[ (runtot_df.run==runnum)&(runtot_df.hltpath==pth) ,'ncms'] += 1
                     runtot_df.loc[ (runtot_df.run==runnum) & (runtot_df.hltpath==pth) ,'delivered'] += np.divide(delivered,totpresc)
                     runtot_df.loc[ (runtot_df.run==runnum) & (runtot_df.hltpath==pth) ,'recorded'] += np.divide(recorded,totpresc)
-    return runtot_df
      
 class ValidityChecker(object):
     def __init__(self, normdata):
@@ -487,13 +485,11 @@ def brilcalc_main(progname=sys.argv[0]):
           tssecmin = pargs.tssecmin
           tssecmax = pargs.tssecmax
           
-          runtotdfs = []        
+          runtot_df = pd.DataFrame(columns=['run','fill','time','nls','ncms','delivered','recorded','hltpath'])           
           for [qtype,ntag,dsource,rselect] in datasources:
               #print ntag,dsource,rselect              
-              r = lumi_per_normtag(shards,qtype,dbengine,dbschema,datasource=dsource,normtag=ntag,withBX=pargs.withBX,byls=pargs.byls,fh=fh,csvwriter=csvwriter,ptable=ptable,scalefactor=scalefactor,totz=totz,fillmin=fillmin,fillmax=fillmax,runmin=runmin,runmax=runmax,amodetagid=amodetagid,egev=egev,beamstatusid=beamstatusid,tssecmin=tssecmin,tssecmax=tssecmax,runlsSeries=rselect,hltpath=pargs.hltpath)
-              runtotdfs.append(r)
-                                
-          runtot_df = pd.concat(runtotdfs)
+              lumi_per_normtag(shards,qtype,dbengine,dbschema,runtot_df,datasource=dsource,normtag=ntag,withBX=pargs.withBX,byls=pargs.byls,fh=fh,csvwriter=csvwriter,ptable=ptable,scalefactor=scalefactor,totz=totz,fillmin=fillmin,fillmax=fillmax,runmin=runmin,runmax=runmax,amodetagid=amodetagid,egev=egev,beamstatusid=beamstatusid,tssecmin=tssecmin,tssecmax=tssecmax,runlsSeries=rselect,hltpath=pargs.hltpath)
+              
           #if runtot_df['hltpath'].isnull().all():
           if pargs.hltpath is None:
               nruns = runtot_df['run'].nunique()
@@ -502,11 +498,11 @@ def brilcalc_main(progname=sys.argv[0]):
               ncmsls = runtot_df['ncms'].sum()
               totdelivered = runtot_df['delivered'].sum()
               totrecorded = runtot_df['recorded'].sum()
-              display.add_row( [ '%d'%nfills,'%d'%nruns,'%d'%nls,'%d'%ncmsls,'%.3f'%(totdelivered),'%.3f'%(totrecorded)], fh=None, csvwriter=None, ptable=ftable)
+              display.add_row( [ '%d'%nfills,'%d'%nruns,'%d'%nls,'%d'%ncmsls,'%.3f'%(totdelivered),'%.3f'%(totrecorded)], fh=fh, csvwriter=csvwriter, ptable=ftable)
 
               if not pargs.byls and not pargs.withBX: #run table
-                  for idx,row in runtot_df.iterrows():
-                      display.add_row( ['%d:%d'%(int(row['run']),int(row['fill'])),str(row['time']),int(row['nls']),int(row['ncms']),'%.3f'%(float(row['delivered'])),'%.3f'%(float(row['recorded'])) ] , fh=fh, csvwriter=csvwriter, ptable=ptable)
+                  for v in runtot_df.values:
+                      display.add_row( ['%d:%d'%(int(v[0]),int(v[1])),str(v[2]),int(v[3]),int(v[4]),'%.3f'%(float(v[5])),'%.3f'%(float(v[6])) ] , fh=fh, csvwriter=csvwriter, ptable=ptable)
           else:
               hltpathSummary = []
               grouped = runtot_df.groupby('hltpath')
@@ -516,7 +512,7 @@ def brilcalc_main(progname=sys.argv[0]):
                   ncmsls =  int(g['ncms'].sum())
                   totdelivered = g['delivered'].sum()
                   totrecorded = g['recorded'].sum()
-                  display.add_row( [ pathname, nfills,nruns,ncmsls,'%.3f'%(totdelivered),'%.3f'%(totrecorded)], fh=None, csvwriter=None, ptable=ftable)
+                  display.add_row( [ pathname, nfills,nruns,ncmsls,'%.3f'%(totdelivered),'%.3f'%(totrecorded)], fh=fh, csvwriter=None, ptable=ftable)
               if not pargs.byls and not pargs.withBX: #hltpath, run table                  
                   for pname,g in grouped:
                       pnruns = int( g['run'].nunique() )
@@ -531,9 +527,8 @@ def brilcalc_main(progname=sys.argv[0]):
                           tncmsls = int(v[4])
                           tdelivered = float(v[5])
                           trecorded = float(v[6])
-                          display.add_row( [ '%d:%d'%(tfill,trun), ttime, tncmsls, pname, '%.3f'%tdelivered, '%.3f'%trecorded], fh=fh, csvwriter=None, ptable=ptable )
-                      hltpathSummary.append([pname,pnfills,pnruns,pncmsls,ptotdelivered,ptotrecorded])
-                          
+                          display.add_row( [ '%d:%d'%(trun,tfill), ttime, tncmsls, pname, '%.3f'%tdelivered, '%.3f'%trecorded], fh=fh, csvwriter=None, ptable=ptable )
+                      hltpathSummary.append([pname,pnfills,pnruns,pncmsls,ptotdelivered,ptotrecorded])                          
           del runtot_df
           
           if pargs.totable:              
