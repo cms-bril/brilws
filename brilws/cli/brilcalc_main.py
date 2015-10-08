@@ -86,6 +86,7 @@ def lumi_per_normtag(shards,lumiquerytype,dbengine,dbschema,runtot_df,datasource
         g_ls_trglastscaled_old = 0
         g_hltconfigid_old = None
         prescale_map = {} # for global scope
+        presc_df = None
         for row in lumiiter:            
             fillnum = row['fillnum']
             runnum = row['runnum']
@@ -97,8 +98,7 @@ def lumi_per_normtag(shards,lumiquerytype,dbengine,dbschema,runtot_df,datasource
             if hltpath is not None :
                 totpresc = 0
                 if cmslsnum==0: continue #cms is not running, skip.                
-                ls_trglastscaled = api.get_ls_trglastscaled(dbengine,runnum,cmslsnum,schemaname=dbschema)
-                if g_run_old!=runnum: #on each new run, get hltconfigid
+                if g_run_old!=runnum: #on new run boundary, get hltconfigid
                     hltrunconfig_df = api.get_hltrunconfig(dbengine,runnum=runnum,schemaname=dbschema) #['runnum','hltconfigid','hltkey']
                     hltconfigid = int(np.unique(hltrunconfig_df['hltconfigid'].values)[0])
                     if hltconfigid != g_hltconfigid_old:
@@ -106,15 +106,13 @@ def lumi_per_normtag(shards,lumiquerytype,dbengine,dbschema,runtot_df,datasource
                         #['hltconfigid','hltpathid','hltpathname','seedtype','seedvalue']
                         pathids = np.unique( hltl1map_df['hltpathid'].values )
                         g_hltconfigid_old = hltconfigid
-                        #print hltl1map_df
+                    del presc_df #clear
                     presc_df = api.get_hltconfig_trglastscaled(dbengine,hltconfigids=hltconfigid,runnums=runnum,schemaname=dbschema)
                     #['hltconfigid','hltkey','runnum','lslastscaler','prescidx']                    
-                    if presc_df is None: continue
-                    #print presc_df
-                    #del presc_df
-                    #del hltrunconfig_df
                     g_run_old = runnum
-                if g_ls_trglastscaled_old != ls_trglastscaled:
+                if presc_df is None: continue
+                ls_trglastscaled = presc_df.loc[ presc_df.lslastscaler<=cmslsnum, 'lslastscaler' ].max()
+                if g_ls_trglastscaled_old != ls_trglastscaled: #on prescale change lumi section
                     prescale_map = {} #clear
                     tmp_df = presc_df.merge(hltl1map_df, on='hltconfigid', how='inner',copy=False)
                     if tmp_df is None: continue
@@ -124,7 +122,6 @@ def lumi_per_normtag(shards,lumiquerytype,dbengine,dbschema,runtot_df,datasource
                         l1seedlogic = group['seedtype'].values[0]
                         r = api.get_trgprescale(dbengine,runnum,ls_trglastscaled,pathids=pathids,l1candidates=l1candidates,ignorel1mask=True,schemaname=dbschema)
                                         #['prescidx','hltpathid','hltprescval','bitname','trgprescval','bitmask']
-                        #print r
                         if r is None: continue
                         hltprescval = r['hltprescval'].values[0]                        
                         if np.all(r['trgprescval'].values==1):
@@ -139,7 +136,7 @@ def lumi_per_normtag(shards,lumiquerytype,dbengine,dbschema,runtot_df,datasource
                         prescale_map[hltpathname] = totpresc                        
                         del r                        
                     g_ls_trglastscaled_old = ls_trglastscaled
-
+                    
             beamstatusid = row['beamstatusid']
             beamstatus = params._idtobeamstatus[beamstatusid]
             if beamstatus not in ['FLAT TOP','STABLE BEAMS','SQUEEZE','ADJUST']: continue

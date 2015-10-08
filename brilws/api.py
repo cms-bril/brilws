@@ -1984,19 +1984,6 @@ def get_hltrunconfig(engine,hltconfigid=0,hltkey=None,runnum=None,schemaname='')
         result.columns = ['runnum','hltconfigid','hltkey']
         return result
     
-def get_ls_trglastscaled(engine,runnum,lsnum,schemaname=''):
-    '''
-    output: lastscaled ls value valid for the input lsnum
-    '''    
-    prescidxchangetable = 'prescidxchange'
-    result = 0
-    if schemaname:
-        prescidxchangetable = '.'.join([schemaname,prescidxchangetable])   
-    q = "select max(lsnum) as lslastscaler from %s where runnum=:runnum and lsnum<=:lsnum"%prescidxchangetable
-    connection = engine.connect()
-    result = connection.execute(q,{'runnum':runnum,'lsnum':lsnum}).fetchone()[0]
-    return result
-
 def get_trgprescale(engine,runnum,lsnum,pathids=[],l1candidates=[],prescidxs=None,ignorel1mask=False,schemaname=''):
     '''
     get 
