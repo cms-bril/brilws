@@ -86,7 +86,7 @@ def lumi_per_normtag(shards,lumiquerytype,dbengine,dbschema,datasource=None,norm
         g_run_old = 0
         g_ls_trglastscaled_old = 0
         g_hltconfigid_old = None
-        
+        prescale_map = {} # for global scope
         for row in lumiiter:            
             fillnum = row['fillnum']
             runnum = row['runnum']
@@ -95,7 +95,6 @@ def lumi_per_normtag(shards,lumiquerytype,dbengine,dbschema,datasource=None,norm
             timestampsec = row['timestampsec']
             cmson = row['cmson']
             if not cmson: cmslsnum = 0            
-            prescale_map = {}
             if hltpath is not None :
                 totpresc = 0
                 if cmslsnum==0: continue #cms is not running, skip.                
@@ -104,26 +103,25 @@ def lumi_per_normtag(shards,lumiquerytype,dbengine,dbschema,datasource=None,norm
                     hltrunconfig_df = api.get_hltrunconfig(dbengine,runnum=runnum,schemaname=dbschema) #['runnum','hltconfigid','hltkey']
                     hltconfigid = int(np.unique(hltrunconfig_df['hltconfigid'].values)[0])
                     if hltconfigid != g_hltconfigid_old:
-                        print 'trigger l1seed map query'
                         hltl1map_df = api.get_hlttrgl1seedmap(dbengine,hltpath=hltpath,hltconfigids=hltconfigid,schemaname=dbschema)
                         #['hltconfigid','hltpathid','hltpathname','seedtype','seedvalue']
-                        pathids = list(np.unique( hltl1map_df['hltpathid'].values ) )
-                        print pathids
+                        pathids = np.unique( hltl1map_df['hltpathid'].values )
                         g_hltconfigid_old = hltconfigid
                         #print hltl1map_df
                     presc_df = api.get_hltconfig_trglastscaled(dbengine,hltconfigids=hltconfigid,runnums=runnum,schemaname=dbschema)
-                    #['hltconfigid','hltkey','runnum','lslastscaler','prescidx']
+                    #['hltconfigid','hltkey','runnum','lslastscaler','prescidx']                    
                     if presc_df is None: continue
                     #print presc_df
                     #del presc_df
                     #del hltrunconfig_df
                     g_run_old = runnum
                 if g_ls_trglastscaled_old != ls_trglastscaled:
+                    prescale_map = {} #clear
                     tmp_df = presc_df.merge(hltl1map_df, on='hltconfigid', how='inner')
                     if tmp_df is None: continue
                     grouped = tmp_df.groupby(['hltconfigid','runnum','lslastscaler','hltpathid'])
                     for name,group in grouped:
-                        l1candidates = list(np.hstack( group['seedvalue'].values ))
+                        l1candidates = np.hstack( group['seedvalue'].values )
                         l1seedlogic = group['seedtype'].values[0]
                         r = api.get_trgprescale(dbengine,runnum,ls_trglastscaled,pathids=pathids,l1candidates=l1candidates,ignorel1mask=True,schemaname=dbschema)
                                         #['prescidx','hltpathid','hltprescval','bitname','trgprescval','bitmask']
@@ -139,11 +137,10 @@ def lumi_per_normtag(shards,lumiquerytype,dbengine,dbschema,datasource=None,norm
                         elif l1seedlogic=='AND':
                             totpresc = hltprescval*np.max(r['trgprescval'].values)
                         hltpathname = str( group['hltpathname'].values[0] )
-                        #print 'hltpath,totpresc ',hltpathname,totpresc
                         prescale_map[hltpathname] = totpresc                        
                         del r                        
                     g_ls_trglastscaled_old = ls_trglastscaled
-                    
+
             beamstatusid = row['beamstatusid']
             beamstatus = params._idtobeamstatus[beamstatusid]
             if beamstatus not in ['FLAT TOP','STABLE BEAMS','SQUEEZE','ADJUST']: continue
@@ -202,7 +199,7 @@ def lumi_per_normtag(shards,lumiquerytype,dbengine,dbschema,datasource=None,norm
                     if hltpath is not None:
                         for pth in prescale_map.keys():
                             totpresc = prescale_map[pth]
-                            display.add_row( ['%d:%d'%(runnum,fillnum),'%d:%d'%(lsnum,cmslsnum),dtime,pth,'%.3f'%(np.divide(delivered/totpresc)),'%.3f'%(np.divide(recorded/totpresc)),ds] , fh=fh, csvwriter=csvwriter, ptable=ptable)
+                            display.add_row( ['%d:%d'%(runnum,fillnum),'%d:%d'%(lsnum,cmslsnum), dtime, pth, '%.3f'%(np.divide(delivered,totpresc)),'%.3f'%(np.divide(recorded,totpresc)),ds] , fh=fh, csvwriter=csvwriter, ptable=ptable)
                     else:
                         display.add_row( ['%d:%d'%(runnum,fillnum),'%d:%d'%(lsnum,cmslsnum),dtime,beamstatus,'%d'%tegev,'%.3f'%(delivered),'%.3f'%(recorded),'%.1f'%(avgpu),ds] , fh=fh, csvwriter=csvwriter, ptable=ptable)
             
@@ -262,12 +259,11 @@ def lumi_per_normtag(shards,lumiquerytype,dbengine,dbschema,datasource=None,norm
                 runtot_df.loc[runtot_df.run == runnum,'delivered'] += delivered
                 runtot_df.loc[runtot_df.run == runnum,'recorded'] += recorded
             else:
-                print runnum,lsnum,cmslsnum
+                #print runnum,lsnum,cmslsnum
                 if not cmson: continue
-                print prescale_map
+                #print prescale_map
                 for pth in prescale_map.keys():
                     totpresc = prescale_map[pth]
-                    print 'totpresc ',totpresc
                     runtot_df.loc[ (runtot_df.run==runnum)&(runtot_df.hltpath==pth) ,'nls'] += 1
                     if cmson: runtot_df.loc[ (runtot_df.run==runnum)&(runtot_df.hltpath==pth) ,'ncms'] += 1
                     runtot_df.loc[ (runtot_df.run==runnum) & (runtot_df.hltpath==pth) ,'delivered'] += np.divide(delivered,totpresc)
@@ -497,8 +493,9 @@ def brilcalc_main(progname=sys.argv[0]):
               r = lumi_per_normtag(shards,qtype,dbengine,dbschema,datasource=dsource,normtag=ntag,withBX=pargs.withBX,byls=pargs.byls,fh=fh,csvwriter=csvwriter,ptable=ptable,scalefactor=scalefactor,totz=totz,fillmin=fillmin,fillmax=fillmax,runmin=runmin,runmax=runmax,amodetagid=amodetagid,egev=egev,beamstatusid=beamstatusid,tssecmin=tssecmin,tssecmax=tssecmax,runlsSeries=rselect,hltpath=pargs.hltpath)
               runtotdfs.append(r)
                                 
-          runtot_df = pd.concat(runtotdfs)          
-          if runtot_df['hltpath'].isnull().all():
+          runtot_df = pd.concat(runtotdfs)
+          #if runtot_df['hltpath'].isnull().all():
+          if pargs.hltpath is None:
               nruns = runtot_df['run'].nunique()
               nfills = runtot_df['fill'].nunique()
               nls = runtot_df['nls'].sum()
@@ -511,6 +508,7 @@ def brilcalc_main(progname=sys.argv[0]):
                   for idx,row in runtot_df.iterrows():
                       display.add_row( ['%d:%d'%(int(row['run']),int(row['fill'])),str(row['time']),int(row['nls']),int(row['ncms']),'%.3f'%(float(row['delivered'])),'%.3f'%(float(row['recorded'])) ] , fh=fh, csvwriter=csvwriter, ptable=ptable)
           else:
+              hltpathSummary = []
               grouped = runtot_df.groupby('hltpath')
               for pathname,g in grouped:
                   nruns = int(g['run'].nunique())
@@ -519,10 +517,23 @@ def brilcalc_main(progname=sys.argv[0]):
                   totdelivered = g['delivered'].sum()
                   totrecorded = g['recorded'].sum()
                   display.add_row( [ pathname, nfills,nruns,ncmsls,'%.3f'%(totdelivered),'%.3f'%(totrecorded)], fh=None, csvwriter=None, ptable=ftable)
-              if not pargs.byls and not pargs.withBX: #hltpath, run table 
-                  for p,g in grouped:
-                      for idx,row in g.iterrows():
-                          print p,row
+              if not pargs.byls and not pargs.withBX: #hltpath, run table                  
+                  for pname,g in grouped:
+                      pnruns = int( g['run'].nunique() )
+                      pnfills = int( g['fill'].nunique() )
+                      pncmsls = int( g['ncms'].sum() )
+                      ptotdelivered = float( g['delivered'].sum() )
+                      ptotrecorded = float( g['recorded'].sum() )
+                      for v in g.values:
+                          trun = int(v[0])
+                          tfill = int(v[1])
+                          ttime = str(v[2])
+                          tncmsls = int(v[4])
+                          tdelivered = float(v[5])
+                          trecorded = float(v[6])
+                          display.add_row( [ '%d:%d'%(tfill,trun), ttime, tncmsls, pname, '%.3f'%tdelivered, '%.3f'%trecorded], fh=fh, csvwriter=None, ptable=ptable )
+                      hltpathSummary.append([pname,pnfills,pnruns,pncmsls,ptotdelivered,ptotrecorded])
+                          
           del runtot_df
           
           if pargs.totable:              
@@ -535,7 +546,11 @@ def brilcalc_main(progname=sys.argv[0]):
           else:              
               print >> fh, '#Summary:'                  
               print >> fh, '#'+','.join(footer)
-              print >> fh, '#'+','.join( [ '%d'%nfills,'%d'%nruns,'%d'%nls,'%d'%ncmsls,'%.3f'%(totdelivered),'%.3f'%(totrecorded)] )
+              if not pargs.hltpath:
+                  print >> fh, '#'+','.join( [ '%d'%nfills,'%d'%nruns,'%d'%nls,'%d'%ncmsls,'%.3f'%(totdelivered),'%.3f'%(totrecorded)] )
+              else:
+                  for pentry in hltpathSummary:
+                      print >> fh, '#'+','.join( [ '%s'%pentry[0],'%d'%pentry[1],'%d'%pentry[2],'%d'%pentry[3],'%.3f'%pentry[4],'%.3f'%pentry[5] ] )
 
           if fh and fh is not sys.stdout: fh.close()
 
@@ -710,7 +725,7 @@ def brilcalc_main(progname=sys.argv[0]):
                       hltpathid = int(name[3])
                       hltpathname = str( group['hltpathname'].values[0] )
                       prescidx = int( group['prescidx'].values[0] )                      
-                      l1candidates = list(np.hstack( group['seedvalue'].values ))
+                      l1candidates = np.hstack( group['seedvalue'].values )
                       l1seedlogic = group['seedtype'].values[0]
                       r = api.get_trgprescale(dbengine,runnum,lsnum,pathids=hltpathid,l1candidates=l1candidates,ignorel1mask=parseresult['--ignore-mask'],schemaname=dbschema)
                       ##['prescidx','hltpathid','hltprescval','bitname','trgprescval','bitmask']

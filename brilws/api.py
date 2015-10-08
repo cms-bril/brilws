@@ -1871,26 +1871,23 @@ def get_hlttrgl1seedmap(engine,hltpath=None,hltconfigids=[],schemaname=''):
         tablename = '.'.join([schemaname,name])
     q = "select hltconfigid, hltpathid, hltpathname, l1seed from %s "%(tablename)
     binddict = {}
-    if hltpath or hltconfigids:
-        q = q+' where '
-        qfields = []
-        if hltpath:
-            hltpath_sqlexpr = hltpath
-            if _is_strpattern(hltpath): # is pattern
-                hltpath_sqlexpr = translate_fntosql(hltpath)
-                qfields.append("regexp_like(hltpathname,'%s')"%(hltpath_sqlexpr))
-            else:
-                qfields.append("hltpathname=:hltpathname")
-                binddict['hltpathname'] = hltpath_sqlexpr
-        if hltconfigids:
-            if isinstance(hltconfigids,int):
-                qfields.append("hltconfigid=:hltconfigid")
-                binddict['hltconfigid'] = hltconfigids
-            elif isinstance(hltconfigids,collections.Iterable):
-                (qf,s) = build_or_collection('hltconfigid','hltconfigid',hltconfigids)
-                qfields.append(qf)
-                binddict = merge_two_dicts(binddict,s)                                
-        q = q+' and '.join(qfields)
+    qfields = []
+    if hltpath:
+        hltpath_sqlexpr = hltpath
+        if _is_strpattern(hltpath): # is pattern
+            hltpath_sqlexpr = translate_fntosql(hltpath)
+            qfields.append("regexp_like(hltpathname,'%s')"%(hltpath_sqlexpr))
+        else:
+            qfields.append("hltpathname=:hltpathname")
+            binddict['hltpathname'] = hltpath_sqlexpr
+    if isinstance(hltconfigids,int):
+        qfields.append("hltconfigid=:hltconfigid")
+        binddict['hltconfigid'] = hltconfigids
+    elif isinstance(hltconfigids,collections.Iterable):
+        (qf,s) = build_or_collection('hltconfigid','hltconfigid',hltconfigids)
+        qfields.append(qf)
+        binddict = merge_two_dicts(binddict,s)                                
+    if qfields: q = q+' where '+' and '.join(qfields)
     log.debug(q+','+str(binddict))
     connection = engine.connect()
     resultProxy = connection.execute(q,binddict)    
@@ -1898,20 +1895,10 @@ def get_hlttrgl1seedmap(engine,hltpath=None,hltconfigids=[],schemaname=''):
     if hltpathl1seed.size==0:
         return None
     else:
-        hltpathl1seed.columns = ['hltconfigid','hltpathid','hltpathname','l1seed']        
-    hltpathl1seed['l1seed'] = hltpathl1seed['l1seed'].apply(parseL1Seed)
-    hltpathl1seed = hltpathl1seed[ hltpathl1seed['l1seed']!=None ]
-    tmp_df = hltpathl1seed['l1seed'].apply( lambda x: pd.Series( [x[0],x[1:]] ) )
-    tmp_df.rename(columns={0:'seedtype',1:'seedvalue'},inplace=True)
+        hltpathl1seed.columns = ['hltconfigid','hltpathid','hltpathname','l1seed']                
+    hltpathl1seed['seedtype'],hltpathl1seed['seedvalue'] = zip(*(hltpathl1seed['l1seed'].apply(parseL1Seed)))
     del hltpathl1seed['l1seed']
-    result = hltpathl1seed.join(tmp_df)
-    del hltpathl1seed
-    del tmp_df
-    if result.size==0:
-        return None
-    else:
-        result.columns = ['hltconfigid','hltpathid','hltpathname','seedtype','seedvalue']
-        return result
+    return hltpathl1seed
     
 def get_hltconfig_trglastscaled(engine,hltconfigids=[],hltkey=None,runnums=[],schemaname=''):
     '''
@@ -1928,34 +1915,31 @@ def get_hltconfig_trglastscaled(engine,hltconfigids=[],hltkey=None,runnums=[],sc
         hltrunconfigtable = '.'.join([schemaname,hltrunconfigtable])
     q = "select r.hltconfigid as hltconfigid, r.hltkey as hltkey, p.runnum as runnum, p.lsnum as lslastscaler, p.prescidx as prescidx from %(prescidxchangeT)s p, %(hltrunconfigT)s r where r.runnum=p.runnum"%{'prescidxchangeT':prescidxchangetable,'hltrunconfigT':hltrunconfigtable}
     binddict = {}
-    if runnums or hltconfigids or hltkey:
-        qfields = []    
-        if runnums:
-            if isinstance(runnums,int):
-                qfields.append("r.runnum=:runnum")
-                binddict['runnum'] = runnums
-            elif isinstance(runnums,collections.Iterable):
-                (qf,s) = build_or_collection('r.runnum','runnum',runnums)
-                qfields.append(qf)
-                binddict = merge_two_dicts(binddict,s)
+    qfields = []    
+    if isinstance(runnums,int):
+        qfields.append("r.runnum=:runnum")
+        binddict['runnum'] = runnums
+    elif isinstance(runnums,collections.Iterable):
+        (qf,s) = build_or_collection('r.runnum','runnum',runnums)
+        qfields.append(qf)
+        binddict = merge_two_dicts(binddict,s)
                 
-        if hltconfigids:
-            if isinstance(hltconfigids,int):
-                qfields.append("r.hltconfigid=:hltconfigid")
-                binddict['hltconfigid'] = hltconfigids
-            elif isinstance(hltconfigids,collections.Iterable):
-                (qf,s) = build_or_collection('r.hltconfigid','hltconfigid',hltconfigids)
-                qfields.append(qf)
-                binddict = merge_two_dicts(binddict,s)                
-                
-        if hltkey:
-            if not _is_str_pattern(hltkey):
-                qfields.append("r.hltkey=:hltkey")
-                binddict['hltkey'] = hltkey
-            else:
-                sqlpattern = translate_fntosql(hltkey)
-                qfields.append("regexp_like(r.hltkey, '%s')"%(sqlpattern))
-        q = q+" and "+" and ".join(qfields)
+    if isinstance(hltconfigids,int):
+        qfields.append("r.hltconfigid=:hltconfigid")
+        binddict['hltconfigid'] = hltconfigids
+    elif isinstance(hltconfigids,collections.Iterable):
+        (qf,s) = build_or_collection('r.hltconfigid','hltconfigid',hltconfigids)
+        qfields.append(qf)
+        binddict = merge_two_dicts(binddict,s)
+        
+    if isinstance(hltkey,str):           
+        if not _is_strpattern(hltkey):
+            qfields.append("r.hltkey=:hltkey")
+            binddict['hltkey'] = hltkey
+        else:
+            sqlpattern = translate_fntosql(hltkey)
+            qfields.append("regexp_like(r.hltkey, '%s')"%(sqlpattern))
+    if qfields: q = q+" and "+" and ".join(qfields)
     log.debug(q+','+str(binddict))
     connection = engine.connect()
     resultProxy = connection.execute(q,binddict)
@@ -2035,35 +2019,41 @@ def get_trgprescale(engine,runnum,lsnum,pathids=[],l1candidates=[],prescidxs=Non
     if not ignorel1mask: q = q+' and r.mask!=1 '
     
     binddict = {'runnum':runnum,'lsnum':lsnum}
-    if pathids:
-        if isinstance(pathids,int):
-            hltpathStr = ' and h.hltpathid=:hltpathid'
-            binddict['hltpathid'] = pathids
-        elif isinstance(pathids,collections.Iterable):
-            (qf,s) = build_or_collection('h.hltpathid','hltpath',pathids)
-            hltpathStr = ' and '+qf
-            binddict = merge_two_dicts(binddict,s)            
-            #hstr = ','.join( [str(h) for h in pathids] )
-            #hltpathStr = ' and h.hltpathid in (%s)'%hstr        
+
+    if isinstance(pathids,int):
+        hltpathStr = ' and h.hltpathid=:hltpathid'
+        binddict['hltpathid'] = pathids
         q = q+hltpathStr
-    if l1candidates:
-        if isinstance(l1candidates,str):
-            l1bitStr = ' and r.bitname=:bitname'
-            binddict['bitname']=l1candidates
-        elif isinstance(l1candidates,collections.Iterable):
-            bstr = ','.join(["\'%s\'"%t for t in l1candidates])
-            l1bitStr = " and r.bitname in (%s)"%bstr            
+    elif isinstance(pathids,collections.Iterable):
+        (qf,s) = build_or_collection('h.hltpathid','hltpath',pathids)
+        hltpathStr = ' and '+qf
+        binddict = merge_two_dicts(binddict,s)            
+        #hstr = ','.join( [str(h) for h in pathids] )
+        #hltpathStr = ' and h.hltpathid in (%s)'%hstr        
+        q = q+hltpathStr
+
+    if isinstance(l1candidates,str):
+        l1bitStr = ' and r.bitname=:bitname'
+        binddict['bitname']=l1candidates
         q = q+l1bitStr
-    if prescidxs is not None:#zero is valid prescidx
-        if isinstance(prescidxs,int):
-            prescStr = ' and p.prescidx=:prescidx'
-            binddict['prescidx'] = prescidxs
-        elif isinstance(prescidxs,collections.Iterable):
-            (qf,s) = build_or_collection('p.prescidx','prescidx',prescidxs)
-            prescStr = ' and '+qf
-            binddict = merge_two_dicts(binddict,s)     
-            #pstr = ','.join( [str(p) for p in prescidxs] )
-            #prescStr = ' and p.rescidx in (%s)'%pstr        
+    elif isinstance(l1candidates,collections.Iterable):
+        (qf,s) = build_or_collection('r.bitname','bitname',l1candidates)
+        l1bitStr = ' and '+qf
+        binddict = merge_two_dicts(binddict,s)     
+        #bstr = ','.join(["\'%s\'"%t for t in l1candidates])
+        #l1bitStr = " and r.bitname in (%s)"%bstr            
+        q = q+l1bitStr
+
+    if isinstance(prescidxs,int):
+        prescStr = ' and p.prescidx=:prescidx'
+        binddict['prescidx'] = prescidxs
+        q = q+prescStr
+    elif isinstance(prescidxs,collections.Iterable):
+        (qf,s) = build_or_collection('p.prescidx','prescidx',prescidxs)
+        prescStr = ' and '+qf
+        binddict = merge_two_dicts(binddict,s)     
+        #pstr = ','.join( [str(p) for p in prescidxs] )
+        #prescStr = ' and p.rescidx in (%s)'%pstr        
         q = q+prescStr
     log.debug( q+','+str(binddict) )
     connection = engine.connect()
@@ -2090,7 +2080,7 @@ def parseL1Seed(l1seed):
     orsep=re.compile('\sOR\s',re.IGNORECASE)
     for r in result:
         if notsep.match(r) : #we don't know what to do with NOT
-            return None
+            return [None,[]]
         if orsep.match(r):
             exptype='OR'
             continue
@@ -2098,9 +2088,8 @@ def parseL1Seed(l1seed):
             exptype='AND'
             continue
         #cleanresult.append(string.strip(r).replace('\"',''))
-        cleanresult.append(string.strip(r))
-    return [exptype]+cleanresult
-
+        cleanresult.append(string.strip(r))    
+    return [exptype,cleanresult]
 """    
 def findUniqueSeed(hltPathname,l1seed):
     '''
