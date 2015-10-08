@@ -43,7 +43,7 @@ sys.stdout = Unbuffered(sys.stdout)
 np.seterr(divide='ignore', invalid='ignore')
 
 
-def lumi_per_normtag(shards,lumiquerytype,dbengine,dbschema,runtot_df,datasource=None,normtag=None,withBX=False,byls=None,fh=None,csvwriter=None,ptable=None,scalefactor=1,totz=utctmzone,fillmin=None,fillmax=None,runmin=None,runmax=None,amodetagid=None,egev=None,beamstatusid=None,tssecmin=None,tssecmax=None,runlsSeries=None,hltpath=None):   
+def lumi_per_normtag(shards,lumiquerytype,dbengine,dbschema,runtot_df,datasource=None,normtag=None,withBX=False,byls=None,fh=None,csvwriter=None,ptable=None,scalefactor=1,totz=utctmzone,fillmin=None,fillmax=None,runmin=None,runmax=None,amodetagid=None,egev=None,beamstatusid=None,tssecmin=None,tssecmax=None,runlsSeries=None,hltpath=None,hltl1map_df=None,hltpathids=[]):   
     
     validitychecker = None
     lastvalidity = None
@@ -84,9 +84,14 @@ def lumi_per_normtag(shards,lumiquerytype,dbengine,dbschema,runtot_df,datasource
 
         g_run_old = 0
         g_ls_trglastscaled_old = 0
-        g_hltconfigid_old = None
+        #g_hltconfigid_old = None
         prescale_map = {} # for global scope
         presc_df = None
+        g_hltconfigid = 0
+        #pathids = []
+        #if hltpath is not None:
+        #    pathids = np.unique( hltl1map_df['hltpathid'].values )
+            
         for row in lumiiter:            
             fillnum = row['fillnum']
             runnum = row['runnum']
@@ -94,35 +99,43 @@ def lumi_per_normtag(shards,lumiquerytype,dbengine,dbschema,runtot_df,datasource
             cmslsnum = lsnum
             timestampsec = row['timestampsec']
             cmson = row['cmson']
-            if not cmson: cmslsnum = 0            
+            if not cmson: cmslsnum = 0
             if hltpath is not None :
+                if hltl1map_df is None: continue
                 totpresc = 0
                 if cmslsnum==0: continue #cms is not running, skip.                
                 if g_run_old!=runnum: #on new run boundary, get hltconfigid
                     hltrunconfig_df = api.get_hltrunconfig(dbengine,runnum=runnum,schemaname=dbschema) #['runnum','hltconfigid','hltkey']
-                    hltconfigid = int(np.unique(hltrunconfig_df['hltconfigid'].values)[0])
-                    if hltconfigid != g_hltconfigid_old:
-                        hltl1map_df = api.get_hlttrgl1seedmap(dbengine,hltpath=hltpath,hltconfigids=hltconfigid,schemaname=dbschema)
-                        #['hltconfigid','hltpathid','hltpathname','seedtype','seedvalue']
-                        pathids = np.unique( hltl1map_df['hltpathid'].values )
-                        g_hltconfigid_old = hltconfigid
+                    g_hltconfigid = int(np.unique(hltrunconfig_df['hltconfigid'].values)[0])
+                    #if hltconfigid != g_hltconfigid_old:
+                    #    hltl1map_df = api.get_hlttrgl1seedmap(dbengine,hltpath=hltpath,hltconfigids=hltconfigid,schemaname=dbschema)
+                    #    #['hltconfigid','hltpathid','hltpathname','seedtype','seedvalue']
+                    #    pathids = np.unique( hltl1map_df['hltpathid'].values )
+                    #    g_hltconfigid_old = hltconfigid
                     del presc_df #clear
-                    presc_df = api.get_hltconfig_trglastscaled(dbengine,hltconfigids=hltconfigid,runnums=runnum,schemaname=dbschema)
+                    if not g_hltconfigid:
+                        continue
+                    presc_df = api.get_hltconfig_trglastscaled(dbengine,hltconfigids=g_hltconfigid,runnums=runnum,schemaname=dbschema)
                     #['hltconfigid','hltkey','runnum','lslastscaler','prescidx']                    
                     g_run_old = runnum
-                if presc_df is None: continue
+                if not g_hltconfigid:
+                    continue    
+                if presc_df is None:
+                    continue
                 ls_trglastscaled = presc_df.loc[ presc_df.lslastscaler<=cmslsnum, 'lslastscaler' ].max()
                 if g_ls_trglastscaled_old != ls_trglastscaled: #on prescale change lumi section
-                    prescale_map = {} #clear
-                    tmp_df = presc_df.merge(hltl1map_df, on='hltconfigid', how='inner',copy=False)
+                    prescale_map = {} #clear                    
+                    tmp_df = presc_df.loc[ presc_df.lslastscaler==ls_trglastscaled ].merge(hltl1map_df, on=['hltconfigid'], how='inner',copy=False)                    
                     if tmp_df is None: continue
-                    grouped = tmp_df.groupby(['hltconfigid','runnum','lslastscaler','hltpathid'])
+                    grouped = tmp_df.groupby(['hltconfigid','hltpathid'])
                     for name,group in grouped:
                         l1candidates = np.hstack( group['seedvalue'].values )
                         l1seedlogic = group['seedtype'].values[0]
-                        r = api.get_trgprescale(dbengine,runnum,ls_trglastscaled,pathids=pathids,l1candidates=l1candidates,ignorel1mask=True,schemaname=dbschema)
-                                        #['prescidx','hltpathid','hltprescval','bitname','trgprescval','bitmask']
+                        this_hltpathid = int(name[1])
+                        r = api.get_trgprescale(dbengine,runnum,ls_trglastscaled,g_hltconfigid,hltpathids=this_hltpathid,l1candidates=l1candidates,ignorel1mask=True ,schemaname=dbschema)
+                        #['prescidx','hltconfigid','hltpathid','hltprescval','bitname','trgprescval','bitmask']
                         if r is None: continue
+                        
                         hltprescval = r['hltprescval'].values[0]                        
                         if np.all(r['trgprescval'].values==1):
                             totpresc = hltprescval
@@ -482,10 +495,19 @@ def brilcalc_main(progname=sys.argv[0]):
           tssecmin = pargs.tssecmin
           tssecmax = pargs.tssecmax
           
-          runtot_df = pd.DataFrame(columns=['run','fill','time','nls','ncms','delivered','recorded','hltpath'])           
+          runtot_df = pd.DataFrame(columns=['run','fill','time','nls','ncms','delivered','recorded','hltpath'])
+          hltpathids = []
+          hltl1map_df = None
+          if pargs.hltpath is not None:
+              hltl1map_df = api.get_hlttrgl1seedmap(dbengine,hltpath=pargs.hltpath,schemaname=dbschema)
+              if hltl1map_df is None:
+                  print 'no hltpath to l1bit mapping found'
+                  sys.exit(0)
+              #print hltl1map_df    
+              hltpathids = np.unique( hltl1map_df['hltpathid'].values )
           for [qtype,ntag,dsource,rselect] in datasources:
               #print ntag,dsource,rselect              
-              lumi_per_normtag(shards,qtype,dbengine,dbschema,runtot_df,datasource=dsource,normtag=ntag,withBX=pargs.withBX,byls=pargs.byls,fh=fh,csvwriter=csvwriter,ptable=ptable,scalefactor=scalefactor,totz=totz,fillmin=fillmin,fillmax=fillmax,runmin=runmin,runmax=runmax,amodetagid=amodetagid,egev=egev,beamstatusid=beamstatusid,tssecmin=tssecmin,tssecmax=tssecmax,runlsSeries=rselect,hltpath=pargs.hltpath)
+              lumi_per_normtag(shards,qtype,dbengine,dbschema,runtot_df,datasource=dsource,normtag=ntag,withBX=pargs.withBX,byls=pargs.byls,fh=fh,csvwriter=csvwriter,ptable=ptable,scalefactor=scalefactor,totz=totz,fillmin=fillmin,fillmax=fillmax,runmin=runmin,runmax=runmax,amodetagid=amodetagid,egev=egev,beamstatusid=beamstatusid,tssecmin=tssecmin,tssecmax=tssecmax,runlsSeries=rselect,hltpath=pargs.hltpath,hltl1map_df=hltl1map_df,hltpathids=hltpathids)
               
           #if runtot_df['hltpath'].isnull().all():
           if pargs.hltpath is None:
@@ -711,6 +733,7 @@ def brilcalc_main(progname=sys.argv[0]):
                   tmp_df = presc_df.merge(hltpathl1seedmap_df, on='hltconfigid', how='inner', copy=False)
                   grouped = tmp_df.groupby(['hltconfigid','runnum','lslastscaler','hltpathid'])
                   for name,group in grouped:
+                      hltconfigid = int(name[0])
                       runnum = int(name[1])
                       lsnum = int(name[2])
                       hltpathid = int(name[3])
@@ -718,7 +741,7 @@ def brilcalc_main(progname=sys.argv[0]):
                       prescidx = int( group['prescidx'].values[0] )                      
                       l1candidates = np.hstack( group['seedvalue'].values )
                       l1seedlogic = group['seedtype'].values[0]
-                      r = api.get_trgprescale(dbengine,runnum,lsnum,pathids=hltpathid,l1candidates=l1candidates,ignorel1mask=parseresult['--ignore-mask'],schemaname=dbschema)
+                      r = api.get_trgprescale(dbengine,runnum,lsnum,hltconfigid,hltpathids=hltpathid,l1candidates=l1candidates,ignorel1mask=parseresult['--ignore-mask'],schemaname=dbschema)
                       ##['prescidx','hltpathid','hltprescval','bitname','trgprescval','bitmask']
                       totpresc = 0
                       if r is not None:
@@ -739,7 +762,6 @@ def brilcalc_main(progname=sys.argv[0]):
                           del r                          
                   del tmp_df
                   del hltpathl1seedmap_df
-                  del presc_df
               else:
                   for row in presc_df.values:
                       runnum = int(row[2])
