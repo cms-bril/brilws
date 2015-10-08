@@ -117,7 +117,7 @@ def lumi_per_normtag(shards,lumiquerytype,dbengine,dbschema,datasource=None,norm
                     g_run_old = runnum
                 if g_ls_trglastscaled_old != ls_trglastscaled:
                     prescale_map = {} #clear
-                    tmp_df = presc_df.merge(hltl1map_df, on='hltconfigid', how='inner')
+                    tmp_df = presc_df.merge(hltl1map_df, on='hltconfigid', how='inner',copy=False)
                     if tmp_df is None: continue
                     grouped = tmp_df.groupby(['hltconfigid','runnum','lslastscaler','hltpathid'])
                     for name,group in grouped:
@@ -716,8 +716,7 @@ def brilcalc_main(progname=sys.argv[0]):
                   if hltpathl1seedmap_df is None:
                       print 'No hltpathl1seed mapping found'
                       sys.exit(0)
-                  tmp_df = presc_df.merge(hltpathl1seedmap_df, on='hltconfigid', how='inner')
-                  del hltpathl1seedmap_df
+                  tmp_df = presc_df.merge(hltpathl1seedmap_df, on='hltconfigid', how='inner', copy=False)
                   grouped = tmp_df.groupby(['hltconfigid','runnum','lslastscaler','hltpathid'])
                   for name,group in grouped:
                       runnum = int(name[1])
@@ -745,8 +744,10 @@ def brilcalc_main(progname=sys.argv[0]):
                           elif l1seedlogic=='AND':
                               totpresc = hltprescval*np.max(r['trgprescval'].values)
                           display.add_row( [ '%d'%runnum, '%d'%lsnum, '%d'%prescidx, '%d'%totpresc,'%s'%hltpathStr, '%s'%l1seedlogic, '%s'%l1bitsStr], fh=fh, csvwriter=csvwriter, ptable=ptable )        
-                          del r
+                          del r                          
                   del tmp_df
+                  del hltpathl1seedmap_df
+                  del presc_df
               else:
                   for row in presc_df.values:
                       runnum = int(row[2])
