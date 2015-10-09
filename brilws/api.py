@@ -1780,7 +1780,7 @@ def build_or_collection(varname,varnamealias,mycollection):
         thisalias = '%s%d'%(varnamealias,i)
         f.append( '%s=:%s'%(varname,thisalias) )
         binddict[ thisalias ] = h        
-    return [' or '.join(f), binddict]
+    return ['('+' or '.join(f)+')', binddict]
 
 def online_resultIter(engine,tablename,schemaname='',runmin=None,runmax=None,fillmin=None,tssecmin=None,tssecmax=None,fillmax=None,beamstatus=None,beamstatusid=None,amodetag=None,amodetagid=None,targetegev=None,runlsselect=None,fields=[],sorted=False):
     '''
@@ -2032,12 +2032,12 @@ def get_trgprescale(engine,runnum,lsnum,hltconfigid,hltpathids=None,l1candidates
     output: 
     pd.DataFrame(columns=['prescidx','hltpathid','hltprescval','bitname','trgprescval','bitmask'])
     '''
-    #prescidxchangetable = 'prescidxchange'
+    prescidxchangetable = 'prescidxchange'
     trgscalertable = 'trgscaler'
     hltscalertable = 'hltscaler'
     trgrunconftable = 'trgrunconfig'
     if schemaname:
-        #prescidxchangetable = '.'.join([schemaname,prescidxchangetable])   #'p'
+        prescidxchangetable = '.'.join([schemaname,prescidxchangetable])   #'p'
         trgscalertable = '.'.join([schemaname,trgscalertable])   #'l'
         hltscalertable = '.'.join([schemaname,hltscalertable])   #'h'       
         trgrunconftable = '.'.join([schemaname,trgrunconftable]) #'r'

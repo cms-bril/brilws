@@ -693,7 +693,7 @@ def brilcalc_main(progname=sys.argv[0]):
                   print >> fh, '# '+','.join(header)
                   csvwriter = csv.writer(fh)
               else:
-                  ptable = display.create_table(header,header=True,maxwidth=80)
+                  ptable = display.create_table(header,header=True,maxwidth=60,align='l')
                   
               grouped = seedmap_df.groupby( ['hltconfigid','hltpathname'] )
               for name,group in grouped:
@@ -712,7 +712,7 @@ def brilcalc_main(progname=sys.argv[0]):
                   
               presc_df = api.get_hltconfig_trglastscaled(dbengine,hltconfigids=pargs.hltconfigid,hltkey=pargs.hltkey,runnums=pargs.runmin,schemaname=dbschema)
               #['hltconfigid','hltkey','runnum','lslastscaler','prescidx']
-              
+
               if presc_df is None:
                   print 'No prescale found'
                   sys.exit(0)
@@ -722,7 +722,7 @@ def brilcalc_main(progname=sys.argv[0]):
                   print >> fh, '# '+','.join(header)
                   csvwriter = csv.writer(fh)
               else:
-                  ptable = display.create_table(header,header=True,maxwidth=60)
+                  ptable = display.create_table(header,header=True,maxwidth=60,align='l')
                   
               if pargs.hltpath is not None:                  
                   hltpathl1seedmap_df = api.get_hlttrgl1seedmap(dbengine,hltpath=pargs.hltpath,hltconfigids=pargs.hltconfigid,schemaname=dbschema)
@@ -758,7 +758,7 @@ def brilcalc_main(progname=sys.argv[0]):
                               totpresc = hltprescval*np.min(r['trgprescval'].values)
                           elif l1seedlogic=='AND':
                               totpresc = hltprescval*np.max(r['trgprescval'].values)
-                          display.add_row( [ '%d'%runnum, '%d'%lsnum, '%d'%prescidx, '%d'%totpresc,'%s'%hltpathStr, '%s'%l1seedlogic, '%s'%l1bitsStr], fh=fh, csvwriter=csvwriter, ptable=ptable )        
+                          display.add_row( [ '%d'%runnum, '%d'%lsnum, '%d'%prescidx, '%d'%totpresc,'%s'%hltpathStr, '%s'%l1seedlogic, '%s'%l1bitsStr], fh=fh, csvwriter=csvwriter, ptable=ptable ) 
                           del r                          
                   del tmp_df
                   del hltpathl1seedmap_df
