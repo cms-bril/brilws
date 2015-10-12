@@ -5,7 +5,6 @@ HLTPATHL1SEEDMAP:
     - hltpathname: string
     - l1seed: string
    pk: [hltpathid,hltconfigid]
-   unique: [ [hltpathname,hltconfigid] ]
    
 HLTRUNCONFIG:
    columns:

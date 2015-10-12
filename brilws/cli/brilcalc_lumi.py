@@ -26,6 +26,7 @@ Options:
   --byls                        Show result in ls granularity
   --xing                        Show result in bx granularity
   --without-correction          Show raw data without calibration
+  --ignore-mask                 Ignore l1 trgger bit mask for --hltpath specific luminosity
   --cerntime                    Show time in CERN local time
   --tssec                       Show time as second since Epoch
 

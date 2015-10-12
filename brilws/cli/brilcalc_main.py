@@ -43,8 +43,9 @@ sys.stdout = Unbuffered(sys.stdout)
 np.seterr(divide='ignore', invalid='ignore')
 
 
-def lumi_per_normtag(shards,lumiquerytype,dbengine,dbschema,runtot_df,datasource=None,normtag=None,withBX=False,byls=None,fh=None,csvwriter=None,ptable=None,scalefactor=1,totz=utctmzone,fillmin=None,fillmax=None,runmin=None,runmax=None,amodetagid=None,egev=None,beamstatusid=None,tssecmin=None,tssecmax=None,runlsSeries=None,hltpath=None,hltl1map_df=None,hltpathids=[]):   
-    
+#def lumi_per_normtag(shards,lumiquerytype,dbengine,dbschema,runtot_df,datasource=None,normtag=None,withBX=False,byls=None,fh=None,csvwriter=None,ptable=None,scalefactor=1,totz=utctmzone,fillmin=None,fillmax=None,runmin=None,runmax=None,amodetagid=None,egev=None,beamstatusid=None,tssecmin=None,tssecmax=None,runlsSeries=None,hltl1map_df=None,hltpathids=[], ignorel1mask=False):   
+def lumi_per_normtag(shards,lumiquerytype,dbengine,dbschema,runtot,datasource=None,normtag=None,withBX=False,byls=None,fh=None,csvwriter=None,ptable=None,scalefactor=1,totz=utctmzone,fillmin=None,fillmax=None,runmin=None,runmax=None,amodetagid=None,egev=None,beamstatusid=None,tssecmin=None,tssecmax=None,runlsSeries=None,hltl1map_df=None,hltpathids=[], ignorel1mask=False):   
+
     validitychecker = None
     lastvalidity = None
     if normtag and normtag is not 'withoutcorrection':
@@ -84,14 +85,13 @@ def lumi_per_normtag(shards,lumiquerytype,dbengine,dbschema,runtot_df,datasource
 
         g_run_old = 0
         g_ls_trglastscaled_old = 0
-        #g_hltconfigid_old = None
+        g_hltconfigid_old = None
         prescale_map = {} # for global scope
         presc_df = None
         g_hltconfigid = 0
-        #pathids = []
-        #if hltpath is not None:
-        #    pathids = np.unique( hltl1map_df['hltpathid'].values )
-            
+        hltpathids = []
+        if hltl1map_df is not None:
+            hltpathids = np.unique( hltl1map_df['hltpathid'].values )
         for row in lumiiter:            
             fillnum = row['fillnum']
             runnum = row['runnum']
@@ -100,43 +100,43 @@ def lumi_per_normtag(shards,lumiquerytype,dbengine,dbschema,runtot_df,datasource
             timestampsec = row['timestampsec']
             cmson = row['cmson']
             if not cmson: cmslsnum = 0
-            if hltpath is not None :
-                if hltl1map_df is None: continue
-                totpresc = 0
+            if hltl1map_df is not None :
                 if cmslsnum==0: continue #cms is not running, skip.                
                 if g_run_old!=runnum: #on new run boundary, get hltconfigid
                     hltrunconfig_df = api.get_hltrunconfig(dbengine,runnum=runnum,schemaname=dbschema) #['runnum','hltconfigid','hltkey']
-                    g_hltconfigid = int(np.unique(hltrunconfig_df['hltconfigid'].values)[0])
+                    g_hltconfigid = int(hltrunconfig_df['hltconfigid'].values[0])
+                    g_run_old = runnum
+                    if not g_hltconfigid:
+                        continue
+                    #check hltpathids+g_hltconfigid exists in hltl1map_df
                     #if hltconfigid != g_hltconfigid_old:
                     #    hltl1map_df = api.get_hlttrgl1seedmap(dbengine,hltpath=hltpath,hltconfigids=hltconfigid,schemaname=dbschema)
                     #    #['hltconfigid','hltpathid','hltpathname','seedtype','seedvalue']
                     #    pathids = np.unique( hltl1map_df['hltpathid'].values )
-                    #    g_hltconfigid_old = hltconfigid
+                if  g_hltconfigid_old != g_hltconfigid: # on hltconfig boundary
                     del presc_df #clear
-                    if not g_hltconfigid:
-                        continue
-                    presc_df = api.get_hltconfig_trglastscaled(dbengine,hltconfigids=g_hltconfigid,runnums=runnum,schemaname=dbschema)
-                    #['hltconfigid','hltkey','runnum','lslastscaler','prescidx']                    
-                    g_run_old = runnum
-                if not g_hltconfigid:
-                    continue    
-                if presc_df is None:
+                    presc_df = api.get_hltconfig_trglastscaled(dbengine,hltconfigids=g_hltconfigid,runnums=runnum,withouthltkey=True,schemaname=dbschema)
+                    #['hltconfigid','hltkey','runnum','lslastscaler','prescidx']
+                    g_hltconfigid_old = g_hltconfigid
+                if presc_df is None or presc_df.size==0:
                     continue
                 ls_trglastscaled = presc_df.loc[ presc_df.lslastscaler<=cmslsnum, 'lslastscaler' ].max()
                 if g_ls_trglastscaled_old != ls_trglastscaled: #on prescale change lumi section
-                    prescale_map = {} #clear                    
-                    tmp_df = presc_df.loc[ presc_df.lslastscaler==ls_trglastscaled ].merge(hltl1map_df, on=['hltconfigid'], how='inner',copy=False)                    
-                    if tmp_df is None: continue
+                    prescale_map = {} #clear
+                    tmp_df = presc_df.loc[ presc_df.lslastscaler==ls_trglastscaled ].merge(hltl1map_df, on=['hltconfigid'], how='inner',copy=False)
+                    if tmp_df is None or tmp_df.size==0:
+                        continue
                     grouped = tmp_df.groupby(['hltconfigid','hltpathid'])
                     for name,group in grouped:
                         l1candidates = np.hstack( group['seedvalue'].values )
                         l1seedlogic = group['seedtype'].values[0]
                         this_hltpathid = int(name[1])
-                        r = api.get_trgprescale(dbengine,runnum,ls_trglastscaled,g_hltconfigid,hltpathids=this_hltpathid,l1candidates=l1candidates,ignorel1mask=True ,schemaname=dbschema)
+                        r = api.get_trgprescale(dbengine,runnum,ls_trglastscaled,g_hltconfigid,hltpathids=this_hltpathid,l1candidates=l1candidates,ignorel1mask=ignorel1mask ,schemaname=dbschema)
                         #['prescidx','hltconfigid','hltpathid','hltprescval','bitname','trgprescval','bitmask']
                         if r is None: continue
                         
-                        hltprescval = r['hltprescval'].values[0]                        
+                        hltprescval = r['hltprescval'].values[0]
+                        totpresc = 0
                         if np.all(r['trgprescval'].values==1):
                             totpresc = hltprescval
                         elif l1seedlogic=='ONE':
@@ -149,7 +149,6 @@ def lumi_per_normtag(shards,lumiquerytype,dbengine,dbschema,runtot_df,datasource
                         prescale_map[hltpathname] = totpresc                        
                         del r                        
                     g_ls_trglastscaled_old = ls_trglastscaled
-                    
             beamstatusid = row['beamstatusid']
             beamstatus = params._idtobeamstatus[beamstatusid]
             if beamstatus not in ['FLAT TOP','STABLE BEAMS','SQUEEZE','ADJUST']: continue
@@ -161,13 +160,13 @@ def lumi_per_normtag(shards,lumiquerytype,dbengine,dbschema,runtot_df,datasource
 
             delivered = recorded = avgpu = livefrac = 0.
             
-            if not (runtot_df['run']==runnum).any(): #new run
-                if hltpath is not None:
-                    for p in prescale_map.keys():
-                        runtot_df.loc[ len(runtot_df)+1 ] = [runnum,fillnum,dtime,0,0,0.,0.,p]
-                else:
-                    runtot_df.loc[ len(runtot_df)+1 ] = [runnum,fillnum,dtime,0,0,0.,0.,None]
-                    
+            #if not (runtot_df['run']==runnum).any(): #new run
+            #    if hltl1map_df is not None:
+            #        for p in prescale_map.keys():
+            #            runtot_df.loc[ len(runtot_df)+1 ] = [runnum,fillnum,dtime,0,0,0.,0.,p]
+            #    else:
+            #        runtot_df.loc[ len(runtot_df)+1 ] = [runnum,fillnum,dtime,0,0,0.,0.,None]                
+            
             if lumiquerytype == 'bestresultonline':
                 if row.has_key('delivered') and row['delivered']:
                     delivered = np.divide(row['delivered']*lslengthsec,scalefactor)
@@ -191,7 +190,7 @@ def lumi_per_normtag(shards,lumiquerytype,dbengine,dbschema,runtot_df,datasource
                         del bxdeliveredarray
                         del bxidx
                         
-                        if hltpath is not None:
+                        if hltl1map_df is not None:
                             for pth in prescale_map.keys():
                                 totpresc = prescale_map[pth]
                                 if bxlumi is not None:
@@ -205,7 +204,7 @@ def lumi_per_normtag(shards,lumiquerytype,dbengine,dbschema,runtot_df,datasource
                             display.add_row( ['%d:%d'%(runnum,fillnum),'%d:%d'%(lsnum,cmslsnum),dtime,beamstatus,'%d'%tegev,'%.3f'%(delivered),'%.3f'%(recorded),'%.1f'%(avgpu),ds,'%s'%bxlumistr] , fh=fh, csvwriter=csvwriter, ptable=ptable)
                     del bxlumi
                 elif byls:
-                    if hltpath is not None:
+                    if hltl1map_df is not None:
                         for pth in prescale_map.keys():
                             totpresc = prescale_map[pth]
                             display.add_row( ['%d:%d'%(runnum,fillnum),'%d:%d'%(lsnum,cmslsnum), dtime, pth, '%.3f'%(np.divide(delivered,totpresc)),'%.3f'%(np.divide(recorded,totpresc)),ds] , fh=fh, csvwriter=csvwriter, ptable=ptable)
@@ -242,7 +241,7 @@ def lumi_per_normtag(shards,lumiquerytype,dbengine,dbschema,runtot_df,datasource
                             bxlumi = np.transpose( np.array([bxidx[0]+1,bxdelivered,bxdelivered*livefrac]) )               
                         del bxdeliveredarray
                         del bxidx
-                    if hltpath is not None:
+                    if hltl1map_df is not None:
                         for pth in prescale_map.keys():
                             totpresc = prescale_map[pth]                            
                             if bxlumi is not None:                                  
@@ -256,27 +255,40 @@ def lumi_per_normtag(shards,lumiquerytype,dbengine,dbschema,runtot_df,datasource
                         display.add_row( ['%d:%d'%(runnum,fillnum),'%d:%d'%(lsnum,cmslsnum),dtime,beamstatus,'%d'%tegev,'%.3f'%(delivered),'%.3f'%(recorded),'%.1f'%(avgpu),datasource.upper(),'%s'%bxlumistr] , fh=fh, csvwriter=csvwriter, ptable=ptable)
                     del bxlumi
                 elif byls:
-                    if hltpath is not None:
+                    if hltl1map_df is not None:
                         for pth in prescale_map.keys():
                             totpresc = prescale_map[pth]
                             display.add_row( ['%d:%d'%(runnum,fillnum),'%d:%d'%(lsnum,cmslsnum),dtime,pth,'%.3f'%(np.divide(delivered/totpresc)),'%.3f'%(np.divide(recorded/totpresc)),ds] , fh=fh, csvwriter=csvwriter, ptable=ptable)
                     else:
                         display.add_row( ['%d:%d'%(runnum,fillnum),'%d:%d'%(lsnum,cmslsnum),dtime,beamstatus,'%d'%tegev,'%.3f'%(delivered),'%.3f'%(recorded),'%.1f'%(avgpu),datasource.upper()] , fh=fh, csvwriter=csvwriter, ptable=ptable)
-            if  hltpath is None:
-                runtot_df.loc[ runtot_df.run==runnum, 'nls' ] += 1
-                if cmson: runtot_df.loc[ runtot_df.run == runnum,'ncms' ] += 1
-                runtot_df.loc[runtot_df.run == runnum,'delivered'] += delivered
-                runtot_df.loc[runtot_df.run == runnum,'recorded'] += recorded
+            if  hltl1map_df is None:
+                if not runtot.has_key( ('',runnum) ):
+                    runtot[('',runnum)] = {'fill':fillnum,'dtime':dtime,'nls':0,'ncms':0,'delivered':0,'recorded':0} 
+                runtot[ ('',runnum)]['nls']+=1                
+                if cmson: runtot[ ('',runnum) ]['ncms']+=1
+                runtot[ ('',runnum) ]['delivered']+=delivered
+                runtot[ ('',runnum) ]['recorded']+=recorded
+                
+                #runtot_df.loc[ runtot_df.run==runnum, 'nls' ] += 1
+                #if cmson: runtot_df.loc[ runtot_df.run == runnum,'ncms' ] += 1
+                #runtot_df.loc[runtot_df.run == runnum,'delivered'] += delivered
+                #runtot_df.loc[runtot_df.run == runnum,'recorded'] += recorded
             else:
                 #print runnum,lsnum,cmslsnum
                 if not cmson: continue
                 #print prescale_map
                 for pth in prescale_map.keys():
                     totpresc = prescale_map[pth]
-                    runtot_df.loc[ (runtot_df.run==runnum)&(runtot_df.hltpath==pth) ,'nls'] += 1
-                    if cmson: runtot_df.loc[ (runtot_df.run==runnum)&(runtot_df.hltpath==pth) ,'ncms'] += 1
-                    runtot_df.loc[ (runtot_df.run==runnum) & (runtot_df.hltpath==pth) ,'delivered'] += np.divide(delivered,totpresc)
-                    runtot_df.loc[ (runtot_df.run==runnum) & (runtot_df.hltpath==pth) ,'recorded'] += np.divide(recorded,totpresc)
+                    if not runtot.has_key( (pth,runnum) ):
+                        runtot[(pth,runnum)] = {'fill':fillnum,'dtime':dtime,'nls':0,'ncms':0,'delivered':0,'recorded':0}
+                    runtot[ (pth,runnum)]['nls']+=1                
+                    if cmson: runtot[ (pth,runnum) ]['ncms'] += 1
+                    runtot[ (pth,runnum) ]['delivered'] += np.divide(delivered,totpresc)
+                    runtot[ (pth,runnum) ]['recorded'] += np.divide(recorded,totpresc)
+                #    runtot_df.loc[ (runtot_df.run==runnum)&(runtot_df.hltpath==pth) ,'nls'] += 1
+                #    if cmson: runtot_df.loc[ (runtot_df.run==runnum)&(runtot_df.hltpath==pth) ,'ncms'] += 1
+                #    runtot_df.loc[ (runtot_df.run==runnum) & (runtot_df.hltpath==pth) ,'delivered'] += np.divide(delivered,totpresc)
+                #    runtot_df.loc[ (runtot_df.run==runnum) & (runtot_df.hltpath==pth) ,'recorded'] += np.divide(recorded,totpresc)
      
 class ValidityChecker(object):
     def __init__(self, normdata):
@@ -477,7 +489,9 @@ def brilcalc_main(progname=sys.argv[0]):
           log.debug('lumiquerytype %s'%lumiquerytype)          
           log.debug('scalefactor: %.2f'%pargs.scalefactor)                    
           #print datasources
-          #runtot = {}# {run: {'fill':fillnum,'time':dtime,'nls':1,'ncms':int(cmson),'delivered':delivered,'recorded':recorded} }          
+
+          runtot = {}# {run: {'fill':fillnum,'time':dtime,'nls':1,'ncms':int(cmson),'delivered':delivered,'recorded':recorded} }           
+                      #{(hltpath,run): { 'fill':fillnum,'time':dtime,'nls':1,'ncms':int(cmson),'delivered':delivered,'recorded':recorded} }
           
           totz=utctmzone
           if pargs.cerntime:
@@ -495,7 +509,7 @@ def brilcalc_main(progname=sys.argv[0]):
           tssecmin = pargs.tssecmin
           tssecmax = pargs.tssecmax
           
-          runtot_df = pd.DataFrame(columns=['run','fill','time','nls','ncms','delivered','recorded','hltpath'])
+          #runtot_df = pd.DataFrame(columns=['run','fill','time','nls','ncms','delivered','recorded','hltpath'])
           hltpathids = []
           hltl1map_df = None
           if pargs.hltpath is not None:
@@ -504,51 +518,51 @@ def brilcalc_main(progname=sys.argv[0]):
                   print 'no hltpath to l1bit mapping found'
                   sys.exit(0)
               #print hltl1map_df    
-              hltpathids = np.unique( hltl1map_df['hltpathid'].values )
+              #hltpathids = np.unique( hltl1map_df['hltpathid'].values )
           for [qtype,ntag,dsource,rselect] in datasources:
               #print ntag,dsource,rselect              
-              lumi_per_normtag(shards,qtype,dbengine,dbschema,runtot_df,datasource=dsource,normtag=ntag,withBX=pargs.withBX,byls=pargs.byls,fh=fh,csvwriter=csvwriter,ptable=ptable,scalefactor=scalefactor,totz=totz,fillmin=fillmin,fillmax=fillmax,runmin=runmin,runmax=runmax,amodetagid=amodetagid,egev=egev,beamstatusid=beamstatusid,tssecmin=tssecmin,tssecmax=tssecmax,runlsSeries=rselect,hltpath=pargs.hltpath,hltl1map_df=hltl1map_df,hltpathids=hltpathids)
+              #lumi_per_normtag(shards,qtype,dbengine,dbschema,runtot_df,datasource=dsource,normtag=ntag,withBX=pargs.withBX,byls=pargs.byls,fh=fh,csvwriter=csvwriter,ptable=ptable,scalefactor=scalefactor,totz=totz,fillmin=fillmin,fillmax=fillmax,runmin=runmin,runmax=runmax,amodetagid=amodetagid,egev=egev,beamstatusid=beamstatusid,tssecmin=tssecmin,tssecmax=tssecmax,runlsSeries=rselect,hltl1map_df=hltl1map_df,ignorel1mask=parseresult['--ignore-mask'])
+              lumi_per_normtag(shards,qtype,dbengine,dbschema,runtot,datasource=dsource,normtag=ntag,withBX=pargs.withBX,byls=pargs.byls,fh=fh,csvwriter=csvwriter,ptable=ptable,scalefactor=scalefactor,totz=totz,fillmin=fillmin,fillmax=fillmax,runmin=runmin,runmax=runmax,amodetagid=amodetagid,egev=egev,beamstatusid=beamstatusid,tssecmin=tssecmin,tssecmax=tssecmax,runlsSeries=rselect,hltl1map_df=hltl1map_df,ignorel1mask=parseresult['--ignore-mask'])
               
           #if runtot_df['hltpath'].isnull().all():
           if pargs.hltpath is None:
-              nruns = runtot_df['run'].nunique()
-              nfills = runtot_df['fill'].nunique()
-              nls = runtot_df['nls'].sum()
-              ncmsls = runtot_df['ncms'].sum()
-              totdelivered = runtot_df['delivered'].sum()
-              totrecorded = runtot_df['recorded'].sum()
+              nruns = len(runtot.keys())
+              nfills = len( set([v['fill'] for v in runtot.values()] ) )
+              nls = np.sum( [v['nls'] for v in runtot.values()]  )
+              ncmsls = np.sum( [v['ncms'] for v in runtot.values()] )
+              totdelivered = np.sum( [v['delivered'] for v in runtot.values() ] )
+              totrecorded =  np.sum( [v['recorded'] for v in runtot.values() ] )              
               display.add_row( [ '%d'%nfills,'%d'%nruns,'%d'%nls,'%d'%ncmsls,'%.3f'%(totdelivered),'%.3f'%(totrecorded)], fh=fh, csvwriter=csvwriter, ptable=ftable)
 
               if not pargs.byls and not pargs.withBX: #run table
-                  for v in runtot_df.values:
-                      display.add_row( ['%d:%d'%(int(v[0]),int(v[1])),str(v[2]),int(v[3]),int(v[4]),'%.3f'%(float(v[5])),'%.3f'%(float(v[6])) ] , fh=fh, csvwriter=csvwriter, ptable=ptable)
+                  #for v in runtot_df.values:
+                  for hn,rn in runtot.keys():
+                      v = runtot[ (hn,rn) ]
+                      display.add_row( ['%d:%d'%(rn,v['fill']),v['dtime'],v['nls'],v['ncms'],'%.3f'%(v['delivered']),'%.3f'%(v['recorded']) ] , fh=fh, csvwriter=csvwriter, ptable=ptable)
           else:
               hltpathSummary = []
-              grouped = runtot_df.groupby('hltpath')
-              for pathname,g in grouped:
-                  nruns = int(g['run'].nunique())
+              runtot_df = pd.DataFrame.from_dict(runtot,orient='index')
+              grouped = runtot_df.groupby(level=0) #group by hltpath
+              for hn,g in grouped:                  
+                  nruns = g.index.size
                   nfills = int(g['fill'].nunique())
                   ncmsls =  int(g['ncms'].sum())
                   totdelivered = g['delivered'].sum()
                   totrecorded = g['recorded'].sum()
-                  display.add_row( [ pathname, nfills,nruns,ncmsls,'%.3f'%(totdelivered),'%.3f'%(totrecorded)], fh=fh, csvwriter=None, ptable=ftable)
-              if not pargs.byls and not pargs.withBX: #hltpath, run table                  
-                  for pname,g in grouped:
-                      pnruns = int( g['run'].nunique() )
-                      pnfills = int( g['fill'].nunique() )
-                      pncmsls = int( g['ncms'].sum() )
-                      ptotdelivered = float( g['delivered'].sum() )
-                      ptotrecorded = float( g['recorded'].sum() )
-                      for v in g.values:
-                          trun = int(v[0])
-                          tfill = int(v[1])
-                          ttime = str(v[2])
-                          tncmsls = int(v[4])
-                          tdelivered = float(v[5])
-                          trecorded = float(v[6])
+                  display.add_row( [ hn, '%d'%nfills, '%d'%nruns, '%d'%ncmsls,'%.3f'%(totdelivered),'%.3f'%(totrecorded)], fh=fh, csvwriter=None, ptable=ftable)                  
+                  if not pargs.byls and not pargs.withBX: #hltpath, run table
+                      for i,v in g.iterrows():
+                          pname = i[0]
+                          trun = i[1]
+                          tfill = v['fill']
+                          ttime = v['dtime']
+                          tncmsls = v['ncms']
+                          tdelivered = v['delivered']
+                          trecorded = v['recorded']
                           display.add_row( [ '%d:%d'%(trun,tfill), ttime, tncmsls, pname, '%.3f'%tdelivered, '%.3f'%trecorded], fh=fh, csvwriter=None, ptable=ptable )
-                      hltpathSummary.append([pname,pnfills,pnruns,pncmsls,ptotdelivered,ptotrecorded])                          
-          del runtot_df
+                  hltpathSummary.append([hn,nfills,nruns,ncmsls,totdelivered,totrecorded])   
+              del runtot_df
+          #del runtot_df
           
           if pargs.totable:              
               print '#Data tag : %s , Norm tag: %s'%(datatagname,normtagname)
@@ -682,7 +696,7 @@ def brilcalc_main(progname=sys.argv[0]):
                   if hltrunconfig_df is None:
                       print 'hltconfig not found'
                       sys.exit(0)
-                  hltconfigids = np.unique(hltrunconfig_df['hltconfigid'].values)
+                  hltconfigids = np.unique(hltrunconfig_df['hltconfigid'].values)                  
               seedmap_df = api.get_hlttrgl1seedmap(dbengine,hltpath=pargs.hltpath,hltconfigids=hltconfigids,schemaname=dbschema)#['hltconfigid','hltpathid','hltpathname','seedtype','seedvalue']
               if seedmap_df is None:
                   print 'hltl1seed mapping not found'
@@ -712,7 +726,6 @@ def brilcalc_main(progname=sys.argv[0]):
                   
               presc_df = api.get_hltconfig_trglastscaled(dbengine,hltconfigids=pargs.hltconfigid,hltkey=pargs.hltkey,runnums=pargs.runmin,schemaname=dbschema)
               #['hltconfigid','hltkey','runnum','lslastscaler','prescidx']
-
               if presc_df is None:
                   print 'No prescale found'
                   sys.exit(0)

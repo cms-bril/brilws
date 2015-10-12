@@ -1911,7 +1911,7 @@ def get_hlttrgl1seedmap(engine,hltpath=None,hltconfigids=None,schemaname=''):
     del hltpathl1seed['l1seed']
     return hltpathl1seed
     
-def get_hltconfig_trglastscaled(engine,hltconfigids=None,hltkey=None,runnums=None,schemaname=''):
+def get_hltconfig_trglastscaled(engine,hltconfigids=None,hltkey=None,runnums=None,withouthltkey=False,schemaname=''):
     '''
     input:
        hltconfigids : number or list of numbers
@@ -1924,7 +1924,10 @@ def get_hltconfig_trglastscaled(engine,hltconfigids=None,hltkey=None,runnums=Non
     if schemaname:
         prescidxchangetable = '.'.join([schemaname,prescidxchangetable])
         hltrunconfigtable = '.'.join([schemaname,hltrunconfigtable])
-    q = "select r.hltconfigid as hltconfigid, r.hltkey as hltkey, p.runnum as runnum, p.lsnum as lslastscaler, p.prescidx as prescidx from %(prescidxchangeT)s p, %(hltrunconfigT)s r where r.runnum=p.runnum"%{'prescidxchangeT':prescidxchangetable,'hltrunconfigT':hltrunconfigtable}
+        if withouthltkey:
+            q = "select r.hltconfigid as hltconfigid,p.runnum as runnum, p.lsnum as lslastscaler, p.prescidx as prescidx from %(prescidxchangeT)s p, %(hltrunconfigT)s r where r.runnum=p.runnum"%{'prescidxchangeT':prescidxchangetable,'hltrunconfigT':hltrunconfigtable}
+        else:
+            q = "select r.hltconfigid as hltconfigid, r.hltkey as hltkey, p.runnum as runnum, p.lsnum as lslastscaler, p.prescidx as prescidx from %(prescidxchangeT)s p, %(hltrunconfigT)s r where r.runnum=p.runnum"%{'prescidxchangeT':prescidxchangetable,'hltrunconfigT':hltrunconfigtable}
     binddict = {}
     qfields = []    
     if isinstance(runnums,int):
@@ -1968,7 +1971,10 @@ def get_hltconfig_trglastscaled(engine,hltconfigids=None,hltkey=None,runnums=Non
     if result.size==0:
         return None
     else:
-        result.columns=['hltconfigid','hltkey','runnum','lslastscaler','prescidx'] 
+        if withouthltkey:
+            result.columns=['hltconfigid','runnum','lslastscaler','prescidx'] 
+        else:
+            result.columns=['hltconfigid','hltkey','runnum','lslastscaler','prescidx'] 
         return result
 
 def get_hltrunconfig(engine,hltconfigid=None,hltkey=None,runnum=None,schemaname=''):
