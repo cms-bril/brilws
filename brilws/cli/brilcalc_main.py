@@ -450,7 +450,7 @@ def brilcalc_main(progname=sys.argv[0]):
                           except api.NotSupersetError,e:
                               parseerrors.append(e)
                               #log.error('run %d, %s is not a superset of %s'%(e.runnum,str(e.superset),str(e.subset)))
-                          mergedselect = api.mergeiovrunls(normtag,pargs.runlsSeries)                          
+                          mergedselect = api.mergeiovrunls(normtag,pargs.runlsSeries)
                       normtagname = 'composite'
                       for item in mergedselect:
                           iovtag = item[0]

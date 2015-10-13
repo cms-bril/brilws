@@ -14,6 +14,7 @@ import ast
 import logging
 import string
 import collections
+import itertools
 from brilws import params
 #from ConfigParser import SafeConfigParser
 
@@ -153,17 +154,28 @@ def merge_two_dicts(x,y):
     z.update(y)
     return z
 
+def merge_twodicts_onkeys(x,y):
+    ds = [x,y]
+    z = {}
+    for k in x.keys():
+        alllists = [d[k] for d in ds if d.has_key(k)]
+        z[k] = list(itertools.chain.from_iterable(alllists))
+    return z
+
 def mergeiovrunls(iovselect,cmsselect):
     '''
     merge iovselect list and cms runls select dict
     input:
-        iovselect: pd.Series from dict {run:[[]],}
-        cmsselect:  [[iovtag,pd.Series],...]  pd.Series from dict {run:[[]],}
+        cmsselect: pd.Series from dict {run:[[]],}
+        iovselect:  [[iovtag,pd.Series],...]  pd.Series from dict {run:[[]],}
         
     '''
     cmsselect_runs = cmsselect.index
     final = []#[[iovtag,{}],[iovtag,{}]]
     previoustag = ''
+    coutiovpiece = 0
+    #iovselectnew = map(iovselect,mergesametags)
+    
     for [iovtag,iovtagrunls] in iovselect:
         iovtagruns = iovtagrunls.index
         runlsdict = {}
@@ -181,7 +193,8 @@ def mergeiovrunls(iovselect,cmsselect):
         else:
             x = final[-1][1]                
             y = runlsdict
-            final[-1][1] = merge_two_dicts(x,y)
+            final[-1][1] = merge_twodicts_onkeys(x,y)
+        coutiovpiece+=1
     return final
 
 def parseselectionJSON(filepath_or_buffer):
