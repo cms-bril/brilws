@@ -40,6 +40,9 @@ class parser(object):
         self._runlsSeries = None
         self._iovtagSelect = None
         self._withBX = False
+        self._xingMin = 0.
+        self._xingTr = 0.
+        self._xingId = []
         self._byls = False
         self._chunksize = None
         self._lumitype = None        
@@ -88,6 +91,12 @@ class parser(object):
             self._comments = self._argdict['--comments']
         if self._argdict.has_key('--xing'):
             self._withBX = self._argdict['--xing']
+        if self._argdict.has_key('--xingMin'):
+            self._xingMin = self._argdict['--xingMin']
+        if self._argdict.has_key('--xingTr'):
+            self._xingTr = self._argdict['--xingTr']
+        if self._argdict.has_key('--xingId'):
+            self._xingId = self._argdict['--xingId']
         if self._argdict.has_key('--byls'):
             self._byls = self._argdict['--byls']        
         if self._argdict.has_key('--type'):
@@ -261,6 +270,15 @@ class parser(object):
     def tssec(self):
         return self._tssec
     @property
+    def xingMin(self):
+        return self._xingMin
+    @property
+    def xingTr(self):
+        return self._xingTr
+    @property
+    def xingId(self):
+        return self._xingId
+    @property
     def withoutcorrection(self):
         return self._withoutcorrection
     @property
@@ -290,6 +308,9 @@ class parser(object):
 argvalidators = {
     '--amodetag': Or(None,And(str,lambda s: s.upper() in params._amodetagChoices), error='--amodetag must be in '+str(params._amodetagChoices) ),
     '--beamenergy': Or(None,And(Use(int), lambda n: n>0), error='--beamenergy should be integer >0'),
+    '--xingMin': Or(None,And(Use(float), lambda n: n>0), error='--xingMin should be float>0'),
+    '--xingTr': Or(None,And(Use(float), lambda n: (n>0 and n<=1)), error='--xingTr should be float in (0,1]'),
+    '--xingId': Or(None,str),
     '-b': Or(None, And(str, lambda s: s.upper() in params._beamstatusChoices), error='-b must be in '+str(params._beamstatusChoices) ),
     '--begin': Or(None, And(str,Use(RegexValidator.RegexValidator(params._timeopt_pattern))), error='--begin wrong format'),
     '--end': Or(None, And(str,Use(RegexValidator.RegexValidator(params._timeopt_pattern))), error='--end wrong format'),

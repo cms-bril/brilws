@@ -42,6 +42,17 @@ sys.stdout = Unbuffered(sys.stdout)
 
 np.seterr(divide='ignore', invalid='ignore')
 
+def xing_indexfilter(arr,constfactor=1.,xingMin=0.,xingTr=0.,xingId=[]):
+    vidx = None    
+    if xingTr:
+        vidx = np.argwhere( np.logical_and( (arr*constfactor)>xingMin, arr>xingTr*np.max(arr) ) ).ravel()
+    else:
+        vidx = np.argwhere( (arr*constfactor)>xingMin ).ravel()
+    if xingId :
+        posidx = np.array(xingId)-1 #array position index is bunch index - 1
+        return np.intersect1d(np.array(posidx),vidx)    
+    return vidx
+        
 def totalprescale(hltprescval,l1seedlogic,l1prescvals):
     totpresc = 0
     if not hltprescval or not l1prescvals or not l1seedlogic:
@@ -56,7 +67,7 @@ def totalprescale(hltprescval,l1seedlogic,l1prescvals):
         totpresc = hltprescval*np.max(l1prescvals)    
     return totpresc
 
-def lumi_per_normtag(shards,lumiquerytype,dbengine,dbschema,runtot,datasource=None,normtag=None,withBX=False,byls=None,fh=None,csvwriter=None,ptable=None,scalefactor=1,totz=utctmzone,fillmin=None,fillmax=None,runmin=None,runmax=None,amodetagid=None,egev=None,beamstatusid=None,tssecmin=None,tssecmax=None,runlsSeries=None,hltl1map={},ignorel1mask=False):   
+def lumi_per_normtag(shards,lumiquerytype,dbengine,dbschema,runtot,datasource=None,normtag=None,withBX=False,byls=None,fh=None,csvwriter=None,ptable=None,scalefactor=1,totz=utctmzone,fillmin=None,fillmax=None,runmin=None,runmax=None,amodetagid=None,egev=None,beamstatusid=None,tssecmin=None,tssecmax=None,runlsSeries=None,hltl1map={},ignorel1mask=False,xingMin=0.,xingTr=0.,xingId=[]):   
 
     validitychecker = None
     lastvalidity = None
@@ -176,14 +187,14 @@ def lumi_per_normtag(shards,lumiquerytype,dbengine,dbschema,runtot,datasource=No
                     bxlumi = None
                     bxlumistr = '[]'
                     if row.has_key('bxdeliveredblob'):
-                        bxdeliveredarray = np.array(api.unpackBlobtoArray(row['bxdeliveredblob'],'f'))
-                        bxidx = np.nonzero(bxdeliveredarray)
-                        if bxidx[0].size>0:
-                            bxdelivered = np.divide( bxdeliveredarray[bxidx]*lslengthsec,scalefactor )
-                            bxlumi = np.transpose( np.array([bxidx[0]+1,bxdelivered,bxdelivered*livefrac]) )
+                        bxdeliveredarray = np.array(api.unpackBlobtoArray(row['bxdeliveredblob'],'f'))                        
+                        totfactor = np.divide(lslengthsec,scalefactor)
+                        bxidx = xing_indexfilter(bxdeliveredarray,constfactor=totfactor,xingMin=xingMin,xingTr=xingTr,xingId=xingId)
+                        if bxidx is not None and bxidx.size>0:
+                            bxdelivered = bxdeliveredarray[bxidx]*totfactor
+                            bxlumi = np.transpose( np.array([bxidx+1,bxdelivered,bxdelivered*livefrac]) )
                         del bxdeliveredarray
                         del bxidx
-                        
                         if hltl1map:
                             for pth in prescale_map.keys():
                                 thispresc = prescale_map[pth]
@@ -191,12 +202,14 @@ def lumi_per_normtag(shards,lumiquerytype,dbengine,dbschema,runtot,datasource=No
                                     a = map(formatter.bxlumi,bxlumi/thispresc)  
                                     bxlumistr = '['+' '.join(a)+']'
                                 display.add_row( ['%d:%d'%(runnum,fillnum),'%d:%d'%(lsnum,cmslsnum),dtime,pth,'%.3f'%(np.divide(delivered,thispresc)),'%.3f'%(np.divide(recorded,thispresc)),ds,'%s'%bxlumistr] , fh=fh, csvwriter=csvwriter, ptable=ptable)      
-                        else:
+                        else:                            
                             if bxlumi is not None:
                                 a = map(formatter.bxlumi,bxlumi)
                                 bxlumistr = '['+' '.join(a)+']'
                             display.add_row( ['%d:%d'%(runnum,fillnum),'%d:%d'%(lsnum,cmslsnum),dtime,beamstatus,'%d'%tegev,'%.3f'%(delivered),'%.3f'%(recorded),'%.1f'%(avgpu),ds,'%s'%bxlumistr] , fh=fh, csvwriter=csvwriter, ptable=ptable)
+                        
                     del bxlumi
+                    
                 elif byls:
                     if hltl1map:
                         for pth in prescale_map.keys():
@@ -229,10 +242,11 @@ def lumi_per_normtag(shards,lumiquerytype,dbengine,dbschema,runtot,datasource=No
                         if validitychecker is not None:              
                             f_bxargs = (bxdeliveredarray,ncollidingbx)
                             bxdeliveredarray = corrector.FunctionCaller(normfunc,*f_bxargs,**f_kwds)
-                        bxidx = np.nonzero(bxdeliveredarray)
-                        if bxidx[0].size>0:                                      
-                            bxdelivered = np.divide( bxdeliveredarray[bxidx]*lslengthsec,scalefactor ) 
-                            bxlumi = np.transpose( np.array([bxidx[0]+1,bxdelivered,bxdelivered*livefrac]) )               
+                        totfactor = np.divide(lslengthsec,scalefactor)
+                        bxidx = xing_indexfilter(bxdeliveredarray,constfactor=totfactor,xingMin=xingMin,xingTr=xingTr,xingId=xingId)
+                        if bxidx is not None and bxidx.size>0:                                      
+                            bxdelivered =  bxdeliveredarray[bxidx]*totfactor
+                            bxlumi = np.transpose( np.array([bxidx+1,bxdelivered,bxdelivered*livefrac]) )               
                         del bxdeliveredarray
                         del bxidx
                     if hltl1map:
@@ -386,19 +400,19 @@ def brilcalc_main(progname=sys.argv[0]):
           lumiunitconversion = formatter.lumiunit_to_scalefactor[lumiunitstr]
           scalefactor = scalefactor*lumiunitconversion
 
-          if pargs.byls:
-              if pargs.hltpath is None:
-                  header = g_headers['bylsheader']
-                  footer = g_headers['footer']
-              else:
-                  header = g_headers['bylsheader_hltpath']
-                  footer = g_headers['footer_hltpath']
-          elif pargs.withBX:
+          if pargs.withBX:
               if pargs.hltpath is None:
                   header = g_headers['bylsheader']+['[bxidx bxdelivered(/ub) bxrecorded(/ub)]']
                   footer = g_headers['footer']
               else:
                   header = g_headers['bylsheader_hltpath']+['[bxidx bxdelivered(/ub) bxrecorded(/ub)]']
+                  footer = g_headers['footer_hltpath']
+          elif pargs.byls:
+              if pargs.hltpath is None:
+                  header = g_headers['bylsheader']
+                  footer = g_headers['footer']
+              else:
+                  header = g_headers['bylsheader_hltpath']
                   footer = g_headers['footer_hltpath']
           else:
               if pargs.hltpath is None:
@@ -502,7 +516,7 @@ def brilcalc_main(progname=sys.argv[0]):
                   print 'no hltpath to l1bit mapping found'
                   sys.exit(0)
           for [qtype,ntag,dsource,rselect] in datasources:             
-              lumi_per_normtag(shards,qtype,dbengine,dbschema,runtot,datasource=dsource,normtag=ntag,withBX=pargs.withBX,byls=pargs.byls,fh=fh,csvwriter=csvwriter,ptable=ptable,scalefactor=scalefactor,totz=totz,fillmin=fillmin,fillmax=fillmax,runmin=runmin,runmax=runmax,amodetagid=amodetagid,egev=egev,beamstatusid=beamstatusid,tssecmin=tssecmin,tssecmax=tssecmax,runlsSeries=rselect,hltl1map=hltl1map,ignorel1mask=parseresult['--ignore-mask'])              
+              lumi_per_normtag(shards,qtype,dbengine,dbschema,runtot,datasource=dsource,normtag=ntag,withBX=pargs.withBX,byls=pargs.byls,fh=fh,csvwriter=csvwriter,ptable=ptable,scalefactor=scalefactor,totz=totz,fillmin=fillmin,fillmax=fillmax,runmin=runmin,runmax=runmax,amodetagid=amodetagid,egev=egev,beamstatusid=beamstatusid,tssecmin=tssecmin,tssecmax=tssecmax,runlsSeries=rselect,hltl1map=hltl1map,ignorel1mask=parseresult['--ignore-mask'],xingMin=pargs.xingMin,xingTr=pargs.xingTr,xingId=pargs.xingId)              
           if pargs.hltpath is None:
               nruns = len(runtot.keys())
               nfills = len( set([v['fill'] for v in runtot.values()] ) )

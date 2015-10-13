@@ -29,6 +29,9 @@ Options:
   --ignore-mask                 Ignore l1 trgger bit mask for --hltpath specific luminosity
   --cerntime                    Show time in CERN local time
   --tssec                       Show time as second since Epoch
+  --xingId BXID                 Filter bunches by id, "1,2,3" or file
+  --xingTr BXTHRESHOLD          Filter bunches by percentage of max lumi, 0-1 
+  --xingMin XINGMIN             Filter bunches by min lumi value   
 
 """
 
@@ -41,7 +44,7 @@ def validate(optdict):
     result={}
     #argdict = clicommonargs.argvalidators
     #extract sub argdict here
-    myvalidables = ['-c','-n','-f','-r','-i','-o','--amodetag','-b','--beamenergy','--datatag','--normtag','--begin','--end','--output-style','--type','--hltpath',str]
+    myvalidables = ['-c','-n','-f','-r','-i','-o','--amodetag','-b','--beamenergy','--datatag','--normtag','--begin','--end','--output-style','--type','--hltpath','--xingId','--xingTr','--xingMin',str]
     argdict = dict((k,v) for k,v in clicommonargs.argvalidators.iteritems() if k in myvalidables)
     schema = Schema(argdict)
     result = schema.validate(optdict)
