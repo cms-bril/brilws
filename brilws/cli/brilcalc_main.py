@@ -42,6 +42,19 @@ sys.stdout = Unbuffered(sys.stdout)
 
 np.seterr(divide='ignore', invalid='ignore')
 
+def totalprescale(hltprescval,l1seedlogic,l1prescvals):
+    totpresc = 0
+    if not hltprescval or not l1prescvals or not l1seedlogic:
+        return totpresc
+    if np.all( np.array(l1prescvals)==1 ):
+        totpresc = hltprescval
+    elif l1seedlogic=='ONE':
+        totpresc = hltprescval*l1prescvals[0]
+    elif l1seedlogic=='OR':
+        totpresc = hltprescval*np.min(l1prescvals)
+    elif l1seedlogic=='AND':
+        totpresc = hltprescval*np.max(l1prescvals)    
+    return totpresc
 
 def lumi_per_normtag(shards,lumiquerytype,dbengine,dbschema,runtot,datasource=None,normtag=None,withBX=False,byls=None,fh=None,csvwriter=None,ptable=None,scalefactor=1,totz=utctmzone,fillmin=None,fillmax=None,runmin=None,runmax=None,amodetagid=None,egev=None,beamstatusid=None,tssecmin=None,tssecmax=None,runlsSeries=None,hltl1map={},ignorel1mask=False):   
 
@@ -87,8 +100,6 @@ def lumi_per_normtag(shards,lumiquerytype,dbengine,dbschema,runtot,datasource=No
         g_hltconfigid_old = None
         prescale_map = {} # for global scope
         g_hltconfigid = 0
-        #hltpathids = []
-        #if hltl1map: hltpathids = np.unique( hltl1map_df['hltpathid'].values )
         for row in lumiiter:            
             fillnum = row['fillnum']
             runnum = row['runnum']
@@ -118,18 +129,14 @@ def lumi_per_normtag(shards,lumiquerytype,dbengine,dbschema,runtot,datasource=No
                 if g_ls_trglastscaled_old != ls_trglastscaled: #on prescale change lumi section
                     prescale_map = {} #clear
                     this_presc = presc[(g_hltconfigid,runnum)] #[[lslastscaler,prescidx]]
-                    this_hltl1map = hltl1map[(g_hltconfigid)]#[[hltpathid,hltpathname,l1seedtype,l1seedbits]]
-                    
-                    #grouped = tmp_df.groupby(['hltconfigid','hltpathid'])
-                    #for name,group in grouped:
+                    this_hltl1map = hltl1map[(g_hltconfigid)]#[[hltpathid,hltpathname,l1seedtype,l1seedbits]]                                        
                     for grouped in this_hltl1map:
                         this_hltpathid = grouped[0]
                         hltpathname = grouped[1]
                         l1seedlogic = grouped[2]
                         l1candidates = grouped[3]
                         r = api.get_trgprescale(dbengine,runnum,ls_trglastscaled,g_hltconfigid,hltpathids=this_hltpathid,l1candidates=l1candidates,ignorel1mask=ignorel1mask ,schemaname=dbschema)
-                        if not r: continue                        
-                        totpresc = 0
+                        if not r: continue                       
                         hdata = r[this_hltpathid]
                         prescidx = hdata[0]
                         hltprescval = hdata[1]
@@ -140,14 +147,7 @@ def lumi_per_normtag(shards,lumiquerytype,dbengine,dbschema,runtot,datasource=No
                         l1inner = map(formatter.bitprescFormatter,l1bits)
                         l1bitsStr = ' '.join(l1inner)
                         hltpathStr = '/'.join([hltpathname,str(hltprescval)])
-                        if np.all( np.array(l1prescvals)==1 ):
-                            totpresc = hltprescval
-                        elif l1seedlogic=='ONE':
-                            totpresc = hltprescval*l1prescvals[0]
-                        elif l1seedlogic=='OR':
-                            totpresc = hltprescval*np.min(l1prescvals)
-                        elif l1seedlogic=='AND':
-                            totpresc = hltprescval*np.max(l1prescvals)                        
+                        totpresc = totalprescale(hltprescval,l1seedlogic,l1prescvals)                                                           
                         prescale_map[hltpathname] = totpresc                        
                         del r                        
                     g_ls_trglastscaled_old = ls_trglastscaled
@@ -186,11 +186,11 @@ def lumi_per_normtag(shards,lumiquerytype,dbengine,dbschema,runtot,datasource=No
                         
                         if hltl1map:
                             for pth in prescale_map.keys():
-                                totpresc = prescale_map[pth]
+                                thispresc = prescale_map[pth]
                                 if bxlumi is not None:
-                                    a = map(formatter.bxlumi,bxlumi/totpresc)  
+                                    a = map(formatter.bxlumi,bxlumi/thispresc)  
                                     bxlumistr = '['+' '.join(a)+']'
-                                display.add_row( ['%d:%d'%(runnum,fillnum),'%d:%d'%(lsnum,cmslsnum),dtime,pth,'%.3f'%(np.divide(delivered/totpresc)),'%.3f'%(recorded/totpresc),ds,'%s'%bxlumistr] , fh=fh, csvwriter=csvwriter, ptable=ptable)      
+                                display.add_row( ['%d:%d'%(runnum,fillnum),'%d:%d'%(lsnum,cmslsnum),dtime,pth,'%.3f'%(np.divide(delivered,thispresc)),'%.3f'%(np.divide(recorded,thispresc)),ds,'%s'%bxlumistr] , fh=fh, csvwriter=csvwriter, ptable=ptable)      
                         else:
                             if bxlumi is not None:
                                 a = map(formatter.bxlumi,bxlumi)
@@ -198,10 +198,10 @@ def lumi_per_normtag(shards,lumiquerytype,dbengine,dbschema,runtot,datasource=No
                             display.add_row( ['%d:%d'%(runnum,fillnum),'%d:%d'%(lsnum,cmslsnum),dtime,beamstatus,'%d'%tegev,'%.3f'%(delivered),'%.3f'%(recorded),'%.1f'%(avgpu),ds,'%s'%bxlumistr] , fh=fh, csvwriter=csvwriter, ptable=ptable)
                     del bxlumi
                 elif byls:
-                    if hltl1map_df is not None:
+                    if hltl1map:
                         for pth in prescale_map.keys():
-                            totpresc = prescale_map[pth]
-                            display.add_row( ['%d:%d'%(runnum,fillnum),'%d:%d'%(lsnum,cmslsnum), dtime, pth, '%.3f'%(np.divide(delivered,totpresc)),'%.3f'%(np.divide(recorded,totpresc)),ds] , fh=fh, csvwriter=csvwriter, ptable=ptable)
+                            thispresc = prescale_map[pth]
+                            display.add_row( ['%d:%d'%(runnum,fillnum),'%d:%d'%(lsnum,cmslsnum), dtime, pth, '%.3f'%(np.divide(delivered,thispresc)),'%.3f'%(np.divide(recorded,thispresc)),ds] , fh=fh, csvwriter=csvwriter, ptable=ptable)
                     else:
                         display.add_row( ['%d:%d'%(runnum,fillnum),'%d:%d'%(lsnum,cmslsnum),dtime,beamstatus,'%d'%tegev,'%.3f'%(delivered),'%.3f'%(recorded),'%.1f'%(avgpu),ds] , fh=fh, csvwriter=csvwriter, ptable=ptable)
             
@@ -235,13 +235,14 @@ def lumi_per_normtag(shards,lumiquerytype,dbengine,dbschema,runtot,datasource=No
                             bxlumi = np.transpose( np.array([bxidx[0]+1,bxdelivered,bxdelivered*livefrac]) )               
                         del bxdeliveredarray
                         del bxidx
-                    if hltl1map_df is not None:
+                    if hltl1map:
                         for pth in prescale_map.keys():
-                            totpresc = prescale_map[pth]                            
+                            thispresc = prescale_map[pth]                            
                             if bxlumi is not None:                                  
-                                a = map(formatter.bxlumi,bxlumi/totpresc)  
+                                a = map(formatter.bxlumi,bxlumi/thispresc)  
                                 bxlumistr = '['+' '.join(a)+']'
-                            display.add_row( ['%d:%d'%(runnum,fillnum),'%d:%d'%(lsnum,cmslsnum),dtime,pth,'%.3f'%(np.divide(delivered/totpresc)),'%.3f'%(recorded/totpresc),ds,'%s'%bxlumistr] , fh=fh, csvwriter=csvwriter, ptable=ptable)
+
+                            display.add_row( ['%d:%d'%(runnum,fillnum),'%d:%d'%(lsnum,cmslsnum),dtime,pth,'%.3f'%(np.divide(delivered,thispresc)),'%.3f'%(np.divide(recorded,thispresc)),datasource.upper(),'%s'%bxlumistr] , fh=fh, csvwriter=csvwriter, ptable=ptable)
                     else:
                         if bxlumi is not None:
                             a = map(formatter.bxlumi,bxlumi)
@@ -249,10 +250,10 @@ def lumi_per_normtag(shards,lumiquerytype,dbengine,dbschema,runtot,datasource=No
                         display.add_row( ['%d:%d'%(runnum,fillnum),'%d:%d'%(lsnum,cmslsnum),dtime,beamstatus,'%d'%tegev,'%.3f'%(delivered),'%.3f'%(recorded),'%.1f'%(avgpu),datasource.upper(),'%s'%bxlumistr] , fh=fh, csvwriter=csvwriter, ptable=ptable)
                     del bxlumi
                 elif byls:
-                    if hltl1map_df is not None:
+                    if hltl1map:
                         for pth in prescale_map.keys():
-                            totpresc = prescale_map[pth]
-                            display.add_row( ['%d:%d'%(runnum,fillnum),'%d:%d'%(lsnum,cmslsnum),dtime,pth,'%.3f'%(np.divide(delivered/totpresc)),'%.3f'%(np.divide(recorded/totpresc)),ds] , fh=fh, csvwriter=csvwriter, ptable=ptable)
+                            thispresc = prescale_map[pth]
+                            display.add_row( ['%d:%d'%(runnum,fillnum),'%d:%d'%(lsnum,cmslsnum),dtime,pth,'%.3f'%(np.divide(delivered,thispresc)),'%.3f'%(np.divide(recorded,thispresc)),datasource.upper()] , fh=fh, csvwriter=csvwriter, ptable=ptable)
                     else:
                         display.add_row( ['%d:%d'%(runnum,fillnum),'%d:%d'%(lsnum,cmslsnum),dtime,beamstatus,'%d'%tegev,'%.3f'%(delivered),'%.3f'%(recorded),'%.1f'%(avgpu),datasource.upper()] , fh=fh, csvwriter=csvwriter, ptable=ptable)
             if not hltl1map:
@@ -268,13 +269,13 @@ def lumi_per_normtag(shards,lumiquerytype,dbengine,dbschema,runtot,datasource=No
                 if not cmson: continue
                 #print prescale_map
                 for pth in prescale_map.keys():
-                    totpresc = prescale_map[pth]
+                    thispresc = prescale_map[pth]
                     if not runtot.has_key( (pth,runnum) ):
                         runtot[(pth,runnum)] = {'fill':fillnum,'dtime':dtime,'nls':0,'ncms':0,'delivered':0,'recorded':0}
                     runtot[ (pth,runnum)]['nls']+=1                
                     if cmson: runtot[ (pth,runnum) ]['ncms'] += 1
-                    runtot[ (pth,runnum) ]['delivered'] += np.divide(delivered,totpresc)
-                    runtot[ (pth,runnum) ]['recorded'] += np.divide(recorded,totpresc)                
+                    runtot[ (pth,runnum) ]['delivered'] += np.divide(delivered,thispresc)
+                    runtot[ (pth,runnum) ]['recorded'] += np.divide(recorded,thispresc)                
      
 class ValidityChecker(object):
     def __init__(self, normdata):
@@ -742,7 +743,6 @@ def brilcalc_main(progname=sys.argv[0]):
                           prescidx = plsdata[1]
                           r = api.get_trgprescale(dbengine, runnum, lsnum, hltconfigid, hltpathids=hltpathids, l1candidates=l1candidates, prescidxs=prescidx, ignorel1mask=parseresult['--ignore-mask'],schemaname=dbschema)
                           #{hltpathid:[ [prescidx,hltprescval,[bitname,trgprescval,bitmask]]] }                      
-                          totpresc = 0
                           if not r: continue
                           for hltpathid in r.keys():
                               (hltpathname,l1seedlogic) = hltpathnamemap[hltpathid]
@@ -754,14 +754,7 @@ def brilcalc_main(progname=sys.argv[0]):
                               l1inner = map(formatter.bitprescFormatter,l1bits)
                               l1bitsStr = ' '.join(l1inner)                          
                               hltpathStr = '/'.join([hltpathname,str(hltprescval)])
-                              if np.all( np.array(l1prescvals)==1 ):
-                                  totpresc = hltprescval
-                              elif l1seedlogic=='ONE':
-                                  totpresc = hltprescval*l1prescvals[0]
-                              elif l1seedlogic=='OR':
-                                  totpresc = hltprescval*np.min(l1prescvals)
-                              elif l1seedlogic=='AND':
-                                  totpresc = hltprescval*np.max(l1prescvals)
+                              totpresc = totalprescale(hltprescval,l1seedlogic,l1prescvals)                                                            
                               display.add_row( [ '%d'%runnum, '%d'%lsnum, '%d'%prescidx, '%d'%totpresc,'%s'%hltpathStr, '%s'%l1seedlogic, '%s'%l1bitsStr], fh=fh, csvwriter=csvwriter, ptable=ptable )                           
                           del r
                   del hltl1map
@@ -788,7 +781,7 @@ def brilcalc_main(progname=sys.argv[0]):
                   print >> fh, '# '+','.join(header)
                   csvwriter = csv.writer(fh)
               else:
-                  ptable = display.create_table(header,header=True,maxwidth=80)
+                  ptable = display.create_table(header,header=True,maxwidth=80,align='l')
 
               hltrunconfig_df = pd.DataFrame(hltrunconfig,columns=['runnum','hltconfigid','hltkey'])
               grouped = hltrunconfig_df.groupby(['hltconfigid','hltkey'])              
