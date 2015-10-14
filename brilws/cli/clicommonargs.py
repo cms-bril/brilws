@@ -6,6 +6,7 @@ from schema import And, Or, Use
 from dateutil import tz
 from ConfigParser import SafeConfigParser
 import yaml
+import numpy as np
 def parseservicemap(authfile):
     '''
     parse service config ini file
@@ -96,7 +97,13 @@ class parser(object):
         if self._argdict.has_key('--xingTr'):
             self._xingTr = self._argdict['--xingTr']
         if self._argdict.has_key('--xingId'):
-            self._xingId = self._argdict['--xingId']
+            d = self._argdict['--xingId']
+            if isinstance(d,file):
+                d = d.read()
+            dd = np.array([int(i) for i in d.replace(' ','').split(',')])
+            if not (dd>=1).all() and (dd<=3564).all():
+                raise ValueError('--xingId should be in range [,3564]')
+            self._xingId = dd.tolist()
         if self._argdict.has_key('--byls'):
             self._byls = self._argdict['--byls']        
         if self._argdict.has_key('--type'):
@@ -307,10 +314,10 @@ class parser(object):
     
 argvalidators = {
     '--amodetag': Or(None,And(str,lambda s: s.upper() in params._amodetagChoices), error='--amodetag must be in '+str(params._amodetagChoices) ),
-    '--beamenergy': Or(None,And(Use(int), lambda n: n>0), error='--beamenergy should be integer >0'),
-    '--xingMin': Or(None,And(Use(float), lambda n: n>0), error='--xingMin should be float>0'),
-    '--xingTr': Or(None,And(Use(float), lambda n: (n>0 and n<=1)), error='--xingTr should be float in (0,1]'),
-    '--xingId': Or(None,str),
+    '--beamenergy': Or(None,And(Use(int), lambda n: n>0), error='--beamenergy should be a positive number'),
+    '--xingMin': Or(None,And(Use(float), lambda n: n>0), error='--xingMin should be a positive number'),
+    '--xingTr': Or(None,And(Use(float), lambda n: (n>0 and n<=1)), error='--xingTr should be a number in (0,1]'),
+    '--xingId': Or(None,Or( Use(open),Use(RegexValidator.RegexValidator(params._bxlist_pattern))), error='--xingId should be a comma separated list of numbers'),
     '-b': Or(None, And(str, lambda s: s.upper() in params._beamstatusChoices), error='-b must be in '+str(params._beamstatusChoices) ),
     '--begin': Or(None, And(str,Use(RegexValidator.RegexValidator(params._timeopt_pattern))), error='--begin wrong format'),
     '--end': Or(None, And(str,Use(RegexValidator.RegexValidator(params._timeopt_pattern))), error='--end wrong format'),

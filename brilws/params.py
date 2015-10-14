@@ -4,6 +4,7 @@ _runnum_pattern = '^\d{6}$'
 _time_pattern = '^\d\d/\d\d/\d\d \d\d:\d\d:\d\d$'
 _hltpath_pattern = '^HLT_[\w\*\?\[\]\!]+$'
 _hltconfig_pattern = '^\d+$|^[0-9a-zA-Z\_\.\/\*\?\[\]\!]+$'
+_bxlist_pattern = r'(\d+)(,\s*\d+)*'
 _amodetagChoices = ['PROTPHYS','IONPHYS','PAPHYS']
 _beamstatusChoices = ['FLAT TOP','SQUEEZE','ADJUST','STABLE BEAMS']
 _lumitypeChoices = ['HFOC','PLTZERO','PXL','BCM1F']
