@@ -96,13 +96,13 @@ class parser(object):
             self._xingMin = self._argdict['--xingMin']
         if self._argdict.has_key('--xingTr'):
             self._xingTr = self._argdict['--xingTr']
-        if self._argdict.has_key('--xingId'):
+        if self._argdict.has_key('--xingId') and self._argdict['--xingId']:
             d = self._argdict['--xingId']
             if isinstance(d,file):
                 d = d.read()
             dd = np.array([int(i) for i in d.replace(' ','').split(',')])
             if not (dd>=1).all() and (dd<=3564).all():
-                raise ValueError('--xingId should be in range [,3564]')
+                raise ValueError('--xingId should be in range [1,3564]')
             self._xingId = dd.tolist()
         if self._argdict.has_key('--byls'):
             self._byls = self._argdict['--byls']        
