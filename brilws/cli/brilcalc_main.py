@@ -134,13 +134,17 @@ def lumi_per_normtag(shards,lumiquerytype,dbengine,dbschema,runtot,datasource=No
                     g_hltconfigid_old = g_hltconfigid
                 if not presc or not presc.has_key((g_hltconfigid,runnum)):
                     continue
-                
-                ls_trglastscaled = np.max( [i[0] for i in presc[(g_hltconfigid,runnum)] if i[0]<=cmslsnum]  )
+
+                b = [ i[0] for i in presc[(g_hltconfigid,runnum)] if i[0]<=cmslsnum ]
+                if not b: continue
+                ls_trglastscaled = np.max( b )
 
                 if g_ls_trglastscaled_old != ls_trglastscaled: #on prescale change lumi section
                     prescale_map = {} #clear
                     this_presc = presc[(g_hltconfigid,runnum)] #[[lslastscaler,prescidx]]
-                    this_hltl1map = hltl1map[(g_hltconfigid)]#[[hltpathid,hltpathname,l1seedtype,l1seedbits]]                                        
+                    if not hltl1map.has_key(g_hltconfigid):
+                        continue
+                    this_hltl1map = hltl1map[g_hltconfigid]#[[hltpathid,hltpathname,l1seedtype,l1seedbits]]                   
                     for grouped in this_hltl1map:
                         this_hltpathid = grouped[0]
                         hltpathname = grouped[1]
