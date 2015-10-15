@@ -439,7 +439,7 @@ def brilcalc_main(progname=sys.argv[0]):
               print >> fh, '#'+','.join(header)
               csvwriter = csv.writer(fh)
           else:
-              ptable = display.create_table(header,header=True)
+              ptable = display.create_table(header,header=True,align='l')
               ftable = display.create_table(footer)          
               
           datasources = [] #[lumiquerytype,normtagname,datasource,runlsstr]          
@@ -530,7 +530,7 @@ def brilcalc_main(progname=sys.argv[0]):
               totrecorded =  np.sum( [v['recorded'] for v in runtot.values() ] )              
               display.add_row( [ '%d'%nfills,'%d'%nruns,'%d'%nls,'%d'%ncmsls,'%.3f'%(totdelivered),'%.3f'%(totrecorded)], fh=fh, csvwriter=csvwriter, ptable=ftable)
               if not pargs.byls and not pargs.withBX: #run table
-                  for hn,rn in runtot.keys():
+                  for hn,rn in sorted(runtot.keys()):
                       v = runtot[ (hn,rn) ]
                       display.add_row( ['%d:%d'%(rn,v['fill']),v['dtime'],v['nls'],v['ncms'],'%.3f'%(v['delivered']),'%.3f'%(v['recorded']) ] , fh=fh, csvwriter=csvwriter, ptable=ptable)
           else:
@@ -613,7 +613,7 @@ def brilcalc_main(progname=sys.argv[0]):
               print >> fh, '#'+','.join(header)
               csvwriter = csv.writer(fh)
           else:
-              ptable = display.create_table(header,header=True,maxwidth=80)                        
+              ptable = display.create_table(header,header=True,maxwidth=80,align='l')                        
 
           idfields = ['fillnum','runnum','lsnum','timestampsec','beamstatusid']    
           fields = ['egev','intensity1','intensity2','ncollidingbx']
