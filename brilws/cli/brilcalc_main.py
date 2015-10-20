@@ -162,7 +162,10 @@ def lumi_per_normtag(shards,lumiquerytype,dbengine,dbschema,runtot,datasource=No
                         l1inner = map(formatter.bitprescFormatter,l1bits)
                         l1bitsStr = ' '.join(l1inner)
                         hltpathStr = '/'.join([hltpathname,str(hltprescval)])
-                        totpresc = totalprescale(hltprescval,l1seedlogic,l1prescvals)                                                           
+                        totpresc = totalprescale(hltprescval,l1seedlogic,l1prescvals)
+                        if not totpresc:
+                            del r
+                            continue
                         prescale_map[hltpathname] = totpresc                        
                         del r                        
                     g_ls_trglastscaled_old = ls_trglastscaled
@@ -772,7 +775,7 @@ def brilcalc_main(progname=sys.argv[0]):
                               l1inner = map(formatter.bitprescFormatter,l1bits)
                               l1bitsStr = ' '.join(l1inner)                          
                               hltpathStr = '/'.join([hltpathname,str(hltprescval)])
-                              totpresc = totalprescale(hltprescval,l1seedlogic,l1prescvals)                                                            
+                              totpresc = totalprescale(hltprescval,l1seedlogic,l1prescvals)
                               display.add_row( [ '%d'%runnum, '%d'%lsnum, '%d'%prescidx, '%d'%totpresc,'%s'%hltpathStr, '%s'%l1seedlogic, '%s'%l1bitsStr], fh=fh, csvwriter=csvwriter, ptable=ptable )                           
                           del r
                   del hltl1map
