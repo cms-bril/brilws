@@ -158,8 +158,22 @@ def merge_twodicts_onkeys(x,y):
     ds = [x,y]
     z = {}
     for k in x.keys():
-        alllists = [d[k] for d in ds if d.has_key(k)]
-        z[k] = list(itertools.chain.from_iterable(alllists))
+        samekeylists = [d[k] for d in ds if d.has_key(k)]
+        if samekeylists:
+            z[k] = list(itertools.chain.from_iterable(samekeylists))
+    return z
+
+def merge_two_dicts_onkeys(x,y):
+    if not any(i in x.keys() for i in y.keys()):#no overlap 
+        return merge_two_dicts(x,y)
+    z = {}
+    samekeys = [i for i in x.keys() if i in y.keys()]
+    for k in samekeys:
+        z[k] = list(itertools.chain.from_iterable([x[k],y[k]]))
+        x.pop(k,None)
+        y.pop(k,None)
+    z = merge_two_dicts(z,x)
+    z = merge_two_dicts(z,y)
     return z
 
 def mergeiovrunls(iovselect,cmsselect):
@@ -190,10 +204,10 @@ def mergeiovrunls(iovselect,cmsselect):
             if runlsdict:
                 final.append([iovtag,runlsdict])
                 previoustag = iovtag
-        else:
+        else:            
             x = final[-1][1]                
-            y = runlsdict
-            final[-1][1] = merge_twodicts_onkeys(x,y)
+            y = runlsdict            
+            final[-1][1] = merge_two_dicts_onkeys(x,y)
         coutiovpiece+=1
     return final
 

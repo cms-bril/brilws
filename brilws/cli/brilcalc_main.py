@@ -118,6 +118,7 @@ def lumi_per_normtag(shards,lumiquerytype,dbengine,dbschema,runtot,datasource=No
             cmslsnum = lsnum
             timestampsec = row['timestampsec']
             cmson = row['cmson']
+
             if not cmson: cmslsnum = 0
             if hltl1map:
                 if cmslsnum==0: continue #cms is not running, skip.                
