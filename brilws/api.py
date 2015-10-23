@@ -2085,7 +2085,7 @@ def get_trgprescale(engine,runnum,lsnum,hltconfigid,hltpathids=None,l1candidates
     q = "select l.prescidx as prescidx, h.hltpathid as hltpathid, h.hltprescval as hltprescval, r.bitname as bitname, l.trgprescval as trgprescval, r.mask as bitmask from %(trgscalerT)s l, %(trgrunconfT)s r, %(hltscalerT)s h where r.runnum=l.runnum and r.bitid=l.bitid and l.runnum=h.runnum and l.lsnum=h.lsnum and l.prescidx=h.prescidx and l.runnum=:runnum and l.lsnum=:lsnum and h.hltconfigid=:hltconfigid"%{'trgscalerT':trgscalertable,'hltscalerT':hltscalertable,'trgrunconfT':trgrunconftable}
     
     if ignorel1mask is False:
-        q = q+' and r.mask!=1 '
+        q = q+' and r.mask!=0 '#mask=1, pass; mask=0 masked off
     
     binddict = {'runnum':runnum,'lsnum':lsnum,'hltconfigid':hltconfigid}
     qfields = []    
