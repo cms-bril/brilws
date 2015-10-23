@@ -61,7 +61,7 @@ BCM1F_RAW_&suffix:
     - bkgminusz: float
    pk: [ datatagid ]
    
-PLT_RAW_&suffix: #per ls
+PLTTK_RAW_&suffix: #per ls
    columns:
     - datatagid: int64
     - fillnum: uint32
@@ -91,6 +91,14 @@ PXL_RAW_&suffix:        #per ls
     - lsnum: uint32
     - avglumi: float
    pk: [datatagid]
+
+DT_RAW_&suffix:         #per ls
+   columns:
+    - datatagid: int64
+    - runnum: uint32
+    - lsnum: uint32
+    - avglumi: float
+   pk: [ datatagid ]
    
 ##### Result tables #####
 
@@ -133,7 +141,7 @@ PLTZERO_RESULT_&suffix:
     - bxlumiblob: blob
    pk: [datatagid,normtagid]
    
-PLT_RESULT_&suffix:
+PLTTK_RESULT_&suffix:
    columns:
     - datatagid: int64
     - fillnum: uint32
@@ -144,7 +152,7 @@ PLT_RESULT_&suffix:
     - normtagid: int64
     - avglumi: float
     - bxlumiblob: blob
-   pk: [datatagid,normtagid]   
+   pk: [datatagid,normtagid]  
 
 BCM1F_RESULT_&suffix:
    columns:
