@@ -99,6 +99,7 @@ DT_RAW_&suffix:         #per ls
     - lsnum: uint32
     - avglumi: float
    pk: [ datatagid ]
+
    
 ##### Result tables #####
 
@@ -166,6 +167,14 @@ BCM1F_RESULT_&suffix:
     - avglumi: float
     - bxlumiblob: blob
    pk: [datatagid,normtagid]
+
+DT_RESULT_&suffix:         #per ls
+   columns:
+    - datatagid: int64
+    - runnum: uint32
+    - lsnum: uint32
+    - avglumi: float
+   pk: [ datatagid ]
    
 ONLINE_RESULT_&suffix:
    columns:
