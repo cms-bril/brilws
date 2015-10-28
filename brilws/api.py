@@ -2065,7 +2065,113 @@ def get_hltrunconfig(engine,hltconfigid=None,hltkey=None,runnum=None,schemaname=
     for row in resultProxy:
         result.append( [ row['runnum'],row['hltconfigid'],row['hltkey'] ])
     return result
+
+def get_hltprescale(engine,runnum,lsnum,hltconfigid,prescidx_hltpathid,schemaname=''):
+    '''
+    input:
+        prescidx_hltpathid: tuple or list of tuple (prescidx,hltpathid)
+    output:
+    { (prescidx,hltpathid): hltprescval }
+    '''
+    hltscalertable = 'hltscaler'
+    result = {}
+            
+    if schemaname:
+        hltscalertable = '.'.join([schemaname,hltscalertable])   #'h'
+    q = "select prescidx,hltpathid,hltprescval from %(hltscalerT)s where hltconfigid=:hltconfigid and runnum=:runnum and lsnum=:lsnum" %{'hltscalerT':hltscalertable}
+    binddict = {'runnum':runnum,'lsnum':lsnum,'hltconfigid':hltconfigid}    
+    qfields = []
+
+    if isinstance(prescidx_hltpathid,tuple):
+        qfields.append('prescidx=:prescidx')
+        qfields.append('hltpathid=:hltpathid')
+        binddict['prescidx'] = int(prescidx_hltpathid[0])
+        binddict['hltpathid'] = int(prescidx_hltpathid[1])
+        result[prescidx_hltpathid] = 1 #preset hltpath prescale to 1 in case it does not exist. Non-existing means prescale=1!!
+    elif isinstance(prescidx_hltpathid,collections.Iterable):
+        prescidxs = set()
+        hltpathids = set()
+        for v in prescidx_hltpathid:
+            prescidxs.add(int(v[0]))
+            hltpathids.add(int(v[1]))
+            result[v] = 1
+        (qf,s) = build_or_collection('prescidx','prescidx',list(prescidxs))
+        if qf:
+            qfields.append(qf)
+            binddict = merge_two_dicts(binddict,s)
+        (qf,s) = build_or_collection('hltpathid','hltpath',list(hltpathids))
+        if qf:
+            qfields.append(qf)
+            binddict = merge_two_dicts(binddict,s)
+            
+    if qfields:
+        q = q+' and '
+        if len(qfields)>1:
+            q = q+' and '.join(qfields)
+        else:
+            q = q+qfields[0]
     
+    log.debug( q+','+str(binddict) )
+    connection = engine.connect()
+    resultProxy = connection.execute(q,binddict)
+    for row in resultProxy:
+        hid = row['hltpathid']
+        prescidx = row['prescidx']
+        hltv = row['hltprescval']
+        result[(prescidx,hid)] = hltv #guranteed key exist
+    return result
+    
+def get_l1prescale(engine,runnum,lsnum,l1candidates=None,prescidxs=None,ignorel1mask=False,schemaname=''):
+    '''
+    output:
+    { (prescidx,bitname): [trgprescval,bitmask]}
+    '''
+    trgscalertable = 'trgscaler'
+    trgrunconftable = 'trgrunconfig'
+    result = {} # { (prescidx,bitname): [trgprescval,bitmask]}
+    if schemaname:
+        trgscalertable = '.'.join([schemaname,trgscalertable])   #'l'
+        trgrunconftable = '.'.join([schemaname,trgrunconftable]) #'r'  
+    q = "select l.prescidx as prescidx,r.bitname as bitname,l.trgprescval as trgprescval,r.mask as bitmask from  %(trgscalerT)s l, %(trgrunconfT)s r where r.runnum=l.runnum and r.bitid=l.bitid and l.runnum=:runnum and l.lsnum=:lsnum"%{'trgscalerT':trgscalertable,'trgrunconfT':trgrunconftable}
+    if ignorel1mask is False:
+        q = q+' and r.mask!=0 '#mask=1, pass; mask=0 masked off
+    binddict = {'runnum':runnum,'lsnum':lsnum}
+    qfields = []
+    if isinstance(l1candidates,str):
+        if l1candidates:
+            qfields.append('r.bitname=:bitname')
+            binddict['bitname']=l1candidates
+    elif isinstance(l1candidates,collections.Iterable):
+        (qf,s) = build_or_collection('r.bitname','bitname',l1candidates)
+        if qf:
+            qfields.append(qf)
+            binddict = merge_two_dicts(binddict,s)
+            
+    if isinstance(prescidxs,int):
+        qfields.append('l.prescidx=:prescidx')
+        binddict['prescidx'] = prescidxs
+    elif isinstance(prescidxs,collections.Iterable):
+        (qf,s) = build_or_collection('l.prescidx','prescidx',prescidxs)
+        if qf:
+            qfields.append(qf)
+            binddict = merge_two_dicts(binddict,s)
+    if qfields:
+        q = q+' and '
+        if len(qfields)>1:
+            q = q+' and '.join(qfields)
+        else:
+            q = q+qfields[0]
+    log.debug( q+','+str(binddict) )
+    connection = engine.connect()
+    resultProxy = connection.execute(q,binddict)
+    for row in resultProxy:
+        prescidx = row['prescidx']
+        l1bname = row['bitname']
+        l1v = row['trgprescval']
+        l1ma = row['bitmask']
+        result[(prescidx,l1bname)]=[l1v,l1ma]
+    return result
+
 def get_trgprescale(engine,runnum,lsnum,hltconfigid,hltpathids=None,l1candidates=None,prescidxs=None,ignorel1mask=False,schemaname=''):
     '''
     get 
@@ -2083,7 +2189,6 @@ def get_trgprescale(engine,runnum,lsnum,hltconfigid,hltpathids=None,l1candidates
         hltscalertable = '.'.join([schemaname,hltscalertable])   #'h'       
         trgrunconftable = '.'.join([schemaname,trgrunconftable]) #'r'    
     q = "select l.prescidx as prescidx, h.hltpathid as hltpathid, h.hltprescval as hltprescval, r.bitname as bitname, l.trgprescval as trgprescval, r.mask as bitmask from %(trgscalerT)s l, %(trgrunconfT)s r, %(hltscalerT)s h where r.runnum=l.runnum and r.bitid=l.bitid and l.runnum=h.runnum and l.lsnum=h.lsnum and l.prescidx=h.prescidx and l.runnum=:runnum and l.lsnum=:lsnum and h.hltconfigid=:hltconfigid"%{'trgscalerT':trgscalertable,'hltscalerT':hltscalertable,'trgrunconfT':trgrunconftable}
-    
     if ignorel1mask is False:
         q = q+' and r.mask!=0 '#mask=1, pass; mask=0 masked off
     

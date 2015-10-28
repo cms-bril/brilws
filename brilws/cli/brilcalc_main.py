@@ -16,6 +16,7 @@ import re,time, csv
 from datetime import datetime
 from sqlalchemy import *
 import math
+from itertools import izip_longest
 from dateutil import tz
 import pytz
 log = logging.getLogger('brilws')
@@ -142,7 +143,8 @@ def lumi_per_normtag(shards,lumiquerytype,dbengine,dbschema,runtot,datasource=No
                 ls_trglastscaled = np.max( b )                            
                 if g_ls_trglastscaled_old != ls_trglastscaled: #on prescale change lumi section                    
                     prescale_map = {} #clear
-                    this_presc = presc[(g_hltconfigid,runnum)] #[[lslastscaler,prescidx]]
+                    this_presc = [ t for t in presc[(g_hltconfigid,runnum)] if t[0]==ls_trglastscaled ]  #[[lslastscaler,prescidx]]
+                    this_prescidx = this_presc[0][1]
                     if not hltl1map.has_key(g_hltconfigid):                                   
                         continue
                     this_hltl1map = hltl1map[g_hltconfigid]#[[hltpathid,hltpathname,l1seedtype,l1seedbits]]                    
@@ -151,25 +153,26 @@ def lumi_per_normtag(shards,lumiquerytype,dbengine,dbschema,runtot,datasource=No
                         hltpathname = grouped[1]
                         l1seedlogic = grouped[2]
                         l1candidates = grouped[3]
-                        r = api.get_trgprescale(dbengine,runnum,ls_trglastscaled,g_hltconfigid,hltpathids=this_hltpathid,l1candidates=l1candidates,ignorel1mask=ignorel1mask ,schemaname=dbschema)
-                        if not r:                            
-                            continue                       
-                        hdata = r[this_hltpathid]
-                        prescidx = hdata[0]
-                        hltprescval = hdata[1]
-                        l1info = hdata[2]
-                        l1bitnames = [ h[0] for h in l1info]
-                        l1prescvals = [ h[1] for h in l1info]
+                        this_input = (this_prescidx,this_hltpathid)
+                        rh = api.get_hltprescale(dbengine,runnum,ls_trglastscaled,g_hltconfigid,this_input,schemaname=dbschema)
+                        if not rh:                            
+                            continue  
+                        rl = api.get_l1prescale(dbengine,runnum,ls_trglastscaled,l1candidates=l1candidates,prescidxs=this_prescidx,ignorel1mask=ignorel1mask ,schemaname=dbschema)
+                        hltprescval = rh[this_input]
+                        if not rl:
+                            continue
+                        l1keys = [ k for k in rl.keys() if k[0]==this_prescidx ]
+                        l1bitnames = [ v[1] for v in l1keys ]
+                        l1vals = [ rl[k] for k in l1keys ]                       
+                        l1prescvals = [ v[0] for v in l1vals ]
                         l1bits = zip(l1bitnames,l1prescvals)
                         l1inner = map(formatter.bitprescFormatter,l1bits)
                         l1bitsStr = ' '.join(l1inner)
                         hltpathStr = '/'.join([hltpathname,str(hltprescval)])
                         totpresc = totalprescale(hltprescval,l1seedlogic,l1prescvals)                       
                         if not totpresc:
-                            del r
                             continue
-                        prescale_map[hltpathname] = totpresc                        
-                        del r                        
+                        prescale_map[hltpathname] = totpresc   
                     g_ls_trglastscaled_old = ls_trglastscaled
             beamstatusid = row['beamstatusid']
             beamstatus = params._idtobeamstatus[beamstatusid]
@@ -445,7 +448,7 @@ def brilcalc_main(progname=sys.argv[0]):
               csvwriter = csv.writer(fh)
           else:
               ptable = display.create_table(header,header=True,align='l')
-              ftable = display.create_table(footer)          
+              ftable = display.create_table(footer,header=True,align='l')          
               
           datasources = [] #[lumiquerytype,normtagname,datasource,runlsstr]          
 
@@ -764,22 +767,26 @@ def brilcalc_main(progname=sys.argv[0]):
                       for plsdata in pdata:
                           lsnum = plsdata[0]
                           prescidx = plsdata[1]
-                          r = api.get_trgprescale(dbengine, runnum, lsnum, hltconfigid, hltpathids=hltpathids, l1candidates=l1candidates, prescidxs=prescidx, ignorel1mask=parseresult['--ignore-mask'],schemaname=dbschema)
-                          #{hltpathid:[ [prescidx,hltprescval,[bitname,trgprescval,bitmask]]] }                      
-                          if not r: continue
-                          for hltpathid in r.keys():
+                          pathinputs = izip_longest([prescidx],hltpathids,fillvalue=prescidx)
+                          rh = api.get_hltprescale(dbengine,runnum,lsnum,hltconfigid,pathinputs,schemaname=dbschema)
+                          if not rh:                            
+                              continue  
+                          rl = api.get_l1prescale(dbengine,runnum,lsnum,l1candidates=l1candidates,prescidxs=prescidx,ignorel1mask=parseresult['--ignore-mask'] ,schemaname=dbschema)
+                          if not rl:
+                              continue
+                          for (p,hltpathid) in rh.keys():
                               (hltpathname,l1seedlogic) = hltpathnamemap[hltpathid]
-                              hdata = r[hltpathid]
-                              hltprescval = hdata[1]
-                              l1bitnames = [ h[0] for h in hdata[2] ]
-                              l1prescvals = [ h[1] for h in hdata[2] ]
+                              hltprescval = rh[(p,hltpathid)]                              
+                              l1keys = [ k for k in rl.keys() if k[0]==p ]
+                              l1bitnames = [ v[1] for v in l1keys ]
+                              l1vals = [ rl[k] for k in l1keys ]                       
+                              l1prescvals = [ v[0] for v in l1vals ]
                               l1bits = zip(l1bitnames,l1prescvals)
                               l1inner = map(formatter.bitprescFormatter,l1bits)
                               l1bitsStr = ' '.join(l1inner)                          
                               hltpathStr = '/'.join([hltpathname,str(hltprescval)])
                               totpresc = totalprescale(hltprescval,l1seedlogic,l1prescvals)
-                              display.add_row( [ '%d'%runnum, '%d'%lsnum, '%d'%prescidx, '%d'%totpresc,'%s'%hltpathStr, '%s'%l1seedlogic, '%s'%l1bitsStr], fh=fh, csvwriter=csvwriter, ptable=ptable )                           
-                          del r
+                              display.add_row( [ '%d'%runnum, '%d'%lsnum, '%d'%prescidx, '%d'%totpresc,'%s'%hltpathStr, '%s'%l1seedlogic, '%s'%l1bitsStr], fh=fh, csvwriter=csvwriter, ptable=ptable )  
                   del hltl1map
               else:
                   for pkey in pkeys:
