@@ -1622,12 +1622,12 @@ def buildselect_runls(inputSeries):
             lmaxvar = 'lmax_%d'%(bind_lsindex)
             var_lmins[lminvar] = lsmin
             var_lmaxs[lmaxvar] = lsmax
-            orss.append( 'LSNUM>=:%s and LSNUM<=:%s'%(lminvar,lmaxvar) )
+            orss.append( '(LSNUM>=:%s and LSNUM<=:%s)'%(lminvar,lmaxvar) )
             bind_lsindex = bind_lsindex + 1
         ss = '('+' or '.join(orss)+')'
         bind_runindex = bind_runindex + 1
-        qstrs.append(s+ss)
-    result.append( ' or '.join(qstrs) )
+        qstrs.append('('+s+ss+')')
+    result.append( '('+' or '.join(qstrs)+')' )
     result.append(var_runs)
     result.append(var_lmins)
     result.append(var_lmaxs)
@@ -1825,7 +1825,7 @@ def online_resultIter(engine,tablename,schemaname='',runmin=None,runmax=None,fil
     q = '''select %s from %s'''%(','.join(fields),t) + ' where '+qCondition
     if sorted:
         q = q+' order by runnum,lsnum'
-    log.debug(q)
+    log.debug(q+' , '+str(binddict))
     connection = engine.connect()
     result = connection.execution_options(stream_result=True).execute(q,binddict)
     return iter(result)
@@ -2170,79 +2170,6 @@ def get_l1prescale(engine,runnum,lsnum,l1candidates=None,prescidxs=None,ignorel1
         l1v = row['trgprescval']
         l1ma = row['bitmask']
         result[(prescidx,l1bname)]=[l1v,l1ma]
-    return result
-
-def get_trgprescale(engine,runnum,lsnum,hltconfigid,hltpathids=None,l1candidates=None,prescidxs=None,ignorel1mask=False,schemaname=''):
-    '''
-    get 
-    input: 
-    
-    output: 
-    {hltpathid:[ prescidx,hltprescval,[[bitname,trgprescval,bitmask]] ]}
-    '''
-    trgscalertable = 'trgscaler'
-    hltscalertable = 'hltscaler'
-    trgrunconftable = 'trgrunconfig'
-    result = {}
-    if schemaname:
-        trgscalertable = '.'.join([schemaname,trgscalertable])   #'l'
-        hltscalertable = '.'.join([schemaname,hltscalertable])   #'h'       
-        trgrunconftable = '.'.join([schemaname,trgrunconftable]) #'r'    
-    q = "select l.prescidx as prescidx, h.hltpathid as hltpathid, h.hltprescval as hltprescval, r.bitname as bitname, l.trgprescval as trgprescval, r.mask as bitmask from %(trgscalerT)s l, %(trgrunconfT)s r, %(hltscalerT)s h where r.runnum=l.runnum and r.bitid=l.bitid and l.runnum=h.runnum and l.lsnum=h.lsnum and l.prescidx=h.prescidx and l.runnum=:runnum and l.lsnum=:lsnum and h.hltconfigid=:hltconfigid"%{'trgscalerT':trgscalertable,'hltscalerT':hltscalertable,'trgrunconfT':trgrunconftable}
-    if ignorel1mask is False:
-        q = q+' and r.mask!=0 '#mask=1, pass; mask=0 masked off
-    
-    binddict = {'runnum':runnum,'lsnum':lsnum,'hltconfigid':hltconfigid}
-    qfields = []    
-            
-    if isinstance(hltpathids,int):
-        if hltpathids:
-            qfields.append('h.hltpathid=:hltpathid')
-            binddict['hltpathid'] = hltpathids
-    elif isinstance(hltpathids,collections.Iterable):
-        (qf,s) = build_or_collection('h.hltpathid','hltpath',hltpathids)
-        if qf:
-            qfields.append(qf)
-            binddict = merge_two_dicts(binddict,s)            
-
-    if isinstance(l1candidates,str):
-        if l1candidates:
-            qfields.append('r.bitname=:bitname')
-            binddict['bitname']=l1candidates
-    elif isinstance(l1candidates,collections.Iterable):
-        (qf,s) = build_or_collection('r.bitname','bitname',l1candidates)
-        if qf:
-            qfields.append(qf)
-            binddict = merge_two_dicts(binddict,s)     
-        
-    if isinstance(prescidxs,int):
-        qfields.append('l.prescidx=:prescidx')
-        binddict['prescidx'] = prescidxs
-    elif isinstance(prescidxs,collections.Iterable):
-        (qf,s) = build_or_collection('l.prescidx','prescidx',prescidxs)
-        if qf:
-            qfields.append(qf)
-            binddict = merge_two_dicts(binddict,s)     
-    if qfields:
-        q = q+' and '
-        if len(qfields)>1:
-            q = q+' and '.join(qfields)
-        else:
-            q = q+qfields[0]
-            
-    log.debug( q+','+str(binddict) )
-    connection = engine.connect()
-    resultProxy = connection.execute(q,binddict)
-    for row in resultProxy:
-        hid = row['hltpathid']
-        prescidx = row['prescidx']
-        hltv = row['hltprescval']
-        if not result.has_key(hid):
-            result[hid] = [prescidx,hltv,[]]
-        l1bname = row['bitname']
-        l1v = row['trgprescval']
-        l1ma = row['bitmask']
-        result[hid][2].append([l1bname,l1v,l1ma])
     return result
 
 def parseL1Seed(l1seed):

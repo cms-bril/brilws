@@ -144,15 +144,26 @@ class parser(object):
             self._runmax = self._argdict['-r']
         s_beg = None
         s_end = None
-        if self._argdict.has_key('-f') and not self._argdict['-f'] and self._argdict.has_key('-r') and not self._argdict['-r']:
+        #if self._argdict.has_key('-f') and not self._argdict['-f'] and self._argdict.has_key('-r') and not self._argdict['-r']:
+        if self._argdict.has_key('-f') or self._argdict.has_key('-r') :
             if self._argdict.has_key('--begin') and self._argdict['--begin']:
                 s_beg = self._argdict['--begin']
                 for style,pattern in {'fill':params._fillnum_pattern,'run':params._runnum_pattern, 'time':params._time_pattern}.items():
                     if re.match(pattern,s_beg):
                         if style=='fill':
-                            self._fillmin = int(s_beg)
+                            if self._fillmin : #-f specified
+                                if self._fillmin<int(s_beg):
+                                    raise ValueError('-f FILLNUM is less than --begin')                                
+                                self._fillmin = max(self._fillmin,int(s_beg))
+                            else:
+                                self._fillmin = int(s_beg)
                         elif style=='run':
-                            self._runmin = int(s_beg)
+                            if self._runmin : #-r specified
+                                if self._runmin<int(s_beg):
+                                    raise ValueError('-r RUNNUM is less than --begin')
+                                self._runmin = max(self._runmin,int(s_beg))
+                            else:
+                                self._runmin = int(s_beg)
                         elif style=='time':
                             dt_obj = datetime.strptime(s_beg,params._datetimefm)                            
                             self._tssecmin = calendar.timegm(dt_obj.timetuple())
@@ -161,9 +172,19 @@ class parser(object):
                 for style,pattern in {'fill':params._fillnum_pattern,'run':params._runnum_pattern, 'time':params._time_pattern}.items():
                       if re.match(pattern,s_end):
                         if style=='fill':
-                            self._fillmax = int(s_end)
+                            if self._fillmax : #-f specified
+                                if self._fillmax>int(s_end):
+                                    raise ValueError('-f FILLNUM is greater than --end')
+                                self._fillmax = min(self._fillmax,int(s_end))
+                            else:
+                                self._fillmax = int(s_end)
                         elif style=='run':
-                            self._runmax = int(s_end)
+                            if self._runmax : #-r specified
+                                if self._runmax>int(s_end):
+                                    raise ValueError('-r RUNNUM is greater than --end')
+                                self._runmax = min(self._runmax,int(s_end))
+                            else:
+                                self._runmax = int(s_end)
                         elif style=='time':
                             dt_obj = datetime.strptime(s_end,params._datetimefm)
                             self._tssecmax = calendar.timegm(dt_obj.timetuple())
