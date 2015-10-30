@@ -1961,7 +1961,7 @@ def get_prescidx_change(engine,runnums,schemaname=''):
     qfields = []
     if isinstance(runnums,int):
         if runnums:
-            qfields.append("r.runnum=:runnum")
+            qfields.append("runnum=:runnum")
             binddict['runnum'] = runnums
     elif isinstance(runnums,collections.Iterable):
         (qf,s) = build_or_collection('runnum','runnum',runnums)
