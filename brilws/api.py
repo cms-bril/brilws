@@ -1943,6 +1943,47 @@ def get_hlttrgl1seedmap(engine,hltpath=None,hltconfigids=None,schemaname=''):
     #hltpathl1seed['seedtype'],hltpathl1seed['seedvalue'] = zip(*(hltpathl1seed['l1seed'].apply(parseL1Seed)))
     #del hltpathl1seed['l1seed']
     return result
+
+def get_prescidx_change(engine,runnums,schemaname=''):
+    '''
+    input:
+        runnums: runnumbers
+    output: 
+        {runnum:[[lslastscaler,prescidx]]
+    '''
+    prescidxchangetable = 'prescidxchange'
+    if schemaname:
+        prescidxchangetable = '.'.join([schemaname,prescidxchangetable])
+        
+    q = "select runnum,lsnum,prescidx from %s "%(prescidxchangetable)
+    binddict = {}
+    result = {}#{runnum:[[lslastscaler,prescidx]]
+    qfields = []
+    if isinstance(runnums,int):
+        if runnums:
+            qfields.append("r.runnum=:runnum")
+            binddict['runnum'] = runnums
+    elif isinstance(runnums,collections.Iterable):
+        (qf,s) = build_or_collection('runnum','runnum',runnums)
+        if qf:
+            qfields.append(qf)
+            binddict = merge_two_dicts(binddict,s)
+    if qfields:
+        q = q+' where '        
+        if len(qfields)>1:
+            q = q+" and ".join(qfields)
+        else:
+            q = q+qfields[0]
+    q = q+' order by runnum,lsnum'
+    log.debug(q+','+str(binddict))
+    connection = engine.connect()
+    resultProxy = connection.execute(q,binddict)
+    for row in resultProxy:
+        r = row['runnum']
+        lslastscaler = row['lsnum']
+        prescidx = row['prescidx']
+        result.setdefault(r,[]).append( [lslastscaler,prescidx] )            
+    return result
     
 def get_hltconfig_trglastscaled(engine,hltconfigids=None,hltkey=None,runnums=None,withouthltkey=False,schemaname=''):
     '''
@@ -2075,7 +2116,6 @@ def get_hltprescale(engine,runnum,lsnum,hltconfigid,prescidx_hltpathid,schemanam
     '''
     hltscalertable = 'hltscaler'
     result = {}
-            
     if schemaname:
         hltscalertable = '.'.join([schemaname,hltscalertable])   #'h'
     q = "select prescidx,hltpathid,hltprescval from %(hltscalerT)s where hltconfigid=:hltconfigid and runnum=:runnum and lsnum=:lsnum" %{'hltscalerT':hltscalertable}

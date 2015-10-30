@@ -728,13 +728,13 @@ def brilcalc_main(progname=sys.argv[0]):
               header = ['run','cmsls','prescidx']
               if pargs.hltpath is not None: 
                   header = header+['totprescval','hltpath/prescval','logic','l1bit/prescval']
-                  
-              presc = api.get_hltconfig_trglastscaled(dbengine,hltconfigids=pargs.hltconfigid,hltkey=pargs.hltkey,runnums=pargs.runmin,withouthltkey=True,schemaname=dbschema)
-              #{(hltconfigid,runnum):[[lslastscaler,prescidx]]}
-              if not presc:
-                  print 'No prescale found'
-                  sys.exit(0)
-                  
+
+              hltrunconfig = api.get_hltrunconfig(dbengine,hltconfigid=pargs.hltconfigid,hltkey=pargs.hltkey,runnum=pargs.runmin,schemaname=dbschema)  #[['runnum','hltconfigid','hltkey'],['runnum','hltconfigid','hltkey']]
+              runlist = [x[0] for x in hltrunconfig]
+              hltconfigids = [x[1] for x in hltrunconfig]
+              presc = api.get_prescidx_change(dbengine,runlist,schemaname=dbschema)
+              #{runnum:[[lslastscaler,prescidx]]
+                           
               if not pargs.totable:
                   fh = pargs.ofilehandle
                   print >> fh, '# '+','.join(header)
@@ -742,62 +742,54 @@ def brilcalc_main(progname=sys.argv[0]):
               else:
                   ptable = display.create_table(header,header=True,maxwidth=60,align='l')
                   
-              pkeys = sorted(presc.keys() )
               if pargs.hltpath:                  
-                  hltl1map = api.get_hlttrgl1seedmap(dbengine,hltpath=pargs.hltpath,hltconfigids=pargs.hltconfigid,schemaname=dbschema)
+                  hltl1map = api.get_hlttrgl1seedmap(dbengine,hltpath=pargs.hltpath,hltconfigids=hltconfigids,schemaname=dbschema)
                   # {hltconfigid: [[hltpathid,hltpathname,seedtype,[seedvalues]]]}
                   if not hltl1map:
                       print 'No hltpathl1seed mapping found'
                       sys.exit(0)
                       
-                  mkeys = hltl1map.keys()
-                  hltconfigs = [ h[0] for h in pkeys if h[0] in mkeys ]
-                  if  not hltconfigs:
+                  selected_hltconfigids = hltl1map.keys()
+                  if not selected_hltconfigids:
                       print 'No hltconfig found '
                       sys.exit(0)
-                  for pkey in pkeys:      #loop over hltconfig and runnum
-                      hltconfigid = pkey[0]
-                      runnum = pkey[1]
-                      pdata = presc[ pkey ]
+                  for [runnum,hltconfigid,hltkey] in [r for r in hltrunconfig if r[1] in selected_hltconfigids]:
                       if not hltl1map.has_key(hltconfigid):
                           continue
                       mdata = hltl1map[hltconfigid]
-                      hltpathids = [ h[0] for h in mdata ]
-                      hltpathnamemap = dict( [(h[0],[h[1],h[2]]) for h in mdata] )
-                      l1candidates = np.unique( np.hstack([ h[3] for h in mdata ]) )
-                      for plsdata in pdata:
-                          lsnum = plsdata[0]
-                          prescidx = plsdata[1]
-                          pathinputs = izip_longest([prescidx],hltpathids,fillvalue=prescidx)
-                          rh = api.get_hltprescale(dbengine,runnum,lsnum,hltconfigid,pathinputs,schemaname=dbschema)
-                          if not rh:                            
-                              continue  
-                          rl = api.get_l1prescale(dbengine,runnum,lsnum,l1candidates=l1candidates,prescidxs=prescidx,ignorel1mask=parseresult['--ignore-mask'] ,schemaname=dbschema)
-                          if not rl:
-                              continue
-                          for (p,hltpathid) in rh.keys():
-                              (hltpathname,l1seedlogic) = hltpathnamemap[hltpathid]
-                              hltprescval = rh[(p,hltpathid)]                              
-                              l1keys = [ k for k in rl.keys() if k[0]==p ]
-                              l1bitnames = [ v[1] for v in l1keys ]
-                              l1vals = [ rl[k] for k in l1keys ]                       
-                              l1prescvals = [ v[0] for v in l1vals ]
-                              l1bits = zip(l1bitnames,l1prescvals)
-                              l1inner = map(formatter.bitprescFormatter,l1bits)
-                              l1bitsStr = ' '.join(l1inner)                          
-                              hltpathStr = '/'.join([hltpathname,str(hltprescval)])
-                              totpresc = totalprescale(hltprescval,l1seedlogic,l1prescvals)
-                              display.add_row( [ '%d'%runnum, '%d'%lsnum, '%d'%prescidx, '%d'%totpresc,'%s'%hltpathStr, '%s'%l1seedlogic, '%s'%l1bitsStr], fh=fh, csvwriter=csvwriter, ptable=ptable )  
+                      for [hltpathid,hltpathname,l1seedlogic,l1bits] in mdata:
+                          if not presc.has_key(runnum):
+                              display.add_row( [ '%d'%runnum, '%s'%'None', '%s'%'None', '%d'%1,'%s'%hltpathname, '%s'%l1seedlogic, '%s'%' '.join(l1bits)], fh=fh, csvwriter=csvwriter, ptable=ptable )  
+                          else:
+                              hltpathnamemap = dict( [(h[0],[h[1],h[2]]) for h in mdata] )
+                              for [lsnum,prescidx] in presc[runnum]:
+                                  rh = api.get_hltprescale(dbengine,runnum,lsnum,hltconfigid,(prescidx,hltpathid),schemaname=dbschema)
+                                  if not rh: continue
+                                  rl = api.get_l1prescale(dbengine,runnum,lsnum,l1candidates=l1bits,prescidxs=prescidx,ignorel1mask=parseresult['--ignore-mask'] ,schemaname=dbschema)
+                                  if not rl: continue
+                                  for (pidx,hltpathid) in rh.keys():
+                                      (hltpathname,l1seedlogic) = hltpathnamemap[hltpathid]                                  
+                                      hltprescval = rh[(pidx,hltpathid)]                              
+                                      l1keys = [ k for k in rl.keys() if k[0]==pidx ]
+                                      l1bitnames = [ v[1] for v in l1keys ]
+                                      l1vals = [ rl[k] for k in l1keys ]                       
+                                      l1prescvals = [ v[0] for v in l1vals ]
+                                      l1bits = zip(l1bitnames,l1prescvals)
+                                      l1inner = map(formatter.bitprescFormatter,l1bits)
+                                      l1bitsStr = ' '.join(l1inner)                          
+                                      hltpathStr = '/'.join([hltpathname,str(hltprescval)])
+                                      totpresc = totalprescale(hltprescval,l1seedlogic,l1prescvals)
+                                      display.add_row( [ '%d'%runnum, '%d'%lsnum, '%d'%prescidx, '%d'%totpresc,'%s'%hltpathStr, '%s'%l1seedlogic, '%s'%l1bitsStr], fh=fh, csvwriter=csvwriter, ptable=ptable )  
                   del hltl1map
               else:
-                  for pkey in pkeys:
-                      runnum = pkey[1]                      
-                      pdata = presc[ pkey ]
-                      for plsdata in pdata:
+                  if not presc:
+                      print 'Not prescaled'
+                      sys.exit(0)
+                  for runnum in sorted(presc.keys()):
+                      for plsdata in presc[runnum]:
                           lsnum = plsdata[0]
-                          prescidx =  plsdata[1]
+                          prescidx = plsdata[1]
                           display.add_row( [ '%d'%runnum, '%d'%lsnum, '%d'%prescidx ], fh=fh, csvwriter=csvwriter, ptable=ptable ) 
-              del presc    
               if ptable:
                   display.show_table(ptable,pargs.outputstyle)         
                   del ptable          
