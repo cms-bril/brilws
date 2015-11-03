@@ -86,7 +86,6 @@ PLTZERO_RAW_&suffix: #per ls
 PXL_RAW_&suffix:        #per ls
    columns:
     - datatagid: int64
-    - fillnum: uint32
     - runnum: uint32
     - lsnum: uint32
     - avglumi: float
@@ -168,6 +167,14 @@ BCM1F_RESULT_&suffix:
     - bxlumiblob: blob
    pk: [datatagid,normtagid]
 
+PXL_RESULT_&suffix:         #per ls
+   columns:
+    - datatagid: int64
+    - runnum: uint32
+    - lsnum: uint32
+    - avglumi: float
+   pk: [ datatagid ]
+   
 DT_RESULT_&suffix:         #per ls
    columns:
     - datatagid: int64
