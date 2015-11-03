@@ -139,8 +139,12 @@ def lumi_per_normtag(shards,lumiquerytype,dbengine,dbschema,runtot,datasource=No
                     ls_trglastscaled = 1
                 else:
                     b = [ i[0] for i in presc if i[0]<=cmslsnum ]
-                    ls_trglastscaled = np.max( b )
-                    this_prescidx = [t[1] for t in presc if t[0]==ls_trglastscaled][0]
+                    if not b:
+                        ls_trglastscaled = 1
+                        this_prescidx = None
+                    else:
+                        ls_trglastscaled = np.max( b )
+                        this_prescidx = [t[1] for t in presc if t[0]==ls_trglastscaled][0]
                 if g_ls_trglastscaled_old != ls_trglastscaled: #on prescale change lumi section                    
                     prescale_map = {} #clear
                     if not hltl1map.has_key(g_hltconfigid):
@@ -531,6 +535,7 @@ def brilcalc_main(progname=sys.argv[0]):
                   for hn,rn in sorted(runtot.keys()):
                       v = runtot[ (hn,rn) ]
                       display.add_row( ['%d:%d'%(rn,v['fill']),v['dtime'],v['nls'],v['ncms'],'%.3f'%(v['delivered']),'%.3f'%(v['recorded']) ] , fh=fh, csvwriter=csvwriter, ptable=ptable)
+              display.add_row( [ '%d'%nfills, '%d'%nruns, '%d'%nls,'%d'%ncmsls,'%.3f'%(totdelivered),'%.3f'%(totrecorded)], fh=fh, csvwriter=None, ptable=ftable) 
           else:
               hltpathSummary = []
               runtot_df = pd.DataFrame.from_dict(runtot,orient='index')
@@ -551,7 +556,7 @@ def brilcalc_main(progname=sys.argv[0]):
                           tncmsls = v['ncms']
                           tdelivered = v['delivered']
                           trecorded = v['recorded']
-                          display.add_row( [ '%d:%d'%(trun,tfill), ttime, tncmsls, pname, '%.3f'%tdelivered, '%.3f'%trecorded], fh=fh, csvwriter=None, ptable=ptable )
+                          display.add_row( [ '%d:%d'%(trun,tfill), ttime, tncmsls, pname, '%.3f'%tdelivered, '%.3f'%trecorded], fh=fh, csvwriter=csvwriter, ptable=ptable )
                   hltpathSummary.append([hn,nfills,nruns,ncmsls,totdelivered,totrecorded])   
               del runtot_df
           
