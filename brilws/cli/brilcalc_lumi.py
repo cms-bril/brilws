@@ -21,7 +21,7 @@ Options:
   --begin BEGIN                 Min start time (MM/DD/YY HH24:MI:SS)/fill/run 
   --end END                     Max start time (MM/DD/YY HH24:MI:SS)/fill/run
   --output-style OSTYLE         Screen output style. tab, html, csv [default: tab]
-  --type LUMITYPE               Luminosity type. hfoc,bcm1f,pltzero,pxl
+  --type LUMITYPE               Luminosity type. hfoc,bcm1f,pltzero,pxl,dt
   --hltpath HLTPATH             HLT path name or fnmatch pattern
   --byls                        Show result in ls granularity
   --xing                        Show result in bx granularity
