@@ -122,39 +122,30 @@ def lumi_per_normtag(shards,lumiquerytype,dbengine,dbschema,runtot,datasource=No
 
             if not cmson: cmslsnum = 0
             if hltl1map:
-                if cmslsnum==0: continue #cms is not running, skip.                
-                if g_run_old!=runnum: #on new run boundary, get hltconfigid
-                    hltrunconfig = api.get_hltrunconfig(dbengine,runnum=runnum,schemaname=dbschema) #['runnum','hltconfigid','hltkey']
+                if cmslsnum==0: continue  #cms is not running, skip.                
+                if g_run_old!=runnum:     #on new run boundary, get hltconfigid
+                    hltrunconfig = api.get_hltrunconfig(dbengine,runnum=runnum,schemaname=dbschema) #[['runnum','hltconfigid','hltkey']]
+                    if not hltrunconfig:
+                        continue
                     g_hltconfigid = [h[1] for h in hltrunconfig][0]
-                    presc = api.get_prescidx_change(dbengine,runnum,schemaname=dbschema)#{runnum:[[lslastscaler,prescidx]] 
-                    g_run_old = runnum
                     if not g_hltconfigid:
-                        continue                    
-                if  g_hltconfigid_old != g_hltconfigid: # on hltconfig boundary
-                    g_hltconfigid_old = g_hltconfigid
-                    #hltpathids = [k[1] for k in hltl1map.keys() if k[0]==g_hltconfigid ]
-                    #presc = api.get_hltconfig_trglastscaled(dbengine,hltconfigids=g_hltconfigid,runnums=runnum,withouthltkey=True,schemaname=dbschema)
-                    #presc = api.get_hltconfig_trglastscaled(dbengine,hltconfigids=g_hltconfigid,withouthltkey=True,schemaname=dbschema)
-                    #{(hltconfigid,runnum):[[lslastscaler,prescidx]]}
-                               
-                #if not presc or not presc.has_key((g_hltconfigid,runnum)):                    
-                #    continue
+                        continue      
+                    presc = api.get_prescidx_change(dbengine,runnum,schemaname=dbschema)#{runnum:[[lslastscaler,prescidx]] }
+                    if presc.has_key(runnum):
+                        presc = presc[runnum]
+                    g_run_old = runnum                 
                 this_prescidx = None
                 if not presc:
                     ls_trglastscaled = 1
                 else:
                     b = [ i[0] for i in presc if i[0]<=cmslsnum ]
-                    #b = [ i[0] for i in presc[(g_hltconfigid,runnum)] if i[0]<=cmslsnum ]
                     ls_trglastscaled = np.max( b )
-                    this_prescidx = [t for t in presc if t[0]==ls_trglastscaled]
+                    this_prescidx = [t[1] for t in presc if t[0]==ls_trglastscaled][0]
                 if g_ls_trglastscaled_old != ls_trglastscaled: #on prescale change lumi section                    
                     prescale_map = {} #clear
-                    #this_presc = [ t for t in presc[(g_hltconfigid,runnum)] if t[0]==ls_trglastscaled ]  #[[lslastscaler,prescidx]]
-                    #this_prescidx = this_presc[0][1]
-                    
-                    if not hltl1map.has_key(g_hltconfigid):                                   
+                    if not hltl1map.has_key(g_hltconfigid):
                         continue
-                    this_hltl1map = hltl1map[g_hltconfigid]#[[hltpathid,hltpathname,l1seedtype,l1seedbits]]                    
+                    this_hltl1map = hltl1map[g_hltconfigid]#[[hltpathid,hltpathname,l1seedtype,l1seedbits]]
                     for grouped in this_hltl1map:
                         this_hltpathid = grouped[0]
                         hltpathname = grouped[1]
@@ -164,21 +155,13 @@ def lumi_per_normtag(shards,lumiquerytype,dbengine,dbschema,runtot,datasource=No
                         if this_prescidx is None:
                             hltprescval = 1
                             totpresc = 1
-                        else:
-                            this_input = (this_prescidx,this_hltpathid)
-                            rh = api.get_hltprescale(dbengine,runnum,ls_trglastscaled,g_hltconfigid,this_input,schemaname=dbschema)
-                            if not rh: continue
-                            hltprescval = rh[this_input]
-                            rl = api.get_l1prescale(dbengine,runnum,ls_trglastscaled,l1candidates=l1candidates,prescidxs=this_prescidx,ignorel1mask=ignorel1mask ,schemaname=dbschema)                            
+                        else:                            
+                            hltprescval = api.get_hltprescale(dbengine,runnum,ls_trglastscaled,g_hltconfigid,this_prescidx,this_hltpathid,schemaname=dbschema)                            
+                            rl = api.get_l1prescale(dbengine,runnum,ls_trglastscaled,l1candidates=l1candidates,prescidxs=this_prescidx,ignorel1mask=ignorel1mask ,schemaname=dbschema)             
                             if not rl: continue
                             l1keys = [ k for k in rl.keys() if k[0]==this_prescidx ]
-                            #l1bitnames = [ v[1] for v in l1keys ]
                             l1vals = [ rl[k] for k in l1keys ]                       
-                            l1prescvals = [ v[0] for v in l1vals ]
-                            #l1bits = zip(l1bitnames,l1prescvals)
-                            #l1inner = map(formatter.bitprescFormatter,l1bits)
-                            #l1bitsStr = ' '.join(l1inner)
-                            #hltpathStr = '/'.join([hltpathname,str(hltprescval)])
+                            l1prescvals = [ v[0] for v in l1vals ]                            
                             totpresc = totalprescale(hltprescval,l1seedlogic,l1prescvals)                       
                             if not totpresc:
                                 continue
@@ -192,7 +175,6 @@ def lumi_per_normtag(shards,lumiquerytype,dbengine,dbschema,runtot,datasource=No
             if totz is not None:
                 d = datetime.fromtimestamp(int(timestampsec),tz=pytz.utc)
                 dtime = d.astimezone(totz).strftime(params._datetimefm)
-
             delivered = recorded = avgpu = livefrac = 0.       
             if lumiquerytype == 'bestresultonline':
                 if row.has_key('delivered') and row['delivered']:
@@ -511,7 +493,6 @@ def brilcalc_main(progname=sys.argv[0]):
               
           log.debug('lumiquerytype %s'%lumiquerytype)          
           log.debug('scalefactor: %.2f'%pargs.scalefactor)                    
-          #print datasources
 
           runtot = {} #{(hltpath,run): { 'fill':fillnum,'time':dtime,'nls':1,'ncms':int(cmson),'delivered':delivered,'recorded':recorded} }
                                
@@ -545,8 +526,7 @@ def brilcalc_main(progname=sys.argv[0]):
               nls = np.sum( [v['nls'] for v in runtot.values()]  )
               ncmsls = np.sum( [v['ncms'] for v in runtot.values()] )
               totdelivered = np.sum( [v['delivered'] for v in runtot.values() ] )
-              totrecorded =  np.sum( [v['recorded'] for v in runtot.values() ] )              
-              display.add_row( [ '%d'%nfills,'%d'%nruns,'%d'%nls,'%d'%ncmsls,'%.3f'%(totdelivered),'%.3f'%(totrecorded)], fh=fh, csvwriter=csvwriter, ptable=ftable)
+              totrecorded =  np.sum( [v['recorded'] for v in runtot.values() ] )
               if not pargs.byls and not pargs.withBX: #run table
                   for hn,rn in sorted(runtot.keys()):
                       v = runtot[ (hn,rn) ]
@@ -768,27 +748,27 @@ def brilcalc_main(progname=sys.argv[0]):
                       mdata = hltl1map[hltconfigid]
                       for [hltpathid,hltpathname,l1seedlogic,l1bits] in mdata:
                           if not presc.has_key(runnum):
-                              display.add_row( [ '%d'%runnum, '%s'%'None', '%s'%'None', '%d'%1,'%s'%hltpathname, '%s'%l1seedlogic, '%s'%' '.join(l1bits)], fh=fh, csvwriter=csvwriter, ptable=ptable )  
+                              display.add_row( [ '%d'%runnum, '%s'%'None', '%s'%'None', '%d'%1,'%s'%hltpathname, '%s'%l1seedlogic, '%s'%' '.join(l1bits)], fh=fh, csvwriter=csvwriter, ptable=ptable )
                           else:
                               hltpathnamemap = dict( [(h[0],[h[1],h[2]]) for h in mdata] )
+                              if not hltpathnamemap.has_key(hltpathid):
+                                  continue
                               for [lsnum,prescidx] in presc[runnum]:
-                                  rh = api.get_hltprescale(dbengine,runnum,lsnum,hltconfigid,(prescidx,hltpathid),schemaname=dbschema)
-                                  if not rh: continue
+                                  hltprescval = api.get_hltprescale(dbengine,runnum,lsnum,hltconfigid,prescidx,hltpathid,schemaname=dbschema)                                  
                                   rl = api.get_l1prescale(dbengine,runnum,lsnum,l1candidates=l1bits,prescidxs=prescidx,ignorel1mask=parseresult['--ignore-mask'] ,schemaname=dbschema)
+                                  #{(prescidx,l1bitname):[l1prescval,bitmask]}
                                   if not rl: continue
-                                  for (pidx,hltpathid) in rh.keys():
-                                      (hltpathname,l1seedlogic) = hltpathnamemap[hltpathid]                                  
-                                      hltprescval = rh[(pidx,hltpathid)]                              
-                                      l1keys = [ k for k in rl.keys() if k[0]==pidx ]
-                                      l1bitnames = [ v[1] for v in l1keys ]
-                                      l1vals = [ rl[k] for k in l1keys ]                       
-                                      l1prescvals = [ v[0] for v in l1vals ]
-                                      l1bits = zip(l1bitnames,l1prescvals)
-                                      l1inner = map(formatter.bitprescFormatter,l1bits)
-                                      l1bitsStr = ' '.join(l1inner)                          
-                                      hltpathStr = '/'.join([hltpathname,str(hltprescval)])
-                                      totpresc = totalprescale(hltprescval,l1seedlogic,l1prescvals)
-                                      display.add_row( [ '%d'%runnum, '%d'%lsnum, '%d'%prescidx, '%d'%totpresc,'%s'%hltpathStr, '%s'%l1seedlogic, '%s'%l1bitsStr], fh=fh, csvwriter=csvwriter, ptable=ptable )  
+                                  (hltpathname,l1seedlogic) = hltpathnamemap[hltpathid]                                  
+                                  l1keys = [ k for k in rl.keys() if k[0]==prescidx ]
+                                  l1bitnames = [ v[1] for v in l1keys ]
+                                  l1vals = [ rl[k] for k in l1keys ]                       
+                                  l1prescvals = [ v[0] for v in l1vals ]
+                                  l1bits = zip(l1bitnames,l1prescvals)
+                                  l1inner = map(formatter.bitprescFormatter,l1bits)
+                                  l1bitsStr = ' '.join(l1inner)                          
+                                  hltpathStr = '/'.join([hltpathname,str(hltprescval)])
+                                  totpresc = totalprescale(hltprescval,l1seedlogic,l1prescvals)
+                                  display.add_row( [ '%d'%runnum, '%d'%lsnum, '%d'%prescidx, '%d'%totpresc,'%s'%hltpathStr, '%s'%l1seedlogic, '%s'%l1bitsStr], fh=fh, csvwriter=csvwriter, ptable=ptable )  
                   del hltl1map
               else:
                   if not presc:

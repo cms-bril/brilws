@@ -710,120 +710,6 @@ def _insert_iovdata(connection,tablename,iovtagid,since,payloadstr,func,comments
             return 0
     return iovtagid
 
-'''
-def _insert_iovpayload(connection,payloadid,payloadfields,payloadfielddata,schemaname=None):
-    tablename = 'iovp_'
-        
-    for fieldid,fielddata in enumerate(payloadfields):
-        fieldname = fielddata[0]
-        fieldtype = fielddata[1]
-        maxlength = fielddata[2]
-        
-        ttype=''
-        dbtype=None
-        dataval = payloadfielddata[fieldname]
-        if maxlength==1:
-            if fieldtype.lower()=='float':
-                ttype = 'float'
-                dbtype = types.FLOAT
-            if fieldtype.lower()=='bool':
-                ttype = 'boolean'
-                dbtype = types.BOOLEAN
-            if fieldtype.lower().find('str')!=-1:
-                ttype='string'
-                dbtype = types.String
-            if fieldtype.lower() in ['uint8','int8','uint16','int16']:
-                ttype='smallint'
-                dbtype = types.SMALLINT
-            if fieldtype.lower() in ['uint32','int32']:
-                ttype='int'
-                dbtype = types.INT
-        else:
-            ttype = 'blob'
-            typecode = ''
-            if fieldtype=='float':
-                typecode = 'f'
-            elif fieldtype=='uint8':
-                typecode = 'B'
-            elif fieldtype=='int8':
-                typecode = 'b'
-            elif fieldtype=='uint16':
-                typecode = 'H'
-            elif fieldtype=='int16':
-                typecode = 'h'
-            elif fieldtype=='uint32':
-                typecode = 'I'
-            elif fieldtype=='int32':
-                typecode = 'i'
-            else:
-                typecode = 'c'
-                
-            dataval = packlistoblob(typecode,dataval)
-        tname = tablename+ttype
-        t = Table(tname, MetaData(), Column('payloadid',types.BigInteger), Column('ifield',types.SmallInteger),Column('val',dbtype),schema=schemaname )
-        log.debug( str( t.insert() ) )
-        log.debug( 'payloadid=%ul, ifield=%d'%(payloadid,fieldid) )
-        connection.execute( t.insert(), payloadid=payloadid, ifield=fieldid, val=dataval )
-'''
-
-"""
-def _get_iovpayload(connection,payloadid,payloadfields,schemaname=None):
-    '''
-    output: [(fieldtype,fieldval)] 
-    select val from iovp_x where payloadid=:payloadid and ifield=:fieldid
-    '''
-    tablename = basetablename = 'iovp_'
-    if schemaname:
-        tablename = '.'.join([schemaname,basetablename])
-    result = []
-    for fieldid,fielddata in enumerate(payloadfields):
-        fieldname = fielddata[0]
-        fieldtype = fielddata[1]
-        maxlength = fielddata[2]
-        if maxlength==1:
-            if fieldtype.lower()=='float':
-                ttype = 'float'
-            elif fieldtype.lower()=='bool':
-                ttype = 'boolean'
-            elif fieldtype.lower().find('str')!=-1:
-                ttype='string'
-            elif fieldtype.lower() in ['uint8','int8','uint16','int16']:
-                ttype='smallint'
-            elif fieldtype.lower() in ['uint32','int32']:
-                ttype='int'
-        else:
-            ttype = 'blob'
-            typecode = ''
-            if fieldtype=='float':
-                typecode = 'f'
-            elif fieldtype=='uint8':
-                typecode = 'B'
-            elif fieldtype=='int8':
-                typecode = 'b'
-            elif fieldtype=='uint16':
-                typecode = 'H'
-            elif fieldtype=='int16':
-                typecode = 'h'
-            elif fieldtype=='uint32':
-                typecode = 'I'
-            elif fieldtype=='int32':
-                typecode = 'i'
-            else:
-                typecode = 'c'
-        t = tablename+ttype    
-        q = '''select val from %s where payloadid=:payloadid and ifield=:fieldid'''%t
-        log.debug( q )
-        log.debug( 'payloadid=%ul, ifield=%d'%(payloadid,fieldid) )
-        binddict = {'payloadid':payloadid,'fieldid':fieldid}
-        r = connection.execute( q, binddict )
-        for row in r:
-            val = row['val']
-            if ttype=='blob' and val is not None:
-                val = unpackBlobtoArray(val,typecode)
-        result.append( [fieldname,ttype,val] )
-    return result
- """
-
 def _is_strpattern(istr):
     if not istr: return False
     p = re.compile(r'\?|\*|\[|\]|!')
@@ -864,25 +750,6 @@ def iov_insertdata(engine,iovtagname,datasource,iovdata,applyto='lumi',isdefault
             inserted = _insert_iovdata(connection,datatablename,iovtagid,sincerunnum,payloadstr,func,sincecomments,schemaname=schemaname)
             print 'inserted ',inserted
 
-"""
-def parsepayloaddict(payloaddict):
-    '''
-    input: fieldname:fieldtype:maxlength fieldname:fieldtype:maxlength
-    output : [[fieldname,fieldtype,maxlength]]
-            where maxlength is optional, default to 1
-    '''
-    result = []
-    fields = payloaddict.split(' ')
-    for field in fields:
-        fieldinfo = field.split(':')
-        if len(fieldinfo)==2:
-            fieldinfo.append(1)
-        else:
-            fieldinfo[2] = int(fieldinfo[2])
-        result.append(fieldinfo)            
-    return result
-"""
-
 def packlistoblob(typecode,data):
     dataarray = array.array(typecode,list(data))
     return buffer(dataarray.tostring())        
@@ -915,33 +782,6 @@ def iov_gettags(engine,isdefault=False,datasource='',applyto='',schemaname=''):
     for row in qresult:
         result[row['tagname']] = [ row['tagid'],row['creationutc'],row['applyto'],row['datasource'],row['isdefault'],row['comments'] ] 
     return result
-"""
-def iov_getvaliddata(engine,iovtagname,runnum,schemaname=''):
-    '''
-    get valid data for runnum 
-    result: (func,params)
-    '''
-    basetagstable = tagstable = 'iovtags'
-    basetagdatatable = tagdatatable = 'iovtagdata'
-    if schemaname:
-        tagstable = '.'.join([schemaname,basetagstable])
-        tagdatatable = '.'.join([schemaname,basetagdatatable])  
-
-    q = '''select func, payloadid, payloaddict from %s where since=( select max(d.since) as since from %s d, %s t where t.tagid=d.tagid and t.tagname=:tagname and d.since<=:runnum )'''%(tagdatatable,tagdatatable,tagstable)    
-    log.debug(q)
-    connection = engine.connect()
-    qresult = connection.execute(q,{'tagname':iovtagname,'runnum':runnum})
-    result = None
-    for row in qresult:
-        func = row['func']
-        payloaddict = row['payloaddict']
-        payload = row['payload']
-        #payloadfields = parsepayloaddict(payloaddict)#[[fieldname,fieldtype,maxlength]]
-        #payloaddata = _get_iovpayload(connection,payloadid,payloadfields,schemaname=schemaname)    
-        result = ( row['func'],payloaddata )
-    return result
-            
-   """
 
 def iov_gettagdata(engine,iovtagname,schemaname=''):
     '''
@@ -996,29 +836,6 @@ def get_filepath_or_buffer(filepath_or_buffer):
     return filepath_or_buffer    
 
 
-#def read_yaml(path_or_buf):
-#    """
-#    safe_load yaml string or file 
-#    """
-#    filepath_or_buffer = get_filepath_or_buffer(path_or_buf)
-#    if isinstance(filepath_or_buffer, str):
-#        try:
-#            exists = os.path.exists(filepath_or_buffer)
-#        except (TypeError,ValueError):
-#            exists = False
-#        if exists:
-#            with open(filepath_or_buffer,'r') as f:
-#                obj = yaml.safe_load(f)
-#        else:
-#            obj = yaml.safe_load(path_or_buf)
-#            if type(obj) is not dict and type(obj) is not list:
-#                raise IOError('file %s does not exist'%filepath_or_buffer)
-#    elif hasattr(filepath_or_buffer, 'read'):
-#        obj = filepath_or_buffer.read()
-#    else:
-#        obj = filepath_or_buffer
-#    return obj
-
 class BrilDataSource(object):
     def __init__(self):
         self._columns = None
@@ -1070,26 +887,7 @@ class BrilDataSource(object):
         data = pd.read_csv(filepath_or_buffer,index_col=index_col)
         return data
 ##### Map ######    
-#class BeamStatusMap(BrilDataSource):
-#    def __init__(self):
-#        super(BeamStatusMap,self).__init__()
-#        self._columns = ['BEAMSTATUSID','BEAMSTATUS']
-#    def to_brildb(self,engine,data,schema=''):
-#        super(BeamStatusMap,self)._to_brildb(engine,data,schema=schema)
-#    def to_csv(self,filepath_or_buffer,data):
-#        super(BeamStatusMap,self)._to_csv(filepath_or_buffer,data)
-#    def from_csv(self,filepath_or_buffer):
-#        return super(BeamStatusMap,self)._from_csv(filepath_or_buffer)
-#    def from_brildb(self,engine,schema=''):
-#        return super(BeamStatusMap,self)._from_brildb(self,engine,schema=schema)
-#    def from_sourcedb(self,engine):
-#        if os.path.isfile(engine):
-#            return self.from_csv(engine)
-#        log.info('%s.from_sourcedb'%self.name)
-#        if not os.path.isfile(engine):
-#            raise IOError('sourcedb must be a csv file')
-#        return self.from_csv(engine)
-    
+
 class HLTPathMap(BrilDataSource):
     def __init__(self):
         super(HLTPathMap,self).__init__()
@@ -1131,27 +929,7 @@ class DatasetMap(BrilDataSource):
         return result
     def from_brildb(self,engine,schema=''):
         return super(DatasetMap,self)._from_brildb(self,engine,schema=schema)
-    
-#class AmodetagMap(BrilDataSource):
-#    def __init__(self):
-#        super(AmodetagMap,self).__init__()
-#        self._columns = ['AMODETAGID','AMODETAG']
-#    def to_brildb(self,engine,data,schema=''):
-#        super(AmodetagMap,self)._to_brildb(engine,data,schema=schema)
-#    def to_csv(self,filepath_or_buffer,data):
-#        super(AmodetagMap,self)._to_csv(filepath_or_buffer,data)
-#    def from_csv(self,filepath_or_buffer):
-#        return super(AmodetagMap,self)._from_csv(filepath_or_buffer)    
-#    def from_brildb(self,engine,schema=''):
-#        return super(AmodetagMap,self)._from_brildb(self,engine,schema=schema)
-#    def from_sourcedb(self,engine):
-#        if os.path.isfile(engine):
-#            return self.from_csv(engine)
-#        log.info('%s.from_sourcedb'%self.name)
-#        if not os.path.isfile(engine):
-#            raise IOError('sourcedb must be a csv file')
-#        return self.from_csv(engine)
-    
+        
 class HLTStreamDatasetMap(BrilDataSource):
     def __init__(self):
         super(StreamDatasetHLTPathMap,self).__init__()
@@ -1985,77 +1763,6 @@ def get_prescidx_change(engine,runnums,schemaname=''):
         result.setdefault(r,[]).append( [lslastscaler,prescidx] )            
     return result
     
-def get_hltconfig_trglastscaled(engine,hltconfigids=None,hltkey=None,runnums=None,withouthltkey=False,schemaname=''):
-    '''
-    input:
-       hltconfigids : number or list of numbers
-       hltkey: string or string patter
-       runnums: number of list of numbers    
-    output: {(hltconfigid,runnum,hltkey(optional)):[[lslastscaler,prescidx]]}
-    '''
-    prescidxchangetable = 'prescidxchange'
-    hltrunconfigtable = 'hltrunconfig'
-    if schemaname:
-        prescidxchangetable = '.'.join([schemaname,prescidxchangetable])
-        hltrunconfigtable = '.'.join([schemaname,hltrunconfigtable])
-        if withouthltkey:
-            q = "select r.hltconfigid as hltconfigid,p.runnum as runnum, p.lsnum as lslastscaler, p.prescidx as prescidx from %(prescidxchangeT)s p, %(hltrunconfigT)s r where r.runnum=p.runnum"%{'prescidxchangeT':prescidxchangetable,'hltrunconfigT':hltrunconfigtable}
-        else:
-            q = "select r.hltconfigid as hltconfigid, r.hltkey as hltkey, p.runnum as runnum, p.lsnum as lslastscaler, p.prescidx as prescidx from %(prescidxchangeT)s p, %(hltrunconfigT)s r where r.runnum=p.runnum"%{'prescidxchangeT':prescidxchangetable,'hltrunconfigT':hltrunconfigtable}
-    binddict = {}
-    qfields = []
-    result = {}
-    if isinstance(runnums,int):
-        if runnums:
-            qfields.append("r.runnum=:runnum")
-            binddict['runnum'] = runnums
-    elif isinstance(runnums,collections.Iterable):
-        (qf,s) = build_or_collection('r.runnum','runnum',runnums)
-        if qf:
-            qfields.append(qf)
-            binddict = merge_two_dicts(binddict,s)
-                
-    if isinstance(hltconfigids,int):
-        if hltconfigids:
-            qfields.append("r.hltconfigid=:hltconfigid")
-            binddict['hltconfigid'] = hltconfigids
-    elif isinstance(hltconfigids,collections.Iterable):
-        (qf,s) = build_or_collection('r.hltconfigid','hltconfigid',hltconfigids)
-        if qf:
-            qfields.append(qf)
-            binddict = merge_two_dicts(binddict,s)
-        
-    if hltkey:           
-        if not _is_strpattern(hltkey):
-            qfields.append("r.hltkey=:hltkey")
-            binddict['hltkey'] = hltkey
-        else:
-            sqlpattern = translate_fntosql(hltkey)
-            qfields.append("regexp_like(r.hltkey, '%s')"%(sqlpattern))
-    if qfields:
-        q = q+' and '
-        if len(qfields)>1:
-            q = q+" and ".join(qfields)
-        else:
-            q = q+qfields[0]
-            
-    log.debug(q+','+str(binddict))
-    connection = engine.connect()
-    resultProxy = connection.execute(q,binddict)
-    for row in resultProxy:
-        hltconfigid = row['hltconfigid']
-        runnum = row['runnum']
-        lslastscaler = row['lslastscaler']
-        prescidx = row['prescidx']
-        k = (hltconfigid,runnum)
-        if not withouthltkey:
-            hltkey = row['hltkey']
-            k = (hltconfigid,runnum,hltkey)
-        if not result.has_key(k):
-            result[k] = []
-        result[k].append([lslastscaler,prescidx])            
-    return result
-
 def get_hltrunconfig(engine,hltconfigid=None,hltkey=None,runnum=None,schemaname=''):
     '''
     output: [['runnum','hltconfigid','hltkey'],['runnum','hltconfigid','hltkey']]
@@ -2107,58 +1814,24 @@ def get_hltrunconfig(engine,hltconfigid=None,hltkey=None,runnum=None,schemaname=
         result.append( [ row['runnum'],row['hltconfigid'],row['hltkey'] ])
     return result
 
-def get_hltprescale(engine,runnum,lsnum,hltconfigid,prescidx_hltpathid,schemaname=''):
+def get_hltprescale(engine,runnum,lsnum,hltconfigid,prescidx,hltpathid,schemaname=''):
     '''
     input:
-        prescidx_hltpathid: tuple or list of tuple (prescidx,hltpathid)
+    
     output:
-    { (prescidx,hltpathid): hltprescval }
+       prescval
     '''
     hltscalertable = 'hltscaler'
-    result = {}
+    result = 1
     if schemaname:
-        hltscalertable = '.'.join([schemaname,hltscalertable])   #'h'
-    q = "select prescidx,hltpathid,hltprescval from %(hltscalerT)s where hltconfigid=:hltconfigid and runnum=:runnum and lsnum=:lsnum" %{'hltscalerT':hltscalertable}
-    binddict = {'runnum':runnum,'lsnum':lsnum,'hltconfigid':hltconfigid}    
-    qfields = []
-
-    if isinstance(prescidx_hltpathid,tuple):
-        qfields.append('prescidx=:prescidx')
-        qfields.append('hltpathid=:hltpathid')
-        binddict['prescidx'] = int(prescidx_hltpathid[0])
-        binddict['hltpathid'] = int(prescidx_hltpathid[1])
-        result[prescidx_hltpathid] = 1 #preset hltpath prescale to 1 in case it does not exist. Non-existing means prescale=1!!
-    elif isinstance(prescidx_hltpathid,collections.Iterable):
-        prescidxs = set()
-        hltpathids = set()
-        for v in prescidx_hltpathid:
-            prescidxs.add(int(v[0]))
-            hltpathids.add(int(v[1]))
-            result[v] = 1
-        (qf,s) = build_or_collection('prescidx','prescidx',list(prescidxs))
-        if qf:
-            qfields.append(qf)
-            binddict = merge_two_dicts(binddict,s)
-        (qf,s) = build_or_collection('hltpathid','hltpath',list(hltpathids))
-        if qf:
-            qfields.append(qf)
-            binddict = merge_two_dicts(binddict,s)
-            
-    if qfields:
-        q = q+' and '
-        if len(qfields)>1:
-            q = q+' and '.join(qfields)
-        else:
-            q = q+qfields[0]
-    
+        hltscalertable = '.'.join([schemaname,hltscalertable])   
+    q = "select prescidx,hltpathid,hltprescval from %(hltscalerT)s where hltconfigid=:hltconfigid and runnum=:runnum and lsnum=:lsnum and prescidx=:prescidx and hltpathid=:hltpathid" %{'hltscalerT':hltscalertable}
+    binddict = {'runnum':runnum,'lsnum':lsnum,'hltconfigid':hltconfigid,'prescidx':prescidx,'hltpathid':hltpathid}
     log.debug( q+','+str(binddict) )
     connection = engine.connect()
     resultProxy = connection.execute(q,binddict)
     for row in resultProxy:
-        hid = row['hltpathid']
-        prescidx = row['prescidx']
-        hltv = row['hltprescval']
-        result[(prescidx,hid)] = hltv #guranteed key exist
+        result = row['hltprescval']
     return result
     
 def get_l1prescale(engine,runnum,lsnum,l1candidates=None,prescidxs=None,ignorel1mask=False,schemaname=''):
@@ -2235,58 +1908,6 @@ def parseL1Seed(l1seed):
         #cleanresult.append(string.strip(r).replace('\"',''))
         cleanresult.append(string.strip(r))    
     return [exptype,cleanresult]
-"""    
-def findUniqueSeed(hltPathname,l1seed):
-    '''
-    given a hltpath and its L1SeedExpression, find the L1 bit name
-    can return None
-    
-    if hltPath contains the following, skip do not parse seed.
-    
-    FakeHLTPATH*, HLT_Physics*, HLT_*Calibration*, HLT_HFThreashold,
-    HLT_MiniBias*,HLT_Random*,HLTTriggerFinalPath,HLT_PixelFED*
-    parse hltpath contains at most 2 logics x OR y, x AND y, and return left val
-    do not consider path containing operator NOT
-
-    output: (expressiontype,[l1bitname])
-    '''
-    if re.match('HLT_Physics',hltPathname)!=None :
-        return None
-    if re.match('HLT_[aA-zZ]*Calibration',hltPathname)!=None :
-        return None
-    if re.match('HLT_[aA-zZ]*Threshold',hltPathname)!=None :
-        return None
-    if re.match('HLT_MiniBias',hltPathname)!=None :
-        return None
-    if re.match('HLT_Random',hltPathname)!=None :
-        return None    
-    if re.match('HLT_[aA-zZ]*FEDSize',hltPathname)!=None :
-        return None
-    if l1seed.find('(')!=-1 : #we don't parse expression with ()
-        return None
-    if re.match('FakeHLTPATH',hltPathname)!=None :
-        return None
-    if re.match('HLTriggerFinalPath',hltPathname)!=None :
-        return None
-    sep=re.compile('(\sAND\s|\sOR\s)',re.IGNORECASE)
-    result=re.split(sep,l1seed)
-    cleanresult=[]
-    exptype=''
-    notsep=re.compile('NOT\s',re.IGNORECASE)
-    andsep=re.compile('\sAND\s',re.IGNORECASE)
-    orsep=re.compile('\sOR\s',re.IGNORECASE)
-    for r in result:
-        if notsep.match(r) : #we don't know what to do with NOT
-            return ('',None)
-        if orsep.match(r):
-            exptype='OR'
-            continue
-        if andsep.match(r):
-            exptype='AND'
-            continue
-        cleanresult.append(string.strip(r).replace('\"',''))
-    return (exptype,cleanresult)
-"""
 
 def beamInfoIter(engine,suffix,datafields=[],idfields=[],schemaname='',runmin=None,runmax=None,fillmin=None,tssecmin=None,tssecmax=None,fillmax=None,beamstatus=None,beamstatusid=None,amodetag=None,amodetagid=None,targetegev=None,runlsselect=None,sorted=False):
     '''
