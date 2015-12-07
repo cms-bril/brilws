@@ -751,16 +751,16 @@ def brilcalc_main(progname=sys.argv[0]):
                       if not hltl1map.has_key(hltconfigid):
                           continue
                       mdata = hltl1map[hltconfigid]
-                      for [hltpathid,hltpathname,l1seedlogic,l1bits] in mdata:
+                      for [hltpathid,hltpathname,l1seedlogic,l1c] in mdata:                          
                           if not presc.has_key(runnum):
-                              display.add_row( [ '%d'%runnum, '%s'%'None', '%s'%'None', '%d'%1,'%s'%hltpathname, '%s'%l1seedlogic, '%s'%' '.join(l1bits)], fh=fh, csvwriter=csvwriter, ptable=ptable )
+                              display.add_row( [ '%d'%runnum, '%s'%'None', '%s'%'None', '%d'%1,'%s'%hltpathname, '%s'%l1seedlogic, '%s'%' '.join(l1c)], fh=fh, csvwriter=csvwriter, ptable=ptable )
                           else:
                               hltpathnamemap = dict( [(h[0],[h[1],h[2]]) for h in mdata] )
                               if not hltpathnamemap.has_key(hltpathid):
                                   continue
                               for [lsnum,prescidx] in presc[runnum]:
-                                  hltprescval = api.get_hltprescale(dbengine,runnum,lsnum,hltconfigid,prescidx,hltpathid,schemaname=dbschema)                                  
-                                  rl = api.get_l1prescale(dbengine,runnum,lsnum,l1candidates=l1bits,prescidxs=prescidx,ignorel1mask=parseresult['--ignore-mask'] ,schemaname=dbschema)
+                                  hltprescval = api.get_hltprescale(dbengine,runnum,lsnum,hltconfigid,prescidx,hltpathid,schemaname=dbschema)
+                                  rl = api.get_l1prescale(dbengine,runnum,lsnum,l1candidates=l1c,prescidxs=prescidx,ignorel1mask=parseresult['--ignore-mask'] ,schemaname=dbschema)
                                   #{(prescidx,l1bitname):[l1prescval,bitmask]}
                                   if not rl: continue
                                   (hltpathname,l1seedlogic) = hltpathnamemap[hltpathid]                                  
