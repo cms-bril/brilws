@@ -68,7 +68,7 @@ def totalprescale(hltprescval,l1seedlogic,l1prescvals):
         totpresc = hltprescval*np.max(l1prescvals)    
     return totpresc
 
-def lumi_per_normtag(shards,lumiquerytype,dbengine,dbschema,runtot,datasource=None,normtag=None,withBX=False,byls=None,fh=None,csvwriter=None,ptable=None,scalefactor=1,totz=utctmzone,fillmin=None,fillmax=None,runmin=None,runmax=None,amodetagid=None,egev=None,beamstatusid=None,tssecmin=None,tssecmax=None,runlsSeries=None,hltl1map={},ignorel1mask=False,xingMin=0.,xingTr=0.,xingId=[]):
+def lumi_per_normtag(shards,lumiquerytype,dbengine,dbschema,runtot,datasource=None,normtag=None,withBX=False,byls=None,fh=None,csvwriter=None,ptable=None,scalefactor=1,totz=utctmzone,fillmin=None,fillmax=None,runmin=None,runmax=None,amodetagid=None,egev=None,beamstatusid=None,tssecmin=None,tssecmax=None,runlsSeries=None,hltl1map={},ignorel1mask=False,xingMin=0.,xingTr=0.,xingId=[],checkjson=False):
 
     validitychecker = None
     lastvalidity = None
@@ -111,15 +111,16 @@ def lumi_per_normtag(shards,lumiquerytype,dbengine,dbschema,runtot,datasource=No
         g_ls_trglastscaled_old = 0
         g_hltconfigid_old = None
         prescale_map = {} # for global scope
-        g_hltconfigid = 0
-        for row in lumiiter:            
+        g_hltconfigid = 0        
+        for row in lumiiter:
             fillnum = row['fillnum']
             runnum = row['runnum']
             lsnum = row['lsnum']            
             cmslsnum = lsnum
             timestampsec = row['timestampsec']
             cmson = row['cmson']
-
+            if checkjson:
+                g_returnedls.append((runnum,lsnum))
             if not cmson: cmslsnum = 0
             if hltl1map:
                 if cmslsnum==0: continue  #cms is not running, skip.                
@@ -130,7 +131,7 @@ def lumi_per_normtag(shards,lumiquerytype,dbengine,dbschema,runtot,datasource=No
                     g_hltconfigid = [h[1] for h in hltrunconfig][0]
                     if not g_hltconfigid:
                         continue      
-                    presc = api.get_prescidx_change(dbengine,runnum,schemaname=dbschema)#{runnum:[[lslastscaler,prescidx]] }
+                    presc = api.get_prescidx_change(dbengine,runnum,schemaname=dbschema)#{runnum:[[lslastscaler,prescidx]] }                    
                     if presc.has_key(runnum):
                         presc = presc[runnum]
                     g_run_old = runnum                 
@@ -161,12 +162,12 @@ def lumi_per_normtag(shards,lumiquerytype,dbengine,dbschema,runtot,datasource=No
                             totpresc = 1
                         else:                            
                             hltprescval = api.get_hltprescale(dbengine,runnum,ls_trglastscaled,g_hltconfigid,this_prescidx,this_hltpathid,schemaname=dbschema)                            
-                            rl = api.get_l1prescale(dbengine,runnum,ls_trglastscaled,l1candidates=l1candidates,prescidxs=this_prescidx,ignorel1mask=ignorel1mask ,schemaname=dbschema)             
+                            rl = api.get_l1prescale(dbengine,runnum,ls_trglastscaled,l1candidates=l1candidates,prescidxs=this_prescidx,ignorel1mask=ignorel1mask ,schemaname=dbschema)
                             if not rl: continue
                             l1keys = [ k for k in rl.keys() if k[0]==this_prescidx ]
                             l1vals = [ rl[k] for k in l1keys ]                       
                             l1prescvals = [ v[0] for v in l1vals ]                            
-                            totpresc = totalprescale(hltprescval,l1seedlogic,l1prescvals)                       
+                            totpresc = totalprescale(hltprescval,l1seedlogic,l1prescvals)
                             if not totpresc:
                                 continue
                         prescale_map[hltpathname] = totpresc   
@@ -209,7 +210,7 @@ def lumi_per_normtag(shards,lumiquerytype,dbengine,dbschema,runtot,datasource=No
                                 if bxlumi is not None:
                                     a = map(formatter.bxlumi,bxlumi/thispresc)  
                                     bxlumistr = '['+' '.join(a)+']'
-                                display.add_row( ['%d:%d'%(runnum,fillnum),'%d:%d'%(lsnum,cmslsnum),dtime,pth,'%.3f'%(np.divide(delivered,thispresc)),'%.3f'%(np.divide(recorded,thispresc)),ds,'%s'%bxlumistr] , fh=fh, csvwriter=csvwriter, ptable=ptable)      
+                                display.add_row( ['%d:%d'%(runnum,fillnum),'%d:%d'%(lsnum,cmslsnum),dtime,pth,'%.3f'%(np.divide(delivered,thispresc)),'%.3f'%(np.divide(recorded,thispresc)),ds,'%s'%bxlumistr] , fh=fh, csvwriter=csvwriter, ptable=ptable)                                
                         else:                            
                             if bxlumi is not None:
                                 a = map(formatter.bxlumi,bxlumi)
@@ -372,7 +373,7 @@ def brilcalc_main(progname=sys.argv[0]):
 
     log.debug('command arguments: %s',cmmdargv)
     parseresult = {}
-    
+    global g_returnedls 
     try:
       if args['<command>'] == 'lumi':
           import brilcalc_lumi          
@@ -380,7 +381,6 @@ def brilcalc_main(progname=sys.argv[0]):
           parseresult = brilcalc_lumi.validate(parseresult)          
           ##parse selection params
           pargs = clicommonargs.parser(parseresult)
-
           dbschema = ''
           if not pargs.dbconnect.find('oracle')!=-1: dbschema = 'cms_lumi_prod'
           dbengine = create_engine(pargs.connecturl)
@@ -393,7 +393,8 @@ def brilcalc_main(progname=sys.argv[0]):
           ftable = None
           csvwriter = None
           vfunc_lumiunit = np.vectorize(formatter.lumiunit)
-
+          checkjson = parseresult['--checkjson']
+          g_returnedls = []    
           g_headers = {}
           g_headers['runheader'] = ['run:fill','time','nls','ncms','delivered(/ub)','recorded(/ub)']
           g_headers['footer'] = ['nfill','nrun','nls','ncms','totdelivered(/ub)','totrecorded(/ub)']
@@ -523,7 +524,8 @@ def brilcalc_main(progname=sys.argv[0]):
                   print 'no hltpath to l1bit mapping found'
                   sys.exit(0)
           for [qtype,ntag,dsource,rselect] in datasources:             
-              lumi_per_normtag(shards,qtype,dbengine,dbschema,runtot,datasource=dsource,normtag=ntag,withBX=pargs.withBX,byls=pargs.byls,fh=fh,csvwriter=csvwriter,ptable=ptable,scalefactor=scalefactor,totz=totz,fillmin=fillmin,fillmax=fillmax,runmin=runmin,runmax=runmax,amodetagid=amodetagid,egev=egev,beamstatusid=beamstatusid,tssecmin=tssecmin,tssecmax=tssecmax,runlsSeries=rselect,hltl1map=hltl1map,ignorel1mask=parseresult['--ignore-mask'],xingMin=pargs.xingMin,xingTr=pargs.xingTr,xingId=pargs.xingId)              
+              lumi_per_normtag(shards,qtype,dbengine,dbschema,runtot,datasource=dsource,normtag=ntag,withBX=pargs.withBX,byls=pargs.byls,fh=fh,csvwriter=csvwriter,ptable=ptable,scalefactor=scalefactor,totz=totz,fillmin=fillmin,fillmax=fillmax,runmin=runmin,runmax=runmax,amodetagid=amodetagid,egev=egev,beamstatusid=beamstatusid,tssecmin=tssecmin,tssecmax=tssecmax,runlsSeries=rselect,hltl1map=hltl1map,ignorel1mask=parseresult['--ignore-mask'],xingMin=pargs.xingMin,xingTr=pargs.xingTr,xingId=pargs.xingId,checkjson=checkjson)  
+          
           if pargs.hltpath is None:
               nruns = len(runtot.keys())
               nfills = len( set([v['fill'] for v in runtot.values()] ) )
@@ -535,7 +537,8 @@ def brilcalc_main(progname=sys.argv[0]):
                   for hn,rn in sorted(runtot.keys()):
                       v = runtot[ (hn,rn) ]
                       display.add_row( ['%d:%d'%(rn,v['fill']),v['dtime'],v['nls'],v['ncms'],'%.3f'%(v['delivered']),'%.3f'%(v['recorded']) ] , fh=fh, csvwriter=csvwriter, ptable=ptable)
-              display.add_row( [ '%d'%nfills, '%d'%nruns, '%d'%nls,'%d'%ncmsls,'%.3f'%(totdelivered),'%.3f'%(totrecorded)], fh=fh, csvwriter=None, ptable=ftable) 
+              display.add_row( [ '%d'%nfills, '%d'%nruns, '%d'%nls,'%d'%ncmsls,'%.3f'%(totdelivered),'%.3f'%(totrecorded)], fh=fh, csvwriter=None, ptable=ftable)              
+                  
           else:
               hltpathSummary = []
               runtot_df = pd.DataFrame.from_dict(runtot,orient='index')
@@ -577,12 +580,28 @@ def brilcalc_main(progname=sys.argv[0]):
                       print >> fh, '#'+','.join( [ '%s'%pentry[0],'%d'%pentry[1],'%d'%pentry[2],'%d'%pentry[3],'%.3f'%pentry[4],'%.3f'%pentry[5] ] )
 
           if fh and fh is not sys.stdout: fh.close()
-
+       
           if parseerrors:
               print '\nWarning: problems found in merging -i and --normtag selections:'
               for e in parseerrors:
                   print '  run %d, %s is not a superset of %s'%(e.runnum,str(e.superset),str(e.subset))
+              print
+              
+          if checkjson:
+              selectdict = rselect.to_dict()
+              selectlist = []
+              for k,v in selectdict.items():
+                  for vv in v:
+                      rlist = api.expandrange(vv)
+                      for r in rlist:
+                          selectlist.append((k,r))
+              arr_selectlist = np.array(selectlist,dtype=np.dtype('int,int'))
+              arr_returnedls = np.array(g_returnedls,dtype=np.dtype('int,int'))
               print 
+              print '#--checkjson output:'
+              print '(run,ls) in json file but not in the result:'
+              print np.setdiff1d(arr_selectlist,arr_returnedls,assume_unique=True)
+              print
           sys.exit(0)
 
       elif args['<command>'] == 'beam':
@@ -661,7 +680,8 @@ def brilcalc_main(progname=sys.argv[0]):
               print '#Data tag : ',datatagname
               display.show_table(ptable,pargs.outputstyle)
               del ptable
-          if fh and fh is not sys.stdout: fh.close()    
+          if fh and fh is not sys.stdout: fh.close()
+          
           sys.exit(0)    
       elif args['<command>'] == 'trg':      
           import brilcalc_trg
