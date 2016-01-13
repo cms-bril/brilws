@@ -26,6 +26,9 @@ PRESCIDXCHANGE:
     - runnum: uint32
     - lsnum: uint32
     - prescidx: uint16
+    - lsnummax: uint32
+    - lsnumsample: uint32
+    - lsmissing: string
    pk: [runnum,lsnum,prescidx]
 
 TRGSCALER:                #per ls, per trg bit, per prescidx change
