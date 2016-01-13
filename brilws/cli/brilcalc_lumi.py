@@ -32,6 +32,7 @@ Options:
   --xingId BXID                 Filter bunches by id, "1,2,3" or file
   --xingTr BXTHRESHOLD          Filter bunches by percentage of max lumi, 0-1 
   --xingMin XINGMIN             Filter bunches by min lumi value   
+  --checkjson                   Check total returned lumi sections against input json file    
 
 """
 
@@ -42,7 +43,6 @@ from brilws.cli import clicommonargs
 
 def validate(optdict):
     result={}
-    #argdict = clicommonargs.argvalidators
     #extract sub argdict here
     myvalidables = ['-c','-n','-f','-r','-i','-o','--amodetag','-b','--beamenergy','--datatag','--normtag','--begin','--end','--output-style','--type','--hltpath','--xingId','--xingTr','--xingMin',str]
     argdict = dict((k,v) for k,v in clicommonargs.argvalidators.iteritems() if k in myvalidables)
@@ -52,6 +52,13 @@ def validate(optdict):
     if not result['-i'] and not result['-f'] and not result['-r'] and not result['--begin']:
         print 'Error: at least one time selection option in %s is required'%(','.join(['-i','-f','-r','--begin']))
         sys.exit(0)
+    if result['--checkjson']:
+        if not result['-i']:
+            print 'Error: --checkjson switch must be used together with -i option'
+            sys.exit(0)    
+        if result['--hltpath']:
+            print 'Error: --checkjson switch does not work together with --hltpath option'
+            sys.exit(0)
     return result
 
 if __name__ == '__main__':
