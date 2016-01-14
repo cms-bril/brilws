@@ -111,7 +111,8 @@ def lumi_per_normtag(shards,lumiquerytype,dbengine,dbschema,runtot,datasource=No
         g_ls_trglastscaled_old = 0
         g_hltconfigid_old = None
         prescale_map = {} # for global scope
-        g_hltconfigid = 0        
+        g_hltconfigid = 0
+        hmiss = []
         for row in lumiiter:
             fillnum = row['fillnum']
             runnum = row['runnum']
@@ -121,7 +122,9 @@ def lumi_per_normtag(shards,lumiquerytype,dbengine,dbschema,runtot,datasource=No
             cmson = row['cmson']
             if checkjson:
                 g_returnedls.append((runnum,lsnum))
-            if not cmson: cmslsnum = 0
+            if not cmson:
+                cmslsnum = 0
+            hltmissing = False
             if hltl1map:
                 if cmslsnum==0: continue  #cms is not running, skip.                
                 if g_run_old!=runnum:     #on new run boundary, get hltconfigid
@@ -131,18 +134,19 @@ def lumi_per_normtag(shards,lumiquerytype,dbengine,dbschema,runtot,datasource=No
                     g_hltconfigid = [h[1] for h in hltrunconfig][0]
                     if not g_hltconfigid:
                         continue      
-                    presc = api.get_prescidx_change(dbengine,runnum,schemaname=dbschema)#{runnum:[[lslastscaler,prescidx]] }                    
+                    presc = api.get_prescidx_change(dbengine,runnum,schemaname=dbschema)#{runnum:[[lslastscaler,prescidx]] }
+                    hmiss = api.get_hltmissing(dbengine,runnum,schemaname=dbschema)# [missingls]                      
                     if presc.has_key(runnum):
                         presc = presc[runnum]
                     g_run_old = runnum                 
-                this_prescidx = None
-                if not presc:
+                this_prescidx = None                
+                if not presc:                    
                     ls_trglastscaled = 1
                 else:
-                    b = [ i[0] for i in presc if i[0]<=cmslsnum ]
+                    b = [ i[0] for i in presc if i[0]<=cmslsnum ] 
                     if not b:
                         ls_trglastscaled = 1
-                        this_prescidx = None
+                        this_prescidx = None                        
                     else:
                         ls_trglastscaled = np.max( b )
                         this_prescidx = [t[1] for t in presc if t[0]==ls_trglastscaled][0]
@@ -180,7 +184,9 @@ def lumi_per_normtag(shards,lumiquerytype,dbengine,dbschema,runtot,datasource=No
             if totz is not None:
                 d = datetime.fromtimestamp(int(timestampsec),tz=pytz.utc)
                 dtime = d.astimezone(totz).strftime(params._datetimefm)
-            delivered = recorded = avgpu = livefrac = 0.       
+            delivered = recorded = avgpu = livefrac = 0.
+            if hmiss and lsnum in hmiss:
+                hltmissing = True
             if lumiquerytype == 'bestresultonline':
                 if row.has_key('delivered') and row['delivered']:
                     delivered = np.divide(row['delivered']*lslengthsec,scalefactor)
@@ -204,12 +210,17 @@ def lumi_per_normtag(shards,lumiquerytype,dbengine,dbschema,runtot,datasource=No
                             bxlumi = np.transpose( np.array([bxidx+1,bxdelivered,bxdelivered*livefrac]) )
                         del bxdeliveredarray
                         del bxidx
-                        if hltl1map:
+                        if hltl1map: #--hltpath display
                             for pth in prescale_map.keys():
                                 thispresc = prescale_map[pth]
+                                if hltmissing:
+                                    delivered = 0.
+                                    recorded = 0.
                                 if bxlumi is not None:
+                                    if hltmissing:
+                                        bxlumi = bxlumi*0.
                                     a = map(formatter.bxlumi,bxlumi/thispresc)  
-                                    bxlumistr = '['+' '.join(a)+']'
+                                    bxlumistr = '['+' '.join(a)+']'                                
                                 display.add_row( ['%d:%d'%(runnum,fillnum),'%d:%d'%(lsnum,cmslsnum),dtime,pth,'%.3f'%(np.divide(delivered,thispresc)),'%.3f'%(np.divide(recorded,thispresc)),ds,'%s'%bxlumistr] , fh=fh, csvwriter=csvwriter, ptable=ptable)                                
                         else:                            
                             if bxlumi is not None:
@@ -220,9 +231,12 @@ def lumi_per_normtag(shards,lumiquerytype,dbengine,dbschema,runtot,datasource=No
                     del bxlumi
                     
                 elif byls:
-                    if hltl1map:
+                    if hltl1map: #--hltpath display
                         for pth in prescale_map.keys():
                             thispresc = prescale_map[pth]
+                            if hltmissing:                                
+                                delivered = 0.
+                                recorded = 0.
                             display.add_row( ['%d:%d'%(runnum,fillnum),'%d:%d'%(lsnum,cmslsnum), dtime, pth, '%.3f'%(np.divide(delivered,thispresc)),'%.3f'%(np.divide(recorded,thispresc)),ds] , fh=fh, csvwriter=csvwriter, ptable=ptable)
                     else:
                         display.add_row( ['%d:%d'%(runnum,fillnum),'%d:%d'%(lsnum,cmslsnum),dtime,beamstatus,'%d'%tegev,'%.3f'%(delivered),'%.3f'%(recorded),'%.1f'%(avgpu),ds] , fh=fh, csvwriter=csvwriter, ptable=ptable)
@@ -258,13 +272,17 @@ def lumi_per_normtag(shards,lumiquerytype,dbengine,dbschema,runtot,datasource=No
                             bxlumi = np.transpose( np.array([bxidx+1,bxdelivered,bxdelivered*livefrac]) )               
                         del bxdeliveredarray
                         del bxidx
-                    if hltl1map:
+                    if hltl1map: #--hltpath display
                         for pth in prescale_map.keys():
-                            thispresc = prescale_map[pth]                            
-                            if bxlumi is not None:                                  
+                            thispresc = prescale_map[pth]
+                            if hltmissing:
+                                delivered = 0.
+                                recorded = 0.
+                            if bxlumi is not None:
+                                if hltmissing:
+                                    bxlumi = bxlumi*0.
                                 a = map(formatter.bxlumi,bxlumi/thispresc)  
-                                bxlumistr = '['+' '.join(a)+']'
-
+                                bxlumistr = '['+' '.join(a)+']'                                
                             display.add_row( ['%d:%d'%(runnum,fillnum),'%d:%d'%(lsnum,cmslsnum),dtime,pth,'%.3f'%(np.divide(delivered,thispresc)),'%.3f'%(np.divide(recorded,thispresc)),datasource.upper(),'%s'%bxlumistr] , fh=fh, csvwriter=csvwriter, ptable=ptable)
                     else:
                         if bxlumi is not None:
@@ -273,9 +291,12 @@ def lumi_per_normtag(shards,lumiquerytype,dbengine,dbschema,runtot,datasource=No
                         display.add_row( ['%d:%d'%(runnum,fillnum),'%d:%d'%(lsnum,cmslsnum),dtime,beamstatus,'%d'%tegev,'%.3f'%(delivered),'%.3f'%(recorded),'%.1f'%(avgpu),datasource.upper(),'%s'%bxlumistr] , fh=fh, csvwriter=csvwriter, ptable=ptable)
                     del bxlumi
                 elif byls:
-                    if hltl1map:
+                    if hltl1map: #--hltpath display
                         for pth in prescale_map.keys():
                             thispresc = prescale_map[pth]
+                            if hltmissing:
+                                delivered = 0.
+                                recorded = 0.
                             display.add_row( ['%d:%d'%(runnum,fillnum),'%d:%d'%(lsnum,cmslsnum),dtime,pth,'%.3f'%(np.divide(delivered,thispresc)),'%.3f'%(np.divide(recorded,thispresc)),datasource.upper()] , fh=fh, csvwriter=csvwriter, ptable=ptable)
                     else:
                         display.add_row( ['%d:%d'%(runnum,fillnum),'%d:%d'%(lsnum,cmslsnum),dtime,beamstatus,'%d'%tegev,'%.3f'%(delivered),'%.3f'%(recorded),'%.1f'%(avgpu),datasource.upper()] , fh=fh, csvwriter=csvwriter, ptable=ptable)

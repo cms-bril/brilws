@@ -1722,6 +1722,30 @@ def get_hlttrgl1seedmap(engine,hltpath=None,hltconfigids=None,schemaname=''):
     #del hltpathl1seed['l1seed']
     return result
 
+def get_hltmissing(engine,runnum,schemaname=''):
+    '''
+    input:
+        runnum: runnumber
+    output:
+        [hltmissingls] 
+    '''
+    result = []
+    prescidxchangetable = 'prescidxchange'
+    if schemaname:
+        prescidxchangetable = '.'.join([schemaname,prescidxchangetable])
+    resultstr = ''
+    q = "select lsmissing from %s where runnum=:runnum"%(prescidxchangetable)
+    binddict = {'runnum':runnum}
+    log.debug(q+','+str(binddict))
+    connection = engine.connect()
+    resultProxy = connection.execute(q,binddict)
+    for row in resultProxy:
+        missingstr = row['lsmissing']
+        if missingstr:
+            m = missingstr.split(',')
+            result = result + [int(i) for i in m]
+    return result
+    
 def get_prescidx_change(engine,runnums,schemaname=''):
     '''
     input:
