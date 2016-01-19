@@ -135,7 +135,7 @@ def lumi_per_normtag(shards,lumiquerytype,dbengine,dbschema,runtot,datasource=No
                     if not g_hltconfigid:
                         continue      
                     presc = api.get_prescidx_change(dbengine,runnum,schemaname=dbschema)#{runnum:[[lslastscaler,prescidx]] }
-                    hmiss = api.get_hltmissing(dbengine,runnum,schemaname=dbschema)# [missingls]                      
+                    hmiss = api.get_hltmissing(dbengine,runnum,schemaname=dbschema)# [missingls]
                     if presc.has_key(runnum):
                         presc = presc[runnum]
                     g_run_old = runnum                 
@@ -187,7 +187,7 @@ def lumi_per_normtag(shards,lumiquerytype,dbengine,dbschema,runtot,datasource=No
             delivered = recorded = avgpu = livefrac = 0.
             if hmiss and lsnum in hmiss:
                 hltmissing = True
-            if lumiquerytype == 'bestresultonline':
+            if lumiquerytype == 'bestresultonline': ##bestlumi
                 if row.has_key('delivered') and row['delivered']:
                     delivered = np.divide(row['delivered']*lslengthsec,scalefactor)
                 if delivered>0 and row.has_key('recorded') and row['recorded']:
@@ -199,10 +199,10 @@ def lumi_per_normtag(shards,lumiquerytype,dbengine,dbschema,runtot,datasource=No
                     ds = row['datasource']
                 if hltl1map: #--hltpath precheck missing
                     if hltmissing and recorded>0:
-                        log.error("Found non-zero recorded lumi with no hlt monitoring run %d ls %d, force recorded=0. Please report this incident to hlt group"%(runnum,lsnum))
+                        log.error("Found non-zero recorded lumi with no hlt monitoring run %d ls %d, force hltpath specific recorded=0. Please report this incident to hlt group"%(runnum,lsnum))
                         recorded = 0.
                 livefrac = np.divide(recorded,delivered)
-                if withBX:
+                if withBX:    #--xing
                     bxlumi = None
                     bxlumistr = '[]'
                     if row.has_key('bxdeliveredblob'):
@@ -214,50 +214,48 @@ def lumi_per_normtag(shards,lumiquerytype,dbengine,dbschema,runtot,datasource=No
                             bxlumi = np.transpose( np.array([bxidx+1,bxdelivered,bxdelivered*livefrac]) )
                         del bxdeliveredarray
                         del bxidx
-                        if hltl1map: #--hltpath display
+                        if hltl1map: #--hltpath bx display
                             for pth in prescale_map.keys():                                
                                 thispresc = prescale_map[pth]
                                 if bxlumi is not None:
                                     a = map(formatter.bxlumi,bxlumi/thispresc)  
                                     bxlumistr = '['+' '.join(a)+']'                                
                                 display.add_row( ['%d:%d'%(runnum,fillnum),'%d:%d'%(lsnum,cmslsnum),dtime,pth,'%.3f'%(np.divide(delivered,thispresc)),'%.3f'%(np.divide(recorded,thispresc)),ds,'%s'%bxlumistr] , fh=fh, csvwriter=csvwriter, ptable=ptable)                                
-                        else:                            
+                        else:        #normal bx display                   
                             if bxlumi is not None:
                                 a = map(formatter.bxlumi,bxlumi)
                                 bxlumistr = '['+' '.join(a)+']'
-                            display.add_row( ['%d:%d'%(runnum,fillnum),'%d:%d'%(lsnum,cmslsnum),dtime,beamstatus,'%d'%tegev,'%.3f'%(delivered),'%.3f'%(recorded),'%.1f'%(avgpu),ds,'%s'%bxlumistr] , fh=fh, csvwriter=csvwriter, ptable=ptable)
-                        
+                            display.add_row( ['%d:%d'%(runnum,fillnum),'%d:%d'%(lsnum,cmslsnum),dtime,beamstatus,'%d'%tegev,'%.3f'%(delivered),'%.3f'%(recorded),'%.1f'%(avgpu),ds,'%s'%bxlumistr] , fh=fh, csvwriter=csvwriter, ptable=ptable)                        
                     del bxlumi
                     
-                elif byls:
-                    if hltl1map: #--hltpath display
+                elif byls:      #--byls
+                    if hltl1map:#--hltpath display
                         for pth in prescale_map.keys():
                             thispresc = prescale_map[pth]
                             display.add_row( ['%d:%d'%(runnum,fillnum),'%d:%d'%(lsnum,cmslsnum), dtime, pth, '%.3f'%(np.divide(delivered,thispresc)),'%.3f'%(np.divide(recorded,thispresc)),ds] , fh=fh, csvwriter=csvwriter, ptable=ptable)
-                    else:
+                    else:       #normal display
                         display.add_row( ['%d:%d'%(runnum,fillnum),'%d:%d'%(lsnum,cmslsnum),dtime,beamstatus,'%d'%tegev,'%.3f'%(delivered),'%.3f'%(recorded),'%.1f'%(avgpu),ds] , fh=fh, csvwriter=csvwriter, ptable=ptable)
             
-            else:  #with lumi source
+            else:               ###lumisource
                 if row.has_key('deadtimefrac') and row['deadtimefrac'] is not None:
                     livefrac = 1.-row['deadtimefrac']
                 avglumi = row['avglumi']  
                 if validitychecker is not None:
                     if not lastvalidity or not validitychecker.isvalid(runnum,lastvalidity):
                         lastvalidity = validitychecker.getvalidity(runnum)
-                    [normfunc,normparam] = validitychecker.getvaliddata(lastvalidity[0])
-                    
+                    [normfunc,normparam] = validitychecker.getvaliddata(lastvalidity[0])                    
                     ncollidingbx = 1        #fixme
                     f_args = (avglumi,ncollidingbx)
                     f_kwds = ast.literal_eval(normparam)                          
                     avglumi = corrector.FunctionCaller(normfunc,*f_args,**f_kwds)    
                 delivered = np.divide(avglumi*lslengthsec,scalefactor)
                 recorded = delivered*livefrac
-                if hltl1map: #--hltpath precheck missing
+                if hltl1map:    #--hltpath precheck missing
                     if hltmissing and recorded>0:
-                        log.error("Found non-zero recorded lumi with no hlt monitoring run %d ls %d, force recorded=0. Please report this incident to hlt group"%(runnum,lsnum))
+                        log.error("Found non-zero recorded lumi with no hlt monitoring run %d ls %d, force hltpath specific recorded=0. Please report this incident to hlt group"%(runnum,lsnum))
                         recorded = 0.
                         livefrac = 0.
-                if withBX:
+                if withBX:      #--xing
                     bxlumi = None
                     bxlumistr = '[]'
                     if row.has_key('bxlumiblob'):                                  
@@ -272,39 +270,36 @@ def lumi_per_normtag(shards,lumiquerytype,dbengine,dbschema,runtot,datasource=No
                             bxlumi = np.transpose( np.array([bxidx+1,bxdelivered,bxdelivered*livefrac]) )               
                         del bxdeliveredarray
                         del bxidx
-                    if hltl1map: #--hltpath display
+                    if hltl1map:#--hltpath xing display
                         for pth in prescale_map.keys():
                             thispresc = prescale_map[pth]                            
                             if bxlumi is not None:
                                 a = map(formatter.bxlumi,bxlumi/thispresc)  
                                 bxlumistr = '['+' '.join(a)+']'                                
                             display.add_row( ['%d:%d'%(runnum,fillnum),'%d:%d'%(lsnum,cmslsnum),dtime,pth,'%.3f'%(np.divide(delivered,thispresc)),'%.3f'%(np.divide(recorded,thispresc)),datasource.upper(),'%s'%bxlumistr] , fh=fh, csvwriter=csvwriter, ptable=ptable)
-                    else:
+                    else:       #normal xing display
                         if bxlumi is not None:
                             a = map(formatter.bxlumi,bxlumi)
                             bxlumistr = '['+' '.join(a)+']'
                         display.add_row( ['%d:%d'%(runnum,fillnum),'%d:%d'%(lsnum,cmslsnum),dtime,beamstatus,'%d'%tegev,'%.3f'%(delivered),'%.3f'%(recorded),'%.1f'%(avgpu),datasource.upper(),'%s'%bxlumistr] , fh=fh, csvwriter=csvwriter, ptable=ptable)
                     del bxlumi
-                elif byls:
+                elif byls:       #--byls
                     if hltl1map: #--hltpath display
                         for pth in prescale_map.keys():
                             thispresc = prescale_map[pth]                            
                             display.add_row( ['%d:%d'%(runnum,fillnum),'%d:%d'%(lsnum,cmslsnum),dtime,pth,'%.3f'%(np.divide(delivered,thispresc)),'%.3f'%(np.divide(recorded,thispresc)),datasource.upper()] , fh=fh, csvwriter=csvwriter, ptable=ptable)
-                    else:
+                    else:        #normal display
                         display.add_row( ['%d:%d'%(runnum,fillnum),'%d:%d'%(lsnum,cmslsnum),dtime,beamstatus,'%d'%tegev,'%.3f'%(delivered),'%.3f'%(recorded),'%.1f'%(avgpu),datasource.upper()] , fh=fh, csvwriter=csvwriter, ptable=ptable)
-            if not hltl1map:
+            if not hltl1map:     #normal statistic collect
                 if not runtot.has_key( ('',runnum) ):
                     runtot[('',runnum)] = {'fill':fillnum,'dtime':dtime,'nls':0,'ncms':0,'delivered':0,'recorded':0} 
                 runtot[ ('',runnum)]['nls']+=1                
                 if cmson: runtot[ ('',runnum) ]['ncms']+=1
                 runtot[ ('',runnum) ]['delivered']+=delivered
-                runtot[ ('',runnum) ]['recorded']+=recorded
-                                
-            else:
-                #print runnum,lsnum,cmslsnum
+                runtot[ ('',runnum) ]['recorded']+=recorded                                
+            else:                #hltpath statistic collect
                 if not cmson:
                     continue
-                #print prescale_map
                 for pth in prescale_map.keys():
                     thispresc = prescale_map[pth]
                     if not runtot.has_key( (pth,runnum) ):
