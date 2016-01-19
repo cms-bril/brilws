@@ -119,12 +119,10 @@ def lumi_per_normtag(shards,lumiquerytype,dbengine,dbschema,runtot,datasource=No
             lsnum = row['lsnum']            
             cmslsnum = lsnum
             timestampsec = row['timestampsec']
-            cmson = row['cmson']
-            if checkjson:
-                g_returnedls.append((runnum,lsnum))
+            cmson = row['cmson']            
             if not cmson:
                 cmslsnum = 0
-            hltmissing = False
+            hltmissing = False            
             if hltl1map:
                 if cmslsnum==0: continue  #cms is not running, skip.                
                 if g_run_old!=runnum:     #on new run boundary, get hltconfigid
@@ -176,6 +174,7 @@ def lumi_per_normtag(shards,lumiquerytype,dbengine,dbschema,runtot,datasource=No
                                 continue
                         prescale_map[hltpathname] = totpresc   
                     g_ls_trglastscaled_old = ls_trglastscaled
+            
             beamstatusid = row['beamstatusid']
             beamstatus = params._idtobeamstatus[beamstatusid]
             if beamstatus not in ['FLAT TOP','STABLE BEAMS','SQUEEZE','ADJUST']: continue
@@ -187,6 +186,8 @@ def lumi_per_normtag(shards,lumiquerytype,dbengine,dbschema,runtot,datasource=No
             delivered = recorded = avgpu = livefrac = 0.
             if hmiss and lsnum in hmiss:
                 hltmissing = True
+            if checkjson:
+                g_returnedls.append((runnum,lsnum))                
             if lumiquerytype == 'bestresultonline': ##bestlumi
                 if row.has_key('delivered') and row['delivered']:
                     delivered = np.divide(row['delivered']*lslengthsec,scalefactor)
@@ -225,17 +226,16 @@ def lumi_per_normtag(shards,lumiquerytype,dbengine,dbschema,runtot,datasource=No
                             if bxlumi is not None:
                                 a = map(formatter.bxlumi,bxlumi)
                                 bxlumistr = '['+' '.join(a)+']'
-                            display.add_row( ['%d:%d'%(runnum,fillnum),'%d:%d'%(lsnum,cmslsnum),dtime,beamstatus,'%d'%tegev,'%.3f'%(delivered),'%.3f'%(recorded),'%.1f'%(avgpu),ds,'%s'%bxlumistr] , fh=fh, csvwriter=csvwriter, ptable=ptable)                        
+                            display.add_row( ['%d:%d'%(runnum,fillnum),'%d:%d'%(lsnum,cmslsnum),dtime,beamstatus,'%d'%tegev,'%.3f'%(delivered),'%.3f'%(recorded),'%.1f'%(avgpu),ds,'%s'%bxlumistr] , fh=fh, csvwriter=csvwriter, ptable=ptable)                            
                     del bxlumi
                     
                 elif byls:      #--byls
                     if hltl1map:#--hltpath display
                         for pth in prescale_map.keys():
                             thispresc = prescale_map[pth]
-                            display.add_row( ['%d:%d'%(runnum,fillnum),'%d:%d'%(lsnum,cmslsnum), dtime, pth, '%.3f'%(np.divide(delivered,thispresc)),'%.3f'%(np.divide(recorded,thispresc)),ds] , fh=fh, csvwriter=csvwriter, ptable=ptable)
+                            display.add_row( ['%d:%d'%(runnum,fillnum),'%d:%d'%(lsnum,cmslsnum), dtime, pth, '%.3f'%(np.divide(delivered,thispresc)),'%.3f'%(np.divide(recorded,thispresc)),ds] , fh=fh, csvwriter=csvwriter, ptable=ptable)                            
                     else:       #normal display
-                        display.add_row( ['%d:%d'%(runnum,fillnum),'%d:%d'%(lsnum,cmslsnum),dtime,beamstatus,'%d'%tegev,'%.3f'%(delivered),'%.3f'%(recorded),'%.1f'%(avgpu),ds] , fh=fh, csvwriter=csvwriter, ptable=ptable)
-            
+                        display.add_row( ['%d:%d'%(runnum,fillnum),'%d:%d'%(lsnum,cmslsnum),dtime,beamstatus,'%d'%tegev,'%.3f'%(delivered),'%.3f'%(recorded),'%.1f'%(avgpu),ds] , fh=fh, csvwriter=csvwriter, ptable=ptable)                        
             else:               ###lumisource
                 if row.has_key('deadtimefrac') and row['deadtimefrac'] is not None:
                     livefrac = 1.-row['deadtimefrac']
@@ -276,18 +276,18 @@ def lumi_per_normtag(shards,lumiquerytype,dbengine,dbschema,runtot,datasource=No
                             if bxlumi is not None:
                                 a = map(formatter.bxlumi,bxlumi/thispresc)  
                                 bxlumistr = '['+' '.join(a)+']'                                
-                            display.add_row( ['%d:%d'%(runnum,fillnum),'%d:%d'%(lsnum,cmslsnum),dtime,pth,'%.3f'%(np.divide(delivered,thispresc)),'%.3f'%(np.divide(recorded,thispresc)),datasource.upper(),'%s'%bxlumistr] , fh=fh, csvwriter=csvwriter, ptable=ptable)
+                            display.add_row( ['%d:%d'%(runnum,fillnum),'%d:%d'%(lsnum,cmslsnum),dtime,pth,'%.3f'%(np.divide(delivered,thispresc)),'%.3f'%(np.divide(recorded,thispresc)),datasource.upper(),'%s'%bxlumistr] , fh=fh, csvwriter=csvwriter, ptable=ptable)                            
                     else:       #normal xing display
                         if bxlumi is not None:
                             a = map(formatter.bxlumi,bxlumi)
                             bxlumistr = '['+' '.join(a)+']'
-                        display.add_row( ['%d:%d'%(runnum,fillnum),'%d:%d'%(lsnum,cmslsnum),dtime,beamstatus,'%d'%tegev,'%.3f'%(delivered),'%.3f'%(recorded),'%.1f'%(avgpu),datasource.upper(),'%s'%bxlumistr] , fh=fh, csvwriter=csvwriter, ptable=ptable)
+                        display.add_row( ['%d:%d'%(runnum,fillnum),'%d:%d'%(lsnum,cmslsnum),dtime,beamstatus,'%d'%tegev,'%.3f'%(delivered),'%.3f'%(recorded),'%.1f'%(avgpu),datasource.upper(),'%s'%bxlumistr] , fh=fh, csvwriter=csvwriter, ptable=ptable)                        
                     del bxlumi
                 elif byls:       #--byls
                     if hltl1map: #--hltpath display
                         for pth in prescale_map.keys():
                             thispresc = prescale_map[pth]                            
-                            display.add_row( ['%d:%d'%(runnum,fillnum),'%d:%d'%(lsnum,cmslsnum),dtime,pth,'%.3f'%(np.divide(delivered,thispresc)),'%.3f'%(np.divide(recorded,thispresc)),datasource.upper()] , fh=fh, csvwriter=csvwriter, ptable=ptable)
+                            display.add_row( ['%d:%d'%(runnum,fillnum),'%d:%d'%(lsnum,cmslsnum),dtime,pth,'%.3f'%(np.divide(delivered,thispresc)),'%.3f'%(np.divide(recorded,thispresc)),datasource.upper()] , fh=fh, csvwriter=csvwriter, ptable=ptable)                            
                     else:        #normal display
                         display.add_row( ['%d:%d'%(runnum,fillnum),'%d:%d'%(lsnum,cmslsnum),dtime,beamstatus,'%d'%tegev,'%.3f'%(delivered),'%.3f'%(recorded),'%.1f'%(avgpu),datasource.upper()] , fh=fh, csvwriter=csvwriter, ptable=ptable)
             if not hltl1map:     #normal statistic collect
@@ -382,7 +382,7 @@ def brilcalc_main(progname=sys.argv[0]):
 
     log.debug('command arguments: %s',cmmdargv)
     parseresult = {}
-    global g_returnedls 
+    global g_returnedls #[(run,ls),...]
     try:
       if args['<command>'] == 'lumi':
           import brilcalc_lumi          
@@ -403,7 +403,7 @@ def brilcalc_main(progname=sys.argv[0]):
           csvwriter = None
           vfunc_lumiunit = np.vectorize(formatter.lumiunit)
           checkjson = parseresult['--checkjson']
-          g_returnedls = []    
+          g_returnedls = []   
           g_headers = {}
           g_headers['runheader'] = ['run:fill','time','nls','ncms','delivered(/ub)','recorded(/ub)']
           g_headers['footer'] = ['nfill','nrun','nls','ncms','totdelivered(/ub)','totrecorded(/ub)']
@@ -605,11 +605,10 @@ def brilcalc_main(progname=sys.argv[0]):
                       for r in rlist:
                           selectlist.append((k,r))
               arr_selectlist = np.array(selectlist,dtype=np.dtype('int,int'))
+              print '#Check JSON:'
               arr_returnedls = np.array(g_returnedls,dtype=np.dtype('int,int'))
-              print 
-              print '#--checkjson output:'
-              print '(run,ls) in json file but not in the result:'
-              print np.setdiff1d(arr_selectlist,arr_returnedls,assume_unique=True)
+              np.set_printoptions(threshold=np.nan)
+              print '    (run,ls) in json but not in results:',np.setdiff1d(arr_selectlist,arr_returnedls,assume_unique=True)
               print
           sys.exit(0)
 

@@ -55,10 +55,7 @@ def validate(optdict):
     if result['--checkjson']:
         if not result['-i']:
             print 'Error: --checkjson switch must be used together with -i option'
-            sys.exit(0)    
-        if result['--hltpath']:
-            print 'Error: --checkjson switch does not work together with --hltpath option'
-            sys.exit(0)
+            sys.exit(0)            
     return result
 
 if __name__ == '__main__':
