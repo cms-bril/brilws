@@ -1418,11 +1418,11 @@ def max_datatagname(dbengine,schemaname=''):
     result = None    
     if schemaname:
         name = schemaname+'.'+name
-    q = '''select datatagname, max(datatagnameid) as datatagnameid from %s group by datatagname'''%name
+    q = "select datatagname,datatagnameid from %s where datatagnameid=(select max(datatagnameid) from %s)"%(name,name)
     log.debug(q)
-    qresult = pd.read_sql_query(q,dbengine)
-    for idx,row in qresult.iterrows():
-        result = ( row['datatagname'],row['datatagnameid'] )
+    connection = dbengine.connect()
+    qresult = connection.execute(q,{}).fetchone()
+    result = (qresult['datatagname'],qresult['datatagnameid'])
     return result
 
 def datatagnameid(dbengine,datatagname,schemaname=''):
