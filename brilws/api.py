@@ -1330,16 +1330,14 @@ def data_createtag(engine,datatagname,comments='',schemaname=''):
         datatagnameid = 1
     else:
         datatagnameid = next(nonsequential_key(1))
-    basetablename = tablename = 'datatags'
-    if schemaname:
-        tablename = '.'.join([schemaname,basetablename])
+    tablename = 'datatags'    
     utcstr = datetime.utcnow().strftime(params._datetimefm)
-    t = Table(tablename, MetaData(), Column('datatagnameid',types.BigInteger), Column('datatagname',types.String),  Column('creationutc',types.String), Column('comments',types.String) )
+    t = Table(tablename, MetaData(), Column('datatagnameid',types.BigInteger), Column('datatagname',types.String),  Column('creationutc',types.String), Column('comments',types.String), schema=schemaname )
     q = str( t.insert() )
     log.debug(q)
     log.debug(utcstr)
-    #connection = engine.connect() 
-    #connection.execute( t.insert(),datatagnameid=datatagnameid,datatagname=datatagname,creationutc=utcstr,comments=comments)
+    connection = engine.connect()
+    connection.execute( t.insert(),datatagnameid=datatagnameid,datatagname=datatagname,creationutc=utcstr,comments=comments)
     return datatagnameid
 
 def getDatatagNameid(engine,datatagname,schemaname=''):
