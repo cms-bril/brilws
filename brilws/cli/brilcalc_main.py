@@ -102,14 +102,14 @@ def lumi_per_normtag(shards,lumiquerytype,dbengine,dbschema,runtot,datasource=No
             if not shardexists: continue
             rfields = ['avglumi']
             idfields = ['fillnum','runnum','lsnum','timestampsec','beamstatusid','cmson','deadtimefrac','targetegev']
-            if withBX: rfields = rfields+['bxlumiblob']
+            if withBX:
+                rfields = rfields+['bxlumiblob']
             lumiiter = api.det_rawDataIter(dbengine,datasource,shard,datafields=rfields,idfields=idfields,schemaname=dbschema,fillmin=fillmin,fillmax=fillmax,runmin=runmin,runmax=runmax,amodetagid=amodetagid,targetegev=egev,beamstatusid=beamstatusid,tssecmin=tssecmin,tssecmax=tssecmax,runlsselect=runlsSeries,sorted=True,datatagnameid=datatagnameid)
                   
         if not lumiiter: continue
 
         g_run_old = 0
         g_ls_trglastscaled_old = 0
-        g_hltconfigid_old = None
         prescale_map = {} # for global scope
         g_hltconfigid = 0
         hmiss = []
@@ -119,7 +119,7 @@ def lumi_per_normtag(shards,lumiquerytype,dbengine,dbschema,runtot,datasource=No
             lsnum = row['lsnum']            
             cmslsnum = lsnum
             timestampsec = row['timestampsec']
-            cmson = row['cmson']            
+            cmson = row['cmson']
             if not cmson:
                 cmslsnum = 0
             hltmissing = False            
@@ -136,8 +136,7 @@ def lumi_per_normtag(shards,lumiquerytype,dbengine,dbschema,runtot,datasource=No
                     hmiss = api.get_hltmissing(dbengine,runnum,schemaname=dbschema)# [missingls]
                     if presc.has_key(runnum):
                         presc = presc[runnum]
-                    g_run_old = runnum                 
-                this_prescidx = None                
+                this_prescidx = None
                 if not presc:                    
                     ls_trglastscaled = 1
                 else:
@@ -148,8 +147,8 @@ def lumi_per_normtag(shards,lumiquerytype,dbengine,dbschema,runtot,datasource=No
                     else:
                         ls_trglastscaled = np.max( b )
                         this_prescidx = [t[1] for t in presc if t[0]==ls_trglastscaled][0]
-                if g_ls_trglastscaled_old != ls_trglastscaled: #on prescale change lumi section                    
-                    prescale_map = {} #clear
+                if (g_ls_trglastscaled_old != ls_trglastscaled) or (g_run_old != runnum): #on prescale change lumi section or new run
+                    prescale_map = {} #clear prescaleindex change map on new prescale index value
                     if not hltl1map.has_key(g_hltconfigid):
                         continue
                     this_hltl1map = hltl1map[g_hltconfigid]#[[hltpathid,hltpathname,l1seedtype,l1seedbits]]
@@ -158,12 +157,11 @@ def lumi_per_normtag(shards,lumiquerytype,dbengine,dbschema,runtot,datasource=No
                         hltpathname = grouped[1]
                         l1seedlogic = grouped[2]
                         l1candidates = grouped[3]
-                    
                         if this_prescidx is None:
                             hltprescval = 1
                             totpresc = 1
-                        else:                            
-                            hltprescval = api.get_hltprescale(dbengine,runnum,ls_trglastscaled,g_hltconfigid,this_prescidx,this_hltpathid,schemaname=dbschema)                            
+                        else:
+                            hltprescval = api.get_hltprescale(dbengine,runnum,ls_trglastscaled,g_hltconfigid,this_prescidx,this_hltpathid,schemaname=dbschema)
                             rl = api.get_l1prescale(dbengine,runnum,ls_trglastscaled,l1candidates=l1candidates,prescidxs=this_prescidx,ignorel1mask=ignorel1mask ,schemaname=dbschema)
                             if not rl: continue
                             l1keys = [ k for k in rl.keys() if k[0]==this_prescidx ]
@@ -174,7 +172,7 @@ def lumi_per_normtag(shards,lumiquerytype,dbengine,dbschema,runtot,datasource=No
                                 continue
                         prescale_map[hltpathname] = totpresc   
                     g_ls_trglastscaled_old = ls_trglastscaled
-            
+                g_run_old = runnum
             beamstatusid = row['beamstatusid']
             beamstatus = params._idtobeamstatus[beamstatusid]
             if beamstatus not in ['FLAT TOP','STABLE BEAMS','SQUEEZE','ADJUST']: continue
@@ -187,7 +185,7 @@ def lumi_per_normtag(shards,lumiquerytype,dbengine,dbschema,runtot,datasource=No
             if hmiss and lsnum in hmiss:
                 hltmissing = True
             if checkjson:
-                g_returnedls.append((runnum,lsnum))                
+                g_returnedls.append((runnum,lsnum))
             if lumiquerytype == 'bestresultonline': ##bestlumi
                 if row.has_key('delivered') and row['delivered']:
                     delivered = np.divide(row['delivered']*lslengthsec,scalefactor)
@@ -239,7 +237,7 @@ def lumi_per_normtag(shards,lumiquerytype,dbengine,dbschema,runtot,datasource=No
             else:               ###lumisource
                 if row.has_key('deadtimefrac') and row['deadtimefrac'] is not None:
                     livefrac = 1.-row['deadtimefrac']
-                avglumi = row['avglumi']  
+                avglumi = row['avglumi']
                 if validitychecker is not None:
                     if not lastvalidity or not validitychecker.isvalid(runnum,lastvalidity):
                         lastvalidity = validitychecker.getvalidity(runnum)
@@ -307,8 +305,8 @@ def lumi_per_normtag(shards,lumiquerytype,dbengine,dbschema,runtot,datasource=No
                     runtot[ (pth,runnum)]['nls']+=1                
                     if cmson: runtot[ (pth,runnum) ]['ncms'] += 1
                     runtot[ (pth,runnum) ]['delivered'] += np.divide(delivered,thispresc)
-                    runtot[ (pth,runnum) ]['recorded'] += np.divide(recorded,thispresc)                
-     
+                    runtot[ (pth,runnum) ]['recorded'] += np.divide(recorded,thispresc)      
+                
 class ValidityChecker(object):
     def __init__(self, normdata):
         self.normdata = normdata
@@ -446,7 +444,6 @@ def brilcalc_main(progname=sys.argv[0]):
           shards = [3]
           
           (datatagname,datatagnameid) = findtagname(dbengine,pargs.datatagname,dbschema)
-          print 'datatagname,datatagnameid ',datatagname,datatagnameid
           
           if not pargs.totable:
               fh = pargs.ofilehandle
