@@ -235,8 +235,12 @@ def lumi_per_normtag(shards,lumiquerytype,dbengine,dbschema,runtot,datasource=No
                     else:       #normal display
                         display.add_row( ['%d:%d'%(runnum,fillnum),'%d:%d'%(lsnum,cmslsnum),dtime,beamstatus,'%d'%tegev,'%.3f'%(delivered),'%.3f'%(recorded),'%.1f'%(avgpu),ds] , fh=fh, csvwriter=csvwriter, ptable=ptable)                        
             else:               ###lumisource
-                if row.has_key('deadtimefrac') and row['deadtimefrac'] is not None:
-                    livefrac = 1.-row['deadtimefrac']
+                if row.has_key('deadtimefrac') :
+                    if row['deadtimefrac'] is not None:
+                        livefrac = 1.-row['deadtimefrac']
+                    else:
+                        log.warning( 'Null deadtime run %d , ls %d, force recorded=0.'%(runnum,lsnum) )
+                        livefrac = 0.
                 avglumi = row['avglumi']
                 if validitychecker is not None:
                     if not lastvalidity or not validitychecker.isvalid(runnum,lastvalidity):
