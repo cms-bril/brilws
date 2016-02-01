@@ -1517,7 +1517,7 @@ def rundatatagIter(engine,datatagnameid,schemaname='',runmin=None,runmax=None,fi
 def table_exists(engine,tablename,schemaname=None):
     return engine.dialect.has_table(engine.connect(),tablename,schema=schemaname)
 
-def build_query_condition(runmin=None,runmax=None,fillmin=None,tssecmin=None,tssecmax=None,fillmax=None,beamstatus=None,beamstatusid=None,amodetag=None,amodetagid=None,targetegev=None,runlsselect=None):
+def build_query_condition(runmin=None,runmax=None,fillmin=None,tssecmin=None,tssecmax=None,fillmax=None,beamstatus=None,beamstatusid=None,amodetag=None,amodetagid=None,targetegev=None,runlsselect=None,datatagnameid=None):
     qCondition = ''
     qPieces = []
     binddict = {}
@@ -1572,6 +1572,10 @@ def build_query_condition(runmin=None,runmax=None,fillmin=None,tssecmin=None,tss
         qPieces.append('runnum<=:runmax')
         binddict['runmax'] = runmax
 
+    if datatagnameid:
+        qPieces.append('datatagnameid<=:datatagnameid')
+        binddict['runmax'] = datatagnameid
+        
     if not qPieces: return ('',{})
     qCondition = ' and '.join(qPieces)
     return (qCondition,binddict)
@@ -1931,7 +1935,7 @@ def parseL1Seed(l1seed):
         cleanresult.append(string.strip(r))    
     return [exptype,cleanresult]
 
-def beamInfoIter(engine,suffix,datafields=[],idfields=[],schemaname='',runmin=None,runmax=None,fillmin=None,tssecmin=None,tssecmax=None,fillmax=None,beamstatus=None,beamstatusid=None,amodetag=None,amodetagid=None,targetegev=None,runlsselect=None,sorted=False):
+def beamInfoIter(engine,suffix,datafields=[],idfields=[],schemaname='',runmin=None,runmax=None,fillmin=None,tssecmin=None,tssecmax=None,fillmax=None,beamstatus=None,beamstatusid=None,amodetag=None,amodetagid=None,targetegev=None,runlsselect=None,sorted=False,datatagnameid=None):
     '''
     output: iterator
     select b.egev as egev, a.datatagid as datatagid, a.runnum as run from cms_lumi_prod.beam_3 b,(select max(datatagid) as datatagid, runnum from cms_lumi_prod.ids_datatag group by runnum) a where a.datatagid=b.datatagid
@@ -1940,14 +1944,19 @@ def beamInfoIter(engine,suffix,datafields=[],idfields=[],schemaname='',runmin=No
     (qCondition,binddict) = build_query_condition(runmin=runmin,runmax=runmax,fillmin=fillmin,fillmax=fillmax,tssecmin=tssecmin,tssecmax=tssecmax,beamstatus=beamstatus,beamstatusid=beamstatusid,amodetag=amodetag,amodetagid=amodetagid,targetegev=targetegev,runlsselect=runlsselect)
     if not qCondition: return None
     basetablename = 'beam'
-    #idfields = ['fillnum','runnum','lsnum','timestampsec','beamstatusid']
-    q = build_joinwithdatatagid_query(basetablename,suffix,datafields,idfields,qCondition,schemaname=schemaname,sorted=sorted)
+    if datatagnameid:
+        idfields.append('datatagnameid')
+        binddict['datatagnameid'] = datatagnameid
+    q = build_joinwithdatatagid_query(basetablename,suffix,datafields,idfields,qCondition,datatagnameid=datatagnameid,schemaname=schemaname,sorted=sorted)
     log.debug(q)
     connection = engine.connect()
     result = connection.execution_options(stream_result=True).execute(q,binddict)
     return iter(result)
 
-def build_joinwithdatatagid_query(datatablename,suffix,datafields,idfields,idcondition,schemaname='',sorted=False):
+def build_joinwithdatatagid_query(datatablename,suffix,datafields,idfields,idcondition,datatagnameid=datatagnameid,schemaname='',sorted=False):
+    '''
+    if datatagnameid: add datatagnameid to idfield for a and a.datatagnameid<=:datatagnameid
+    '''
     idtablename = 'ids_datatag'
     tablename = '_'.join([datatablename,str(suffix)])
     if schemaname:
@@ -1958,27 +1967,33 @@ def build_joinwithdatatagid_query(datatablename,suffix,datafields,idfields,idcon
     q = '''select a.datatagid as datatagid, %s, %s from %s b,'''%(data_fieldstr,id_fieldstr,tablename)    
     id_fieldstr = groupbystr = ','.join( [str(f) for f in idfields] )
     subq = '''(select max(datatagid) as datatagid, %s from %s where %s group by %s) a where a.datatagid=b.datatagid'''%(id_fieldstr,idtablename,idcondition,groupbystr)
+    if datatagnameid:
+        subq += ' and a.datatagnameid<=:datatagnameid'
     q = q+subq
     if sorted:
         q = q+' order by runnum,lsnum'
     return q
 
-def det_resultDataIter(engine,datasource,suffix,datafields=[],idfields=[],schemaname='',runmin=None,runmax=None,fillmin=None,tssecmin=None,tssecmax=None,fillmax=None,beamstatus=None,beamstatusid=None,amodetag=None,amodetagid=None,targetegev=None,runlsselect=None,sorted=False):
+def det_resultDataIter(engine,datasource,suffix,datafields=[],idfields=[],schemaname='',runmin=None,runmax=None,fillmin=None,tssecmin=None,tssecmax=None,fillmax=None,beamstatus=None,beamstatusid=None,amodetag=None,amodetagid=None,targetegev=None,runlsselect=None,sorted=False,datatagnameid=None):
     '''
     output: iterator
-    select b.avglumi as avglumi, b.bxlumiblob as bxlumiblob, b.normtag as normtag, b.datatagid as datatagid, a.runnum as run from cms_lumi_prod._3 b,(select max(datatagid) as datatagid, runnum from cms_lumi_prod.ids_datatag group by runnum) a where a.datatagid=b.datatagid
+    select b.avglumi as avglumi, b.bxlumiblob as bxlumiblob, b.normtag as normtag, b.datatagid as datatagid, a.runnum as run , a.datatagnameid as datatagnameid from cms_lumi_prod._3 b,(select max(datatagid) as datatagid, runnum , datatagnameid from cms_lumi_prod.ids_datatag group by runnum) a where a.datatagid=b.datatagid and a.datatagnameid<=:datatagnameid   
+       if datatagnameid: add datatagnameid to idfields and binddict a 
     '''
     if not datafields: return None
-    (qCondition,binddict) = build_query_condition(runmin=runmin,runmax=runmax,fillmin=fillmin,fillmax=fillmax,tssecmin=tssecmin,tssecmax=tssecmax,beamstatus=beamstatus,beamstatusid=beamstatusid,amodetag=amodetag,amodetagid=amodetagid,targetegev=targetegev,runlsselect=runlsselect)
+    (qCondition,binddict) = build_query_condition(runmin=runmin,runmax=runmax,fillmin=fillmin,fillmax=fillmax,tssecmin=tssecmin,tssecmax=tssecmax,beamstatus=beamstatus,beamstatusid=beamstatusid,amodetag=amodetag,amodetagid=amodetagid,targetegev=targetegev,runlsselect=runlsselect)    
     if not qCondition: return None
     basetablename = datasource+'_result'
-    q = build_joinwithdatatagid_query(basetablename,suffix,datafields,idfields,qCondition,schemaname=schemaname,sorted=sorted)
+    if datatagnameid:
+        idfields.append('datatagnameid')
+        binddict['datatagnameid'] = datatagnameid
+    q = build_joinwithdatatagid_query(basetablename,suffix,datafields,idfields,qCondition,datatagnameid=datatagnameid,schemaname=schemaname,sorted=sorted)    
     log.debug(q)
     connection = engine.connect()
     result = connection.execution_options(stream_result=True).execute(q,binddict)
     return iter(result)
 
-def det_rawDataIter(engine,datasource,suffix,datafields=[],idfields=[],schemaname='',runmin=None,runmax=None,fillmin=None,tssecmin=None,tssecmax=None,fillmax=None,beamstatus=None,beamstatusid=None,amodetag=None,amodetagid=None,targetegev=None,runlsselect=None,sorted=False):
+def det_rawDataIter(engine,datasource,suffix,datafields=[],idfields=[],schemaname='',runmin=None,runmax=None,fillmin=None,tssecmin=None,tssecmax=None,fillmax=None,beamstatus=None,beamstatusid=None,amodetag=None,amodetagid=None,targetegev=None,runlsselect=None,sorted=False,datatagnameid=None):
     '''
     output: iterator
     select b.rawlumi as rawlumi, b.bxrawlumiblob as bxrawlumiblob, b.datatagid as datatagid, a.runnum as run from cms_lumi_prod._3 b,(select max(datatagid) as datatagid, runnum from cms_lumi_prod.ids_datatag group by runnum) a where a.datatagid=b.datatagid
@@ -1987,7 +2002,10 @@ def det_rawDataIter(engine,datasource,suffix,datafields=[],idfields=[],schemanam
     (qCondition,binddict) = build_query_condition(runmin=runmin,runmax=runmax,fillmin=fillmin,fillmax=fillmax,tssecmin=tssecmin,tssecmax=tssecmax,beamstatus=beamstatus,beamstatusid=beamstatusid,amodetag=amodetag,amodetagid=amodetagid,targetegev=targetegev,runlsselect=runlsselect)
     if not qCondition: return None
     basetablename = datasource+'_raw'
-    q = build_joinwithdatatagid_query(basetablename,suffix,datafields,idfields,qCondition,schemaname=schemaname,sorted=sorted)
+    if datatagnameid:
+        idfields.append('datatagnameid')
+        binddict['datatagnameid'] = datatagnameid
+    q = build_joinwithdatatagid_query(basetablename,suffix,datafields,idfields,qCondition,datatagnameid=datatagnameid,schemaname=schemaname,sorted=sorted)
     log.debug(q)
     connection = engine.connect()
     result = connection.execution_options(stream_result=True).execute(q,binddict)
