@@ -754,6 +754,86 @@ def packlistoblob(typecode,data):
     dataarray = array.array(typecode,list(data))
     return buffer(dataarray.tostring())        
 
+def locate_shards(engine,runmin=None,runmax=None,fillmin=None,fillmax=None,tssecmin=None,tssecmax=None,orrunlist=[],schemaname=''):
+    '''
+    the first 6 input parameters are for _and_ selection
+    orrunlist is for _or_ selection
+    '''
+    shards = []
+    s1 = get_shards_run_or(engine,orrunlist,schemaname=schemaname)
+    s2 = get_shard_and(engine,runnum=runmin,fillnum=fillmin,tssec=tssecmin,schemaname=schemaname)
+    s3 = get_shard_and(engine,runnum=runmax,fillnum=fillmax,tssec=tssecmax,schemaname=schemaname)
+    if s1:
+        shards = s1
+    if s2 and s3:
+        shards += range(s2,s3+1)
+    elif s2:
+        shards.append(s2)
+    elif s3:
+        shards.append(s3)
+    shards = list(np.unique(np.array(shards)))
+    return shards
+
+def get_shards_run_or(engine,runlist,schemaname=''):
+    '''
+    select id from tableshards where (minrun>=:runnum_x and maxrun<=:runnum_x) or (minrun>=:runnum_y and maxrun<=:runnum_y)
+    '''
+    if not runlist:
+        return []
+    result = []
+    basetablename = tablename = 'tableshards'
+    if schemaname:
+        tablename = '.'.join([schemaname,basetablename])
+    q = "select id from %s where "%(tablename)
+    qCondition = ''
+    qPieces = []
+    binddict = {}
+    for i,runnum in enumerate(runlist):
+        qPieces.append("(minrun<=:runnum_%d and maxrun>=:runnum_%d)"%(i,i))
+        binddict["runnum_%d"%i] = runnum
+    qCondition = ' or '.join(qPieces)
+    q = q+qCondition
+    log.debug(q)
+    log.debug(str(binddict))
+    connection = engine.connect()
+    r = connection.execute(q,binddict)
+    for row in r:
+        result.append(row['id'])
+    return result
+
+def get_shard_and(engine,runnum=None,fillnum=None,tssec=None,schemaname=''):
+    '''
+    result: shardid    
+    select id from tableshards where minrun>=:runnum and maxrun<=:runnum and minfill>=:fillnum and maxfill<=:fillnum and mintimestampsec<=:tssec and maxtimestampsec>=tssec ; 
+    '''
+    if not runnum and not fillnum and not tssec:
+        return None
+    basetablename = tablename = 'tableshards'
+    if schemaname:
+        tablename = '.'.join([schemaname,basetablename])
+    q = "select id from %s where "%(tablename)
+    qCondition = ''
+    binddict = {}
+    qPieces = []
+    if runnum:
+        qPieces.append("minrun<=:runnum and maxrun>=:runnum")
+        binddict['runnum'] = runnum
+    if fillnum:
+        qPieces.append("minfill<=:fillnum and maxfill>=:fillnum")
+        binddict['fillnum'] = fillnum
+    if tssec:
+        qPieces.append("mintimestampsec<=:tssec and maxtimestampsec>=:tssec")
+        binddict['tssec'] = tssec
+    qCondition = ' and '.join(qPieces)
+    q = q+qCondition
+    log.debug(q)
+    log.debug(str(binddict))
+    connection = engine.connect()
+    row = connection.execute(q,binddict).fetchone()
+    if not row:
+        return None
+    return row['id']
+        
 def iov_gettags(engine,isdefault=False,datasource='',applyto='',schemaname=''):
     '''
     output: iovtags 
@@ -1564,17 +1644,25 @@ def build_query_condition(runmin=None,runmax=None,fillmin=None,tssecmin=None,tss
                 binddict[lminname] = lmin
             for lmaxname,lmax in var_lmaxs.items():                
                 binddict[lmaxname] = lmax
-    
-    if runmin:
+
+    if runmin and runmax :
+        if runmin==runmax:
+            qPieces.append('runnum=:runmin')
+            binddict['runmin'] = runmin
+        else:
+            qPieces.append('runnum>=:runmin and runnum<=:runmax')
+            binddict['runmin'] = runmin
+            binddict['runmax'] = runmax
+    elif runmin:
         qPieces.append('runnum>=:runmin')
         binddict['runmin'] = runmin
-    if runmax:
+    elif runmax:
         qPieces.append('runnum<=:runmax')
         binddict['runmax'] = runmax
 
     if datatagnameid:
         qPieces.append('datatagnameid<=:datatagnameid')
-        binddict['runmax'] = datatagnameid
+        binddict['datatagnameid'] = datatagnameid
         
     if not qPieces: return ('',{})
     qCondition = ' and '.join(qPieces)

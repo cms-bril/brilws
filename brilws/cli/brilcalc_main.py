@@ -444,8 +444,7 @@ def brilcalc_main(progname=sys.argv[0]):
                   
           header = vfunc_lumiunit(header,lumiunitstr).tolist()
           footer = vfunc_lumiunit(footer,lumiunitstr).tolist()
-                    
-          shards = [3]
+        
           
           (datatagname,datatagnameid) = findtagname(dbengine,pargs.datatagname,dbschema)
           
@@ -506,10 +505,10 @@ def brilcalc_main(progname=sys.argv[0]):
               if not pargs.lumitype:
                   raise ValueError('--type is required with --without-correction')
               datasources.append( [lumiquerytype,None,pargs.lumitype.lower(),pargs.runlsSeries ])
-              
+          
           log.debug('lumiquerytype %s'%lumiquerytype)          
           log.debug('scalefactor: %.2f'%pargs.scalefactor)                    
-
+          
           runtot = {} #{(hltpath,run): { 'fill':fillnum,'time':dtime,'nls':1,'ncms':int(cmson),'delivered':delivered,'recorded':recorded} }
                                
           totz=utctmzone
@@ -529,11 +528,24 @@ def brilcalc_main(progname=sys.argv[0]):
           tssecmax = pargs.tssecmax
           
           hltl1map = None
+          
           if pargs.hltpath is not None:
               hltl1map = api.get_hlttrgl1seedmap(dbengine,hltpath=pargs.hltpath,schemaname=dbschema)
               if not hltl1map:
                   print 'no hltpath to l1bit mapping found'
                   sys.exit(0)
+          
+          rselectrange = [] 
+          if datasources :
+              rselectrange = np.array([r[3].index.values for r in datasources if r[3] is not None])
+              if rselectrange.any():
+                  rselectrange = list(np.unique(rselectrange.flatten()))
+          shards = api.locate_shards(dbengine,runmin=runmin,runmax=runmax,fillmin=fillmin,fillmax=fillmax,tssecmin=tssecmin,tssecmax=tssecmax,orrunlist=rselectrange,schemaname=dbschema)
+          if not shards:
+              print 'Failed to find data table for the requested time range.'
+              sys.exit(1)
+          log.debug('shards: '+str(shards))
+          
           for [qtype,ntag,dsource,rselect] in datasources:             
               lumi_per_normtag(shards,qtype,dbengine,dbschema,runtot,datasource=dsource,normtag=ntag,withBX=pargs.withBX,byls=pargs.byls,fh=fh,csvwriter=csvwriter,ptable=ptable,scalefactor=scalefactor,totz=totz,fillmin=fillmin,fillmax=fillmax,runmin=runmin,runmax=runmax,amodetagid=amodetagid,egev=egev,beamstatusid=beamstatusid,tssecmin=tssecmin,tssecmax=tssecmax,runlsSeries=rselect,hltl1map=hltl1map,ignorel1mask=parseresult['--ignore-mask'],xingMin=pargs.xingMin,xingTr=pargs.xingTr,xingId=pargs.xingId,checkjson=checkjson,datatagnameid=datatagnameid)  
           
@@ -612,6 +624,7 @@ def brilcalc_main(progname=sys.argv[0]):
               np.set_printoptions(threshold=np.nan)
               print '    (run,ls) in json but not in results:',np.setdiff1d(arr_selectlist,arr_returnedls,assume_unique=True)
               print
+
           sys.exit(0)
 
       elif args['<command>'] == 'beam':
@@ -651,48 +664,61 @@ def brilcalc_main(progname=sys.argv[0]):
           fields = ['egev','intensity1','intensity2','ncollidingbx']
           if pargs.withBX:
               fields = ['bxidxblob','bxintensity1blob','bxintensity2blob']
-          beamIt = api.beamInfoIter(dbengine,3,datafields=fields,idfields=idfields,schemaname=dbschema,fillmin=pargs.fillmin,fillmax=pargs.fillmax,runmin=pargs.runmin,runmax=pargs.runmax,amodetagid=pargs.amodetagid,targetegev=pargs.egev,beamstatusid=pargs.beamstatusid,tssecmin=pargs.tssecmin,tssecmax=pargs.tssecmax,runlsselect=pargs.runlsSeries,sorted=True,datatagnameid=datatagnameid)
-          if not beamIt: sys.exit(0)
-          for row in beamIt:
-              fillnum = row['fillnum']
-              runnum = row['runnum']
-              lsnum = row['lsnum']                          
-              timestampsec = row['timestampsec']
-              dtime = str(timestampsec)
-              ncollidingbx = 0
-              if totz is not None:
-                  d = datetime.fromtimestamp(int(timestampsec),tz=pytz.utc)
-                  dtime = d.astimezone(totz).strftime(params._datetimefm) 
-              if pargs.withBX:
-                  bxintensity = None
-                  bxintensitystr = '[]'
-                  if row.has_key('bxidxblob') and row['bxidxblob'] is not None:
-                      bxidxarray = np.array(api.unpackBlobtoArray(row['bxidxblob'],'H'))                            
-                      bxidxarray = bxidxarray[bxidxarray!=np.array(None)]
-                      if bxidxarray is not None and bxidxarray.size>0:
-                          bxintensity1array =  np.array(api.unpackBlobtoArray(row['bxintensity1blob'],'f'))
-                          bxintensity2array =  np.array(api.unpackBlobtoArray(row['bxintensity2blob'],'f'))
-                          bxintensity = np.transpose( np.array([bxidxarray+1,bxintensity1array,bxintensity2array]) )
-                          a = map(formatter.bxintensity,bxintensity)                          
-                          bxintensitystr = '['+' '.join(a)+']'
-                          del bxintensity1array
-                          del bxintensity2array
-                      del bxidxarray
-                      display.add_row( ['%d'%fillnum,'%d'%runnum,'%d'%lsnum,dtime,'%s'%bxintensitystr], fh=fh, csvwriter=csvwriter, ptable=ptable )
-              else:
-                  egev = row['egev']
-                  intensity1 = row['intensity1']/pargs.scalefactor
-                  intensity2 = row['intensity2']/pargs.scalefactor
-                  ncollidingbx = row['ncollidingbx'] 
-                  display.add_row( ['%d'%fillnum,'%d'%runnum,'%d'%lsnum,dtime,'%.1f'%egev,'%.4e'%intensity1,'%.4e'%intensity2, '%d'%ncollidingbx],fh=fh, csvwriter=csvwriter, ptable=ptable)
+              
+          rselectrange = []    
+          if pargs.runlsSeries is not None:
+              rselectrange = list(pargs.runlsSeries.index.values)
+          shards = api.locate_shards(dbengine,runmin=pargs.runmin,runmax=pargs.runmax,fillmin=pargs.fillmin,fillmax=pargs.fillmax,tssecmin=pargs.tssecmin,tssecmax=pargs.tssecmax,orrunlist=rselectrange,schemaname=dbschema)
+          if not shards:
+              print 'Failed to find data table for the requested time range.'
+              sys.exit(1)
+          log.debug('shards: '+str(shards))
+
+          for shard in shards:
+              beamIt = api.beamInfoIter(dbengine,shard,datafields=fields,idfields=idfields,schemaname=dbschema,fillmin=pargs.fillmin,fillmax=pargs.fillmax,runmin=pargs.runmin,runmax=pargs.runmax,amodetagid=pargs.amodetagid,targetegev=pargs.egev,beamstatusid=pargs.beamstatusid,tssecmin=pargs.tssecmin,tssecmax=pargs.tssecmax,runlsselect=pargs.runlsSeries,sorted=True,datatagnameid=datatagnameid)
+              if not beamIt:
+                  continue
+              for row in beamIt:
+                  fillnum = row['fillnum']
+                  runnum = row['runnum']
+                  lsnum = row['lsnum']                          
+                  timestampsec = row['timestampsec']
+                  dtime = str(timestampsec)
+                  ncollidingbx = 0
+                  if totz is not None:
+                      d = datetime.fromtimestamp(int(timestampsec),tz=pytz.utc)
+                      dtime = d.astimezone(totz).strftime(params._datetimefm) 
+                  if pargs.withBX:
+                      bxintensity = None
+                      bxintensitystr = '[]'
+                      if row.has_key('bxidxblob') and row['bxidxblob'] is not None:
+                          bxidxarray = np.array(api.unpackBlobtoArray(row['bxidxblob'],'H'))                            
+                          bxidxarray = bxidxarray[bxidxarray!=np.array(None)]
+                          if bxidxarray is not None and bxidxarray.size>0:
+                              bxintensity1array =  np.array(api.unpackBlobtoArray(row['bxintensity1blob'],'f'))
+                              bxintensity2array =  np.array(api.unpackBlobtoArray(row['bxintensity2blob'],'f'))
+                              bxintensity = np.transpose( np.array([bxidxarray+1,bxintensity1array,bxintensity2array]) )
+                              a = map(formatter.bxintensity,bxintensity)                          
+                              bxintensitystr = '['+' '.join(a)+']'
+                              del bxintensity1array
+                              del bxintensity2array
+                          del bxidxarray
+                          display.add_row( ['%d'%fillnum,'%d'%runnum,'%d'%lsnum,dtime,'%s'%bxintensitystr], fh=fh, csvwriter=csvwriter, ptable=ptable )
+                  else:
+                      egev = row['egev']
+                      intensity1 = row['intensity1']/pargs.scalefactor
+                      intensity2 = row['intensity2']/pargs.scalefactor
+                      ncollidingbx = row['ncollidingbx'] 
+                      display.add_row( ['%d'%fillnum,'%d'%runnum,'%d'%lsnum,dtime,'%.1f'%egev,'%.4e'%intensity1,'%.4e'%intensity2, '%d'%ncollidingbx],fh=fh, csvwriter=csvwriter, ptable=ptable)
 
           if pargs.totable:
               print '#Data tag : ',datatagname
               display.show_table(ptable,pargs.outputstyle)
               del ptable
+                  
           if fh and fh is not sys.stdout: fh.close()
+          sys.exit(0)
           
-          sys.exit(0)    
       elif args['<command>'] == 'trg':      
           import brilcalc_trg
           parseresult = docopt.docopt(brilcalc_trg.__doc__,argv=cmmdargv)
