@@ -201,19 +201,3 @@ ONLINE_RESULT_&suffix:
     - amodetagid: uint16
     - targetegev: uint16
    pk: [runnum,lsnum]
-
-OFFLINE_RESULT_&suffix:
-   columns:
-    - runnum: uint32
-    - lsnum: uint32
-    - fillnum: uint32
-    - cmson: bool
-    - beamstatusid: uint16
-    - delivered: float
-    - recorded: float
-    - bxdeliveredblob: blob
-    - avgpu: float
-    - datasource: string
-    - datatagid: int64
-    - normtagid: int64
-   pk: [runnum,lsnum]
