@@ -138,8 +138,7 @@ class parser(object):
         if self._argdict.has_key('-i') and self._argdict['-i']: # -i has precedance over -r
             fileorpath = self._argdict['-i']
             self._runlsSeries = api.parsecmsselectJSON(fileorpath)
-            #self._runlsSeries = api.parseselectionJSON(fileorpath)
-        elif self._argdict.has_key('-r') and self._argdict['-r'] :
+        if self._argdict.has_key('-r') and self._argdict['-r'] :
             self._runmin = self._argdict['-r']
             self._runmax = self._argdict['-r']
         s_beg = None
