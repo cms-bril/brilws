@@ -1540,7 +1540,7 @@ def max_datatagOfRun(engine,runlist,schemaname=''):
         datatagid = row['datatagid']
         result[run] = datatagid
     return result
-
+"""
 def rundatatagIter(engine,datatagnameid,schemaname='',runmin=None,runmax=None,fillmin=None,tssecmin=None,tssecmax=None,fillmax=None,amodetag=None,targetegev=None,runlsselect=None,chunksize=9999):
     '''
     output: dataframe iterator, index_col='datatagid'
@@ -1593,7 +1593,7 @@ def rundatatagIter(engine,datatagnameid,schemaname='',runmin=None,runmax=None,fi
     qCondition = ' and '.join([qCondition]+qPieces)
     q = q + qCondition+' group by RUNNUM'
     return pd.read_sql_query(q,engine,chunksize=chunksize,params=binddict,index_col='datatagid')
-
+"""
 def table_exists(engine,tablename,schemaname=None):
     return engine.dialect.has_table(engine.connect(),tablename,schema=schemaname)
 
@@ -2032,11 +2032,13 @@ def beamInfoIter(engine,suffix,datafields=[],idfields=[],schemaname='',runmin=No
     (qCondition,binddict) = build_query_condition(runmin=runmin,runmax=runmax,fillmin=fillmin,fillmax=fillmax,tssecmin=tssecmin,tssecmax=tssecmax,beamstatus=beamstatus,beamstatusid=beamstatusid,amodetag=amodetag,amodetagid=amodetagid,targetegev=targetegev,runlsselect=runlsselect)
     if not qCondition: return None
     basetablename = 'beam'
+    idf = idfields
     if datatagnameid:
-        idfields.append('datatagnameid')
+        idf = idfields+['datatagnameid']
         binddict['datatagnameid'] = datatagnameid
-    q = build_joinwithdatatagid_query(basetablename,suffix,datafields,idfields,qCondition,datatagnameid=datatagnameid,schemaname=schemaname,sorted=sorted)
+    q = build_joinwithdatatagid_query(basetablename,suffix,datafields,idf,qCondition,datatagnameid=datatagnameid,schemaname=schemaname,sorted=sorted)
     log.debug(q)
+    log.debug(str(binddict))
     connection = engine.connect()
     result = connection.execution_options(stream_result=True).execute(q,binddict)
     return iter(result)
@@ -2072,11 +2074,13 @@ def det_resultDataIter(engine,datasource,suffix,datafields=[],idfields=[],schema
     (qCondition,binddict) = build_query_condition(runmin=runmin,runmax=runmax,fillmin=fillmin,fillmax=fillmax,tssecmin=tssecmin,tssecmax=tssecmax,beamstatus=beamstatus,beamstatusid=beamstatusid,amodetag=amodetag,amodetagid=amodetagid,targetegev=targetegev,runlsselect=runlsselect)    
     if not qCondition: return None
     basetablename = datasource+'_result'
+    idf = idfields
     if datatagnameid:
-        idfields.append('datatagnameid')
+        idf = idfields+['datatagnameid']
         binddict['datatagnameid'] = datatagnameid
-    q = build_joinwithdatatagid_query(basetablename,suffix,datafields,idfields,qCondition,datatagnameid=datatagnameid,schemaname=schemaname,sorted=sorted)    
+    q = build_joinwithdatatagid_query(basetablename,suffix,datafields,idf,qCondition,datatagnameid=datatagnameid,schemaname=schemaname,sorted=sorted)    
     log.debug(q)
+    log.debug(str(binddict))
     connection = engine.connect()
     result = connection.execution_options(stream_result=True).execute(q,binddict)
     return iter(result)
@@ -2090,11 +2094,13 @@ def det_rawDataIter(engine,datasource,suffix,datafields=[],idfields=[],schemanam
     (qCondition,binddict) = build_query_condition(runmin=runmin,runmax=runmax,fillmin=fillmin,fillmax=fillmax,tssecmin=tssecmin,tssecmax=tssecmax,beamstatus=beamstatus,beamstatusid=beamstatusid,amodetag=amodetag,amodetagid=amodetagid,targetegev=targetegev,runlsselect=runlsselect)
     if not qCondition: return None
     basetablename = datasource+'_raw'
+    idf = idfields
     if datatagnameid:
-        idfields.append('datatagnameid')
+        idf = idfields+['datatagnameid']
         binddict['datatagnameid'] = datatagnameid
-    q = build_joinwithdatatagid_query(basetablename,suffix,datafields,idfields,qCondition,datatagnameid=datatagnameid,schemaname=schemaname,sorted=sorted)
+    q = build_joinwithdatatagid_query(basetablename,suffix,datafields,idf,qCondition,datatagnameid=datatagnameid,schemaname=schemaname,sorted=sorted)
     log.debug(q)
+    log.debug(str(binddict))
     connection = engine.connect()
     result = connection.execution_options(stream_result=True).execute(q,binddict)
     return iter(result)
