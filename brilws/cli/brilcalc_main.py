@@ -537,9 +537,11 @@ def brilcalc_main(progname=sys.argv[0]):
           
           rselectrange = [] 
           if datasources :
-              rselectrange = np.array([r[3].index.values for r in datasources if r[3] is not None])
-              if rselectrange.any():
-                  rselectrange = list(np.unique(rselectrange.flatten()))
+              for [qt,nt,ds,rs] in datasources:
+                  if rs is None: continue
+                  for r,l in rs.iteritems():
+                      if not r in rselectrange:
+                          rselectrange.append(r)              
           shards = api.locate_shards(dbengine,runmin=runmin,runmax=runmax,fillmin=fillmin,fillmax=fillmax,tssecmin=tssecmin,tssecmax=tssecmax,orrunlist=rselectrange,schemaname=dbschema)
           if not shards:
               print 'Failed to find data table for the requested time range.'
@@ -665,15 +667,16 @@ def brilcalc_main(progname=sys.argv[0]):
           if pargs.withBX:
               fields = ['bxidxblob','bxintensity1blob','bxintensity2blob']
               
-          rselectrange = []    
+          rselectrange = []
           if pargs.runlsSeries is not None:
-              rselectrange = list(pargs.runlsSeries.index.values)
+              for r,l in pargs.runlsSeries.iteritems():
+                  if not r in rselectrange:
+                      rselectrange.append(r)          
           shards = api.locate_shards(dbengine,runmin=pargs.runmin,runmax=pargs.runmax,fillmin=pargs.fillmin,fillmax=pargs.fillmax,tssecmin=pargs.tssecmin,tssecmax=pargs.tssecmax,orrunlist=rselectrange,schemaname=dbschema)
           if not shards:
               print 'Failed to find data table for the requested time range.'
               sys.exit(1)
           log.debug('shards: '+str(shards))
-
           for shard in shards:
               beamIt = api.beamInfoIter(dbengine,shard,datafields=fields,idfields=idfields,schemaname=dbschema,fillmin=pargs.fillmin,fillmax=pargs.fillmax,runmin=pargs.runmin,runmax=pargs.runmax,amodetagid=pargs.amodetagid,targetegev=pargs.egev,beamstatusid=pargs.beamstatusid,tssecmin=pargs.tssecmin,tssecmax=pargs.tssecmax,runlsselect=pargs.runlsSeries,sorted=True,datatagnameid=datatagnameid)
               if not beamIt:
