@@ -603,30 +603,32 @@ def brilcalc_main(progname=sys.argv[0]):
               else:
                   for pentry in hltpathSummary:
                       print >> fh, '#'+','.join( [ '%s'%pentry[0],'%d'%pentry[1],'%d'%pentry[2],'%d'%pentry[3],'%.3f'%pentry[4],'%.3f'%pentry[5] ] )
-
-          if fh and fh is not sys.stdout: fh.close()
        
           if parseerrors:
               print '\nWarning: problems found in merging -i and --normtag selections:'
               for e in parseerrors:
                   print '  run %d, %s is not a superset of %s'%(e.runnum,str(e.superset),str(e.subset))
               print
-              
+
           if checkjson:
-              selectdict = rselect.to_dict()
               selectlist = []
-              for k,v in selectdict.items():
+              for k,v in rselect.iteritems():
                   for vv in v:
                       rlist = api.expandrange(vv)
                       for r in rlist:
                           selectlist.append((k,r))
               arr_selectlist = np.array(selectlist,dtype=np.dtype('int,int'))
-              print '#Check JSON:'
               arr_returnedls = np.array(g_returnedls,dtype=np.dtype('int,int'))
-              np.set_printoptions(threshold=np.nan)
-              print '    (run,ls) in json but not in results:',np.setdiff1d(arr_selectlist,arr_returnedls,assume_unique=True)
-              print
-
+              clist = list(np.setdiff1d(arr_selectlist,arr_returnedls,assume_unique=True))
+              if pargs.totable:
+                  print '#Check JSON:'                  
+                  print '#(run,ls) in json but not in results: %s'%(str(clist))
+              else:
+                  print >> fh, '#Check JSON:'
+                  print >> fh, '#(run,ls) in json but not in results: %s'%(str(clist))
+                  
+              
+          if fh and fh is not sys.stdout: fh.close()
           sys.exit(0)
 
       elif args['<command>'] == 'beam':
