@@ -1032,25 +1032,7 @@ class HLTStreamDatasetMap(BrilDataSource):
         result.columns = self._columns
         return result
     def from_brildb(self,engine,schema=''):
-        return super(HLTStreamDatasetMap,self)._from_brildb(self,engine,schema=schema)
-    
-class TableShards(BrilDataSource):
-    def __init__(self):
-        super(TableShards,self).__init__()
-        self._columns = ['id','minrun','maxrun']
-    def to_brildb(self,engine,data,schema=''):
-        super(TableShards,self)._to_brildb(engine,data,schema=schema)
-    def to_csv(self,filepath_or_buffer,data):
-        super(TableShards,self)._to_csv(filepath_of_buffer,data)        
-    def from_csv(self,filepath_or_buffer):
-        return super(TableShards,self)._from_csv(filepath_or_buffer)
-    def from_brildb(self,engine,schema=''):
-        return super(TableShards,self)._from_brildb(self,engine,schema=schema)
-    def from_sourcedb(self,engine):
-        log.info('%s.from_sourcedb'%self.name)
-        if not os.path.isfile(engine):
-            raise IOError('sourcedb must be a csv file')
-        return self.from_csv(engine)
+        return super(HLTStreamDatasetMap,self)._from_brildb(self,engine,schema=schema)    
     
 class TrgBitMap(BrilDataSource):
     def __init__(self):
@@ -1540,60 +1522,7 @@ def max_datatagOfRun(engine,runlist,schemaname=''):
         datatagid = row['datatagid']
         result[run] = datatagid
     return result
-"""
-def rundatatagIter(engine,datatagnameid,schemaname='',runmin=None,runmax=None,fillmin=None,tssecmin=None,tssecmax=None,fillmax=None,amodetag=None,targetegev=None,runlsselect=None,chunksize=9999):
-    '''
-    output: dataframe iterator, index_col='datatagid'
-    '''
-    q = '''select FILLNUM as fillnum, RUNNUM as runnum , TIMESTAMPSEC as timestampsec, max(DATATAGID) as datatagid from IDS_DATATAG where DATATAGNAMEID<=:datatagnameid and LSNUM=:minlsnum'''
-    binddict = {'datatagnameid':datatagnameid,'minlsnum':1}
 
-    qCondition = ''
-    qPieces = []
-    if fillmin:
-        qPieces.append('FILLNUM>=:fillmin')
-        binddict['fillmin'] = fillmin
-    if fillmax:
-        qPieces.append('FILLNUM<=:fillmax')
-        binddict['fillmax'] = fillmax
-    if tssecmin:
-        qPieces.append('TIMESTAMPSEC>=:tssecmin')
-        binddict['tssecmin'] = tssecmin
-    if tssecmax:
-        qPieces.append('TIMESTAMPSEC<=:tssecmax')
-        binddict['tssecmax'] = tssecmax        
-    if amodetag:
-        qPieces.append('AMODETAG=:amodetag')
-        binddict['amodetag'] = amodetag
-    if targetegev:
-        qPieces.append('TARGETEGEV=:targetegev')
-        binddict['targetegev'] = targetegev
-    if runlsselect is not None:
-        s_runls = buildselect_runls(runlsselect)
-        if s_runls:
-            s_runls_str = s_runls[0]
-            var_runs = s_runls[1]
-            var_lmins = s_runls[2]
-            var_lmaxs = s_runls[3]
-            qPieces.append(s_runls_str)
-            for runvarname,runvalue in var_runs.items():                
-                binddict[runvarname] = runvalue
-            for lminname,lmin in var_lmins.items():                
-                binddict[lminname] = lmin
-            for lmaxname,lmax in var_lmaxs.items():                
-                binddict[lmaxname] = lmax
-    else:
-        if runmin:
-            qPieces.append('RUNNUM>=:runmin')
-            binddict['runmin'] = runmin
-        if runmax:
-            qPieces.append('RUNNUM<=:runmax')
-            binddict['runmax'] = runmax
-    if not qPieces: return None # at least one piece of selection is required
-    qCondition = ' and '.join([qCondition]+qPieces)
-    q = q + qCondition+' group by RUNNUM'
-    return pd.read_sql_query(q,engine,chunksize=chunksize,params=binddict,index_col='datatagid')
-"""
 def table_exists(engine,tablename,schemaname=None):
     return engine.dialect.has_table(engine.connect(),tablename,schema=schemaname)
 
@@ -1716,32 +1645,6 @@ def datatagidIter(engine,datatagnameid,schemaname='',runmin=None,runmax=None,fil
     result = connection.execution_options(stream_result=True).execute(q,binddict)
     return iter(result)
 
-def runinfoIter(engine,runs,schemaname='',chunksize=9999,fields=[]):
-    '''
-    output: 
-    '''
-
-    tablename = basetablename = 'runinfo'
-    if schemaname:
-        tablename = '.'.join([schemaname,basetablename])
-    idstrings = ','.join([str(x) for x in datatagids])
-    
-    q = '''select DATATAGID as datatagid'''
-    subq = []
-    if fields:
-        for f in fields:            
-            subq.append('''%s as %s'''%(f.upper(),f.lower()))
-    if subq:
-        q = q+','+','.join(subq)
-
-    result = None
-    if len(datatagids)==1:
-        q = q+''' from %s where DATATAGID=:datatagid'''%(tablename)
-        result = pd.read_sql_query(q,engine,chunksize=1,params={'datatagid':datatagids[0]},index_col='datatagid')
-    else:
-        q = q+''' from %s where DATATAGID in (%s)'''%(tablename,idstrings)
-        result = pd.read_sql_query(q,engine,chunksize=chunksize,params={},index_col='datatagid')
-    return result
 ###############
 # trg queries
 ###############
@@ -2105,14 +2008,14 @@ def det_rawDataIter(engine,datasource,suffix,datafields=[],idfields=[],schemanam
     result = connection.execution_options(stream_result=True).execute(q,binddict)
     return iter(result)
         
-def trgMask(engine,datatagid):
-    '''
-    output: [trgmask1,...,trgmask6]
-    '''
-    result = 192*[0]
-    q = '''select trgmask1,trgmask2,trgmask3,trgmask4,trgmask5,trgmask5 from RUNINFO where datatagid=:datatagid'''
-    result = pd.read_sql_query(q,engine,params={'datatagid':datatagid})
-    return result
+#def trgMask(engine,datatagid):
+#    '''
+#    output: [trgmask1,...,trgmask6]
+#    '''
+#    result = 192*[0]
+#    q = '''select trgmask1,trgmask2,trgmask3,trgmask4,trgmask5,trgmask5 from RUNINFO where datatagid=:datatagid'''
+#    result = pd.read_sql_query(q,engine,params={'datatagid':datatagid})
+#    return result
 
 
 
