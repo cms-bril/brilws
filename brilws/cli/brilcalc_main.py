@@ -239,7 +239,8 @@ def lumi_per_normtag(shards,lumiquerytype,dbengine,dbschema,runtot,datasource=No
                     if row['deadtimefrac'] is not None:
                         livefrac = 1.-row['deadtimefrac']
                     else:
-                        log.warning( 'Null deadtime run %d , ls %d, force recorded=0.'%(runnum,lsnum) )
+                        if cmslsnum!=0:
+                            g_nulldeadtime.setdefault(runnum,[]).append(lsnum)
                         livefrac = 0.
                 avglumi = row['avglumi']
                 if validitychecker is not None:
@@ -385,6 +386,7 @@ def brilcalc_main(progname=sys.argv[0]):
     log.debug('command arguments: %s',cmmdargv)
     parseresult = {}
     global g_returnedls #[(run,ls),...]
+    global g_nulldeadtime #{run:[]}
     try:
       if args['<command>'] == 'lumi':
           import brilcalc_lumi          
@@ -405,7 +407,8 @@ def brilcalc_main(progname=sys.argv[0]):
           csvwriter = None
           vfunc_lumiunit = np.vectorize(formatter.lumiunit)
           checkjson = parseresult['--checkjson']
-          g_returnedls = []   
+          g_returnedls = []
+          g_nulldeadtime = {}
           g_headers = {}
           g_headers['runheader'] = ['run:fill','time','nls','ncms','delivered(/ub)','recorded(/ub)']
           g_headers['footer'] = ['nfill','nrun','nls','ncms','totdelivered(/ub)','totrecorded(/ub)']
@@ -447,7 +450,6 @@ def brilcalc_main(progname=sys.argv[0]):
         
           
           (datatagname,datatagnameid) = findtagname(dbengine,pargs.datatagname,dbschema)
-          
           if not pargs.totable:
               fh = pargs.ofilehandle
               print >> fh, '#Data tag : %s , Norm tag: %s'%(datatagname,normtag)
@@ -626,8 +628,17 @@ def brilcalc_main(progname=sys.argv[0]):
               else:
                   print >> fh, '#Check JSON:'
                   print >> fh, '#(run,ls) in json but not in results: %s'%(str(clist))
-                  
-              
+
+          if g_nulldeadtime:
+              if pargs.totable:
+                  print '#WARN: unknown deadtime while CMS is on'   
+                  for rr,lss in g_nulldeadtime.items():
+                      print '#%d %s'%(rr,str(lss))
+              else:
+                  print >> fh, '#WARN: unknown deadtime while CMS is on'
+                  for rr,lss in g_nulldeadtime.items():
+                      print >> fh, '#%d %s'%(rr,str(lss))
+                      
           if fh and fh is not sys.stdout: fh.close()
           sys.exit(0)
 
