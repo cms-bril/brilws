@@ -367,7 +367,8 @@ def brilcalc_main(progname=sys.argv[0]):
 
     commands:
       lumi Luminosity
-      beam Beam       
+      beam Beam 
+      trg Trigger configurations      
     See 'brilcalc <command> --help' for more information on a specific command.
 
     '''
