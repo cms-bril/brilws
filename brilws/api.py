@@ -1528,7 +1528,7 @@ def max_datatagOfRun(engine,runlist,schemaname=''):
 def table_exists(engine,tablename,schemaname=None):
     return engine.dialect.has_table(engine.connect(),tablename,schema=schemaname)
 
-def build_query_condition(runmin=None,runmax=None,fillmin=None,tssecmin=None,tssecmax=None,fillmax=None,beamstatus=None,beamstatusid=None,amodetagid=None,targetegev=None,runlsselect=None,datatagnameid=None):
+def build_query_condition(runmin=None,runmax=None,fillmin=None,tssecmin=None,tssecmax=None,fillmax=None,beamstatusid=None,amodetagid=None,targetegev=None,runlsselect=None,datatagnameid=None):
     qCondition = ''
     qPieces = []
     binddict = {}
@@ -1546,11 +1546,7 @@ def build_query_condition(runmin=None,runmax=None,fillmin=None,tssecmin=None,tss
         binddict['tssecmax'] = tssecmax
     if beamstatusid is not None:
         qPieces.append('beamstatusid=:beamstatusid')
-        binddict['beamstatusid'] = beamstatusid
-    else:
-        if beamstatus:
-            qPieces.append('beamstatus=:beamstatus')
-            binddict['beamstatus'] = beamstatus
+        binddict['beamstatusid'] = beamstatusid    
     if amodetagid is not None:
         qPieces.append('amodetagid=:amodetagid')
         binddict['amodetagid'] = amodetagid    
@@ -1605,13 +1601,14 @@ def build_or_collection(varname,varnamealias,mycollection):
     if not f: return ['',{}]
     return ['('+' or '.join(f)+')', binddict]
 
-def online_resultIter(engine,tablename,schemaname='',runmin=None,runmax=None,fillmin=None,tssecmin=None,tssecmax=None,fillmax=None,beamstatus=None,beamstatusid=None,amodetagid=None,targetegev=None,runlsselect=None,fields=[],sorted=False):
+def online_resultIter(engine,tablename,schemaname='',runmin=None,runmax=None,fillmin=None,tssecmin=None,tssecmax=None,fillmax=None,beamstatusid=None,amodetagid=None,targetegev=None,runlsselect=None,fields=[],sorted=False):
     '''
     get list of run/ls of the online tag
     '''
     t = tablename
     if schemaname: t=schemaname+'.'+t
-    (qCondition,binddict) = build_query_condition(runmin=runmin,runmax=runmax,fillmin=fillmin,fillmax=fillmax,tssecmin=tssecmin,tssecmax=tssecmax,beamstatus=beamstatus,beamstatusid=beamstatusid,amodetagid=amodetagid,targetegev=targetegev,runlsselect=runlsselect)
+    
+    (qCondition,binddict) = build_query_condition(runmin=runmin,runmax=runmax,fillmin=fillmin,fillmax=fillmax,tssecmin=tssecmin,tssecmax=tssecmax,beamstatusid=beamstatusid,amodetagid=amodetagid,targetegev=targetegev,runlsselect=runlsselect)
     if not qCondition: return None
     if not fields:
         fields = ['runnum','lsnum']
@@ -1620,7 +1617,7 @@ def online_resultIter(engine,tablename,schemaname='',runmin=None,runmax=None,fil
     q = '''select %s from %s'''%(','.join(fields),t) + ' where '+qCondition
     if sorted:
         q = q+' order by runnum,lsnum'
-    log.debug(q+' , '+str(binddict))
+    log.debug('online_resultIter: '+q+' , '+str(binddict))
     connection = engine.connect()
     result = connection.execution_options(stream_result=True).execute(q,binddict)
     return iter(result)        
@@ -1906,13 +1903,13 @@ def parseL1Seed(l1seed):
         cleanresult.append(string.strip(r))    
     return [exptype,cleanresult]
 
-def beamInfoIter(engine,suffix,datafields=[],idfields=[],schemaname='',runmin=None,runmax=None,fillmin=None,tssecmin=None,tssecmax=None,fillmax=None,beamstatus=None,beamstatusid=None,amodetagid=None,targetegev=None,runlsselect=None,sorted=False,datatagnameid=None):
+def beamInfoIter(engine,suffix,datafields=[],idfields=[],schemaname='',runmin=None,runmax=None,fillmin=None,tssecmin=None,tssecmax=None,fillmax=None,beamstatusid=None,amodetagid=None,targetegev=None,runlsselect=None,sorted=False,datatagnameid=None):
     '''
     output: iterator
     select b.egev as egev, a.datatagid as datatagid, a.runnum as run from cms_lumi_prod.beam_3 b,(select max(datatagid) as datatagid, runnum from cms_lumi_prod.ids_datatag group by runnum) a where a.datatagid=b.datatagid
     '''
     if not datafields: return None
-    (qCondition,binddict) = build_query_condition(runmin=runmin,runmax=runmax,fillmin=fillmin,fillmax=fillmax,tssecmin=tssecmin,tssecmax=tssecmax,beamstatus=beamstatus,beamstatusid=beamstatusid,amodetagid=amodetagid,targetegev=targetegev,runlsselect=runlsselect)
+    (qCondition,binddict) = build_query_condition(runmin=runmin,runmax=runmax,fillmin=fillmin,fillmax=fillmax,tssecmin=tssecmin,tssecmax=tssecmax,beamstatusid=beamstatusid,amodetagid=amodetagid,targetegev=targetegev,runlsselect=runlsselect)
     if not qCondition: return None
     basetablename = 'beam'
     idf = idfields
@@ -1947,14 +1944,14 @@ def build_joinwithdatatagid_query(datatablename,suffix,datafields,idfields,idcon
         q = q+' order by runnum,lsnum'
     return q
 
-def det_resultDataIter(engine,datasource,suffix,datafields=[],idfields=[],schemaname='',runmin=None,runmax=None,fillmin=None,tssecmin=None,tssecmax=None,fillmax=None,beamstatus=None,beamstatusid=None,amodetagid=None,targetegev=None,runlsselect=None,sorted=False,datatagnameid=None):
+def det_resultDataIter(engine,datasource,suffix,datafields=[],idfields=[],schemaname='',runmin=None,runmax=None,fillmin=None,tssecmin=None,tssecmax=None,fillmax=None,beamstatusid=None,amodetagid=None,targetegev=None,runlsselect=None,sorted=False,datatagnameid=None):
     '''
     output: iterator
     select b.avglumi as avglumi, b.bxlumiblob as bxlumiblob, b.normtag as normtag, b.datatagid as datatagid, a.runnum as run , a.datatagnameid as datatagnameid from cms_lumi_prod._3 b,(select max(datatagid) as datatagid, runnum , datatagnameid from cms_lumi_prod.ids_datatag group by runnum) a where a.datatagid=b.datatagid and a.datatagnameid<=:datatagnameid   
        if datatagnameid: add datatagnameid to idfields and binddict a 
     '''
     if not datafields: return None
-    (qCondition,binddict) = build_query_condition(runmin=runmin,runmax=runmax,fillmin=fillmin,fillmax=fillmax,tssecmin=tssecmin,tssecmax=tssecmax,beamstatus=beamstatus,beamstatusid=beamstatusid,amodetagid=amodetagid,targetegev=targetegev,runlsselect=runlsselect)    
+    (qCondition,binddict) = build_query_condition(runmin=runmin,runmax=runmax,fillmin=fillmin,fillmax=fillmax,tssecmin=tssecmin,tssecmax=tssecmax,beamstatusid=beamstatusid,amodetagid=amodetagid,targetegev=targetegev,runlsselect=runlsselect)    
     if not qCondition: return None
     basetablename = datasource+'_result'
     idf = idfields
@@ -1968,13 +1965,13 @@ def det_resultDataIter(engine,datasource,suffix,datafields=[],idfields=[],schema
     result = connection.execution_options(stream_result=True).execute(q,binddict)
     return iter(result)
 
-def det_rawDataIter(engine,datasource,suffix,datafields=[],idfields=[],schemaname='',runmin=None,runmax=None,fillmin=None,tssecmin=None,tssecmax=None,fillmax=None,beamstatus=None,beamstatusid=None,amodetagid=None,targetegev=None,runlsselect=None,sorted=False,datatagnameid=None):
+def det_rawDataIter(engine,datasource,suffix,datafields=[],idfields=[],schemaname='',runmin=None,runmax=None,fillmin=None,tssecmin=None,tssecmax=None,fillmax=None,beamstatusid=None,amodetagid=None,targetegev=None,runlsselect=None,sorted=False,datatagnameid=None):
     '''
     output: iterator
     select b.rawlumi as rawlumi, b.bxrawlumiblob as bxrawlumiblob, b.datatagid as datatagid, a.runnum as run from cms_lumi_prod._3 b,(select max(datatagid) as datatagid, runnum from cms_lumi_prod.ids_datatag group by runnum) a where a.datatagid=b.datatagid
     '''
     if not datafields: return None
-    (qCondition,binddict) = build_query_condition(runmin=runmin,runmax=runmax,fillmin=fillmin,fillmax=fillmax,tssecmin=tssecmin,tssecmax=tssecmax,beamstatus=beamstatus,beamstatusid=beamstatusid,amodetagid=amodetagid,targetegev=targetegev,runlsselect=runlsselect)
+    (qCondition,binddict) = build_query_condition(runmin=runmin,runmax=runmax,fillmin=fillmin,fillmax=fillmax,tssecmin=tssecmin,tssecmax=tssecmax,beamstatusid=beamstatusid,amodetagid=amodetagid,targetegev=targetegev,runlsselect=runlsselect)
     if not qCondition: return None
     basetablename = datasource+'_raw'
     idf = idfields
