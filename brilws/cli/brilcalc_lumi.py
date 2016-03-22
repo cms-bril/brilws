@@ -15,7 +15,7 @@ Options:
   -u UNIT                       Lumi unit. hz/ub,1e30/cm2s,/nb,1e33/cm2 [default: /ub]
   --amodetag AMODETAG           Accelerator mode 
   --beamenergy BEAMENERGY       Target single beam energy in GeV
-  --minBiasXsec MINBIASXSEC     Minbias cross-section in ub [default: 78400.0]
+  --minBiasXsec MINBIASXSEC     Minbias cross-section in ub [default: 80000.0]
   --datatag DATATAG             Data tag name
   --normtag NORMTAG             correction tag or combined correction tag selection file or string
   --begin BEGIN                 Min start time (MM/DD/YY HH24:MI:SS)/fill/run 
@@ -44,7 +44,7 @@ from brilws.cli import clicommonargs
 def validate(optdict):
     result={}
     #extract sub argdict here
-    myvalidables = ['-c','-n','-f','-r','-i','-o','--amodetag','-b','--beamenergy','--datatag','--normtag','--begin','--end','--output-style','--type','--hltpath','--xingId','--xingTr','--xingMin',str]
+    myvalidables = ['-c','-n','-f','-r','-i','-o','--amodetag','-b','--beamenergy','--minBiasXsec','--datatag','--normtag','--begin','--end','--output-style','--type','--hltpath','--xingId','--xingTr','--xingMin',str]
     argdict = dict((k,v) for k,v in clicommonargs.argvalidators.iteritems() if k in myvalidables)
     schema = Schema(argdict)
     result = schema.validate(optdict)

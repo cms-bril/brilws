@@ -41,7 +41,16 @@ class ParametersObject (object):
         Calculate lslength in sec from number of orbit and BX
         '''
         return self.lumiSectionLen 
-       
+
+    def avgpu(self,avglumi,ncollidingbx,minbias):
+        '''
+        avglumi hz/ub
+        minbias ub
+        '''
+        if not ncollidingbx or not avglumi:
+            return 0
+        return avglumi/float(ncollidingbx)*float(minbias)/self.rotationRate
+    
 #=======================================================
 #   Unit Test
 #=======================================================

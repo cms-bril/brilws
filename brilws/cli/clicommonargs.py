@@ -58,6 +58,7 @@ class parser(object):
         self._outputstyle = 'tab'
         self._applyto = ''
         self._scalefactor = 1.
+        self._minbias = 0.
         self._cerntime = False
         self._tssec = False
         self._withoutcorrection = False
@@ -78,6 +79,8 @@ class parser(object):
             self._beamstatus = self._argdict['-b'].upper()            
         if self._argdict.has_key('--beamenergy'):
             self._egev = self._argdict['--beamenergy']
+        if self._argdict.has_key('--minBiasXsec'):
+            self._minbias = self._argdict['--minBiasXsec']    
         if self._argdict.has_key('--datatag'):
             self._datatagname = self._argdict['--datatag']
         if self._argdict.has_key('--amodetag'):
@@ -297,6 +300,9 @@ class parser(object):
     def tssec(self):
         return self._tssec
     @property
+    def minbias(self):
+        return self._minbias
+    @property
     def xingMin(self):
         return self._xingMin
     @property
@@ -338,6 +344,7 @@ argvalidators = {
     '--xingMin': Or(None,And(Use(float), lambda n: n>0), error='--xingMin should be a positive number'),
     '--xingTr': Or(None,And(Use(float), lambda n: (n>0 and n<=1)), error='--xingTr should be a number in (0,1]'),
     '--xingId': Or(None,Or( Use(open),Use(RegexValidator.RegexValidator(params._bxlist_pattern))), error='--xingId should be a comma separated list of numbers'),
+    '--minBiasXsec': And(Use(float), lambda f: f>0, error='--minBiasXsec should be float > 0'),
     '-b': Or(None, And(str, lambda s: s.upper() in params._beamstatusChoices), error='-b must be in '+str(params._beamstatusChoices) ),
     '--begin': Or(None, And(str,Use(RegexValidator.RegexValidator(params._timeopt_pattern))), error='--begin wrong format'),
     '--end': Or(None, And(str,Use(RegexValidator.RegexValidator(params._timeopt_pattern))), error='--end wrong format'),

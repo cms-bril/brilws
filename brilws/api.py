@@ -21,6 +21,8 @@ from brilws import params
 decimalcontext = decimal.getcontext().copy()
 decimalcontext.prec = 3
 
+_lhcfill_fields=['amodetagid','targetegev','numbxbeamactive','norb','nbperls']
+
 log = logging.getLogger('brilws')
 
 oracletypemap={
@@ -475,8 +477,8 @@ def create_tables_sql(outfilebase,schema_def,suffix=None,dbflavor='sqlite',write
             sqlfile.write('\n'+ixresultStr+';')
 
 ##### iovschema api
-payloadtableprefix_ ='IOVP'
-iovdict_typecodes_ = ['FLOAT32','UINT32','INT32','UINT64','INT64','UINT16','INT16','UINT8','INT8','STRING']
+#payloadtableprefix_ ='IOVP'
+#iovdict_typecodes_ = ['FLOAT32','UINT32','INT32','UINT64','INT64','UINT16','INT16','UINT8','INT8','STRING']
 
 def nonsequential_key(generator_id):
     '''
@@ -881,11 +883,7 @@ def iov_gettagdata(engine,iovtagname,schemaname=''):
     qresult = connection.execute(q,{'tagname':iovtagname})
     result = []
     for row in qresult:
-        payload = row['payload']
-        #print 'payload ',payload
-        #payloadfields = parsepayloaddict(payloaddict)#[[fieldname,fieldtype,maxlength]]
-        #payloaddata = _get_iovpayload(connection,payloadid,payloadfields,schemaname=schemaname)
-        #print 'payloaddata ',payloaddata
+        payload = row['payload']        
         result.append( [ row['since'],row['func'],row['payload'],row['comments'] ] )
     return result
     
@@ -917,429 +915,6 @@ def get_filepath_or_buffer(filepath_or_buffer):
         return os.path.expanduser(filepath_or_buffer)
     return filepath_or_buffer    
 
-
-class BrilDataSource(object):
-    def __init__(self):
-        self._columns = None
-        self._name = type(self).__name__
-    #readonly members
-    @property
-    def name(self):
-        return self._name
-    @property
-    def columns(self):
-        return self._columns
-    
-    def _from_brildb(self,engine,schema='',index_col=None,columns=None):
-        log.info('%s.from_brildb'%self.name)
-        sourcetab = self.name.upper()
-        log.info('to %s, %s')%(engine.url,sourcetab)
-        result = pd.read_sql_table(sourcetab,engine,schema=schema,index_col=index_col,columns=columns)
-        result.column = self._columns
-        return result
-    
-    def _from_brildb_iter(self,engine,schema='',suffix='RUN1',index_col=None,columns=None,chunksize=1):
-        log.info('%s.from_brildb_iter'%self.name)
-        sourcetab = '_'.join([self.name.upper(),suffix])
-        log.info('to %s, %s')%(engine.url,sourcetab)
-        result = pd.read_sql_table(sourcetab,engine,schema=schema,index_col=index_col,columns=columns,cunksize=chunksize)
-        result.column = self._columns
-        return result
-    
-    def _to_brildb(self,engine,data,schema='',if_exists='append',index=True,index_label=None,chunksize=None):
-        log.info('%s.to_brildb'%self.name)
-        desttab = self.name.upper()
-        if schema: desttab = '.'.join([schema.upper(),desttab])
-        log.info('to %s, %s'%(engine.url,desttab))
-        try:
-            data.to_sql(desttab,engine,if_exists=if_exists,index=index,index_label=index_label,chunksize=chunksize)
-        except exc.IntegrityError as e:
-            reason = e.message
-            log.warn(reason)
-            pass
-    
-    def _to_csv(self,filepath_or_buffer,data,header=True,index=False,index_label=None,chunksize=None):
-        log.info('%s.to_csv'%self.name)
-        log.info('to %s '%(filepath_or_buffer))
-        data.to_csv(filepath_or_buffer,header=header,index=index,index_label=index_label,chunksize=chunksize)
-
-    def _from_csv(self,filepath_or_buffer,index_col=0):
-        log.info('%s.from_csv'%self.name)
-        log.info('from %s '%filepath_or_buffer)
-        data = pd.read_csv(filepath_or_buffer,index_col=index_col)
-        return data
-##### Map ######    
-
-class HLTPathMap(BrilDataSource):
-    def __init__(self):
-        super(HLTPathMap,self).__init__()
-        self._columns = ['hltpathid','hltpathname']
-    def to_brildb(self,engine,data,schema=''):
-        super(HLTPathMap,self)._to_brildb(engine,data,schema=schema,index=False)
-    def to_csv(self,filepath_or_buffer,data):
-        super(HLTPathMap,self)._to_csv(filepath_or_buffer,data,index=False)
-    def from_csv(self,filepath_or_buffer):
-        return super(HLTPathMap,self)._from_csv(filepath_or_buffer)
-    def from_sourcedb(self,engine):
-        log.info('%s.from_sourcedb'%self.name)
-        q = """select PATHID as hltpathid,NAME as hltpathname from CMS_HLT.PATHS where ISENDPATH=0 and NAME like 'HLT/_%' escape '/' and NAME NOT like '%Calibration%'"""
-        log.info(q)
-        result = pd.read_sql_query(q,engine)
-        result.columns = self._columns
-        return result    
-    def from_brildb(self,engine,schema=''):
-        return super(HLTPathMap,self)._from_brildb(self,engine,schema=schema)
-    
-class DatasetMap(BrilDataSource):
-    def __init__(self):
-        super(DatasetMap,self).__init__()
-        self._columns = ['DATASETID','DATASETNAME']
-    def to_brildb(self,engine,data,schema=''):
-        super(DatasetMap,self)._to_brildb(engine,data,schema=schema)
-    def to_csv(self,filepath_or_buffer,data):
-        super(DatasetMap,self)._to_csv(filepath_or_buffer,data)
-    def from_csv(self,filepath_or_buffer):
-        return super(DatasetMap,self)._from_csv(filepath_or_buffer)
-    def from_sourcedb(self,engine):
-        if os.path.isfile(engine):
-            return self.from_csv(engine)
-        log.info('%s.from_sourcedb'%self.name)
-        q = """select DATASETID as DATASETID, DATASETLABEL as DATASETNAME from CMS_HLT.PRIMARYDATASETS where DATASETLABEL!='Unassigned path'"""
-        log.info(q)
-        result = pd.read_sql_query(q,engine)
-        result.columns = self._columns
-        return result
-    def from_brildb(self,engine,schema=''):
-        return super(DatasetMap,self)._from_brildb(self,engine,schema=schema)
-        
-class HLTStreamDatasetMap(BrilDataSource):
-    def __init__(self):
-        super(StreamDatasetHLTPathMap,self).__init__()
-        self._columns = ['HLTPATHID','STREAMID','STREAMNAME','DATASETID']
-    def to_brildb(self,engine,data,schema=''):
-        super(HLTStreamDatasetMap,self)._to_brildb(engine,data,schema=schema)
-    def to_csv(self,filepath_or_buffer,data):
-        super(HLTStreamDatasetMap,self)._to_csv(filepath_or_buffer,data)
-    def from_csv(self,filepath_or_buffer):
-        return super(HLTStreamDatasetMap,self)._from_csv(filepath_or_buffer)
-    def from_sourcedb(self,engine):
-        if os.path.isfile(engine):
-            return self.from_csv(engine)
-        log.info('%s.from_sourcedb'%self.name)
-        streamwhitelist = ["'A'"]
-        selectedstreams = ','.join(streamwhitelist)
-        q = """select p.PATHID as HLTPATHID,s.STREAMID as STREAMID,s.STREAMLABEL as STREAMLABEL,d.DATASETID as DATASETID from CMS_HLT.PATHSTREAMDATASETASSOC link,CMS_HLT.STREAMS s, CMS_HLT.PATHS p, CMS_HLT.PRIMARYDATASETS d where p.PATHID=link.PATHID and link.DATASETID=d.DATASETID and link.STREAMID=s.STREAMID and d.DATASETLABEL!='Unassigned path' and s.FRACTODISK>0 and s.STREAMLABEL in ({0}) and p.ISENDPATH=0 and p.NAME like 'HLT_%'""".format(selectedstreams)
-        log.info(q)
-        result = pd.read_sql_query(q,engine)
-        result.columns = self._columns
-        return result
-    def from_brildb(self,engine,schema=''):
-        return super(HLTStreamDatasetMap,self)._from_brildb(self,engine,schema=schema)    
-    
-class TrgBitMap(BrilDataSource):
-    def __init__(self):
-        super(TrgBitMap,self).__init__()
-        self._columns = ['bitnameid','bitid','bitname']
-    def from_brildb(self,engine,schema=''):
-        return super(TrgBitMap,self)._from_brildb(engine,schema=schema,index_col='BITNAMEID')
-    def from_sourcedb(self,engine):
-        log.info('%s.from_sourcedb'%self.name)
-        algostartid = 65
-        qAlgo = """select distinct ALGO_INDEX as bitid,ALIAS as bitname from CMS_GT.GT_RUN_ALGO_VIEW"""
-        log.info(qAlgo)
-
-        techbits = [ [id,128+id,str(id)] for id in xrange(0,64) ]        
-        dftech = pd.DataFrame(techbits)
-        dftech.columns = self._columns
-        dfalgo = pd.read_sql_query(qAlgo,engine)
-        dfalgo.columns = self._columns[1:]
-        dfalgo['bitnameid'] = 65+pd.Series(range(len(dfalgo)))
-        dfalgo = dfalgo.reindex_axis(self._columns,axis=1) #change column order
-        result = pd.concat([dftech,dfalgo])
-        return result
-    def to_brildb(self,engine,data,schema=''):
-        return super(TrgBitMap,self)._to_brildb(engine,data,schema=schema,index=False)
-    def from_csv(self,filepath_or_buffer):
-        return super(TrgBitMap,self)._from_csv(filepath_or_buffer)
-    def to_csv(self,filepath_or_buffer,data):
-        super(TrgBitMap,self)._to_csv(filepath_or_buffer,data,index=False)
-
-class L1SeedMap(BrilDataSource):
-    def __init__(self):
-        super(L1SeedMap,self).__init__()
-        self._columns = ['l1seedid','l1seed']
-    def from_sourcedb(self,engine):        
-        log.info('%s.from_sourcedb'%self.name)
-        q = """select distinct s.PARAMID as l1seedid, s.VALUE as l1seed from CMS_HLT.STRINGPARAMVALUES s,CMS_HLT.paths p, CMS_HLT.parameters, CMS_HLT.superidparameterassoc, CMS_HLT.modules, CMS_HLT.moduletemplates, CMS_HLT.pathmoduleassoc, CMS_HLT.configurationpathassoc, CMS_HLT.configurations c where parameters.paramid=s.paramid and superidparameterassoc.paramid=parameters.paramid and modules.superid=superidparameterassoc.superid and moduletemplates.superid=modules.templateid and pathmoduleassoc.moduleid=modules.superid and p.pathid=pathmoduleassoc.pathid and configurationpathassoc.pathid=p.pathid and c.configid=configurationpathassoc.configid and moduletemplates.name='HLTLevel1GTSeed' and parameters.name='L1SeedsLogicalExpression' and p.ISENDPATH=0 and p.NAME like 'HLT/_%' escape '/' and p.NAME not like '%Calibration%' and s.VALUE not like '%/_Not%' escape '/' and s.VALUE not like '\"NOT %' and s.VALUE not like '% NOT %' and s.VALUE not like '%(%'"""
-        log.info(q)
-        result = pd.read_sql_query(q,engine)
-        result.columns = self._columns
-        result['l1seed'] = result['l1seed'].apply(lambda x: x.replace('"',''))        
-        return result
-    def to_brildb(self,engine,data,schema=''):
-        super(L1SeedMap,self)._to_brildb(engine,data,schema=schema,index=False)
-    def to_csv(self,filepath_or_buffer,data):
-        super(L1SeedMap,self)._to_csv(filepath_or_buffer,data)
-    def from_csv(self,filepath_or_buffer):
-        return super(L1SeedMap,self)._from_csv(filepath_or_buffer)
-##### Data ######    
-class FillInfo(BrilDataSource):
-    def __init__(self):
-        super(FillInfo,self).__init__()
-        self._columns = ['DATAID','FILLNUM','AMODETAG','EGEV','FILLSCHEME','NCOLLIDINGBX','CROSSINGANGLE','BETASTAR','BEAMCONFIG']
-        
-    def from_lumidb(self,engine,fillnum,schema='CMS_LUMI_PROD'):
-        log.info('%s.from_lumidb'%self.name)
-        tab = '.'.join([schema,'CMSRUNSUMMARY'])
-        q = """select distinct FILLNUM,AMODETAG,EGEV,FILLSCHEME,NCOLLIDINGBUNCHES as NCOLLIDINGBX from %s where AMODETAG not in ('BMSETUP','(undefined)','MDEV') and FILLNUM=:fillnum"""%(tab)
-        log.info(q)
-        result = pd.read_sql_query(q,engine,params={'fillnum':fillnum})
-        return result
-    
-    def from_sourcedb(self,engine,fillnum,schema='CMS_RUNTIME_LOGGER'):
-        log.info('%s.from_sourcedb'%self.name)
-        tab = '.'.join([schema,'RUNTIME_SUMMARY'])
-        q = """select RUNTIME_TYPE_ID, LHCFILL,ENERGY,NCOLLIDINGBUNCHES,CROSSINGANGLE,BETASTAR from %s where LHCFILL=:fillnum"""%(tab)
-        log.info(q)
-        result = pd.read_sql_query(q,engine,params={'fillnum':fillnum})
-        return result
-    
-class RunInfo(BrilDataSource):
-    def __init__(self):
-        super(RunInfo,self).__init__()
-        self._columns = ['DATAID','RUNNUM','FILLNUM','HLTKEY','GT_RS_KEY']
-        
-    def from_lumidb(self,engine,runnum,schema='CMS_LUMI_PROD'):
-        log.info('%s.from_lumidb'%self.name)
-        tab = '.'.join([schema,'CMSRUNSUMMARY'])
-        q = """select RUNNUM as RUNNUM,FILLNUM as FILLNUM,HLTKEY as HLTKEY,L1KEY as GT_RS_KEY from %s where RUNNUM=:runnum"""%(tab)
-        log.info(q)
-        result = pd.read_sql_query(q,engine,params={'runnum':runnum})
-        return result
-    
-    def from_sourcedb(self,engine,runnum):
-        log.info('%s.from_sourcedb'%self.name)
-        tab = '.'.join(['CMS_RUNINFO','RUNSESSION_PARAMETER'])
-        qFillnum = """select STRING_VALUE as FILLNUM from %s where RUNNUMBER=:runnum and NAME='CMS.SCAL:FILLN order by time'"""%(tab)# take the first one
-        qHltkey = """select STRING_VALUE as HLTKEY from %s where RUNNUMBER=:runnum and NAME='CMS.LVL0:HLT_KEY_DESCRIPTION'"""%(tab)
-        qTrgkey = """select STRING_VALUE as GT_RS_KEY from %s where RUNNUMBER=:runnum and NAME='CMS.TRG:TSC_KEY'"""%(tab)
-        log.info(qHltkey)
-        log.info(qTrgkey)
-        hltkeyResult = pd.read_sql_query(qHltkey,engine,params={'runnum':runnum})
-        trgkeyResult = pd.read_sql_query(qTrgkey,engine,params={'runnum':runnum})
-        print hltkeyResult
-        print trgkeyResult
-        
-class BeamstatusInfo(BrilDataSource):
-    def __init__(self):
-        super(BeamstatusInfo,self).__init__()
-        self._columns = ['DATAID','RUNNUM','LSNUM','BEAMSTATUSID']
-        
-    def from_lumidb(self,engine,runnum,schema='CMS_LUMI_PROD'):
-        log.info('%s.from_lumidb'%self.name)
-        datatab = '.'.join([schema,'LUMIDATA'])
-        lsdatatab = '.'.join([schema,'LUMISUMMARYV2'])
-        qDatatab = """select max(DATA_ID) from %s where RUNNUM=:runnum"""%(datatab)
-        log.info(qDatatab)        
-        dataids = pd.read_sql_query(qDatatab,engine,params={'runnum':runnum})
-        qLSData = """select BEAMSTATUS,BEAMENERGY from %s where DATA_ID=:dataid"""
-        log.info(qLSData)
-        for id in dataids:
-            result = pd.read_sql_query(qLSData,engine,params={'dataid':id})
-            
-class Beamintensity(BrilDataSource):
-    def __init__(self):
-        super(Beamintensity,self).__init__()
-        self._columns = ['DATAID','RUNNUM','LSNUM','BXIDX','BEAM1INTENSITY','BEAM2INTENSITY']
-    def from_lumidb(self,engine,runnum,schema='CMS_LUMI_PROD'):
-        log.info('%s.from_lumidb'%self.name)
-        datatab = '.'.join([schema,'LUMIDATA'])
-        lsdatatab = '.'.join([schema,'LUMISUMMARYV2'])
-        qDatatab = """select max(DATA_ID) from %s where RUNNUM=:runnum"""%(datatab)
-        log.info(qDatatab)        
-        dataids = pd.read_sql_query(qDatatab,engine,params={'runnum':runnum})
-        qLSData = """select BEAMINTENSITYBLOB_1,BEAMINTENSITYBLOB_2 from %s where DATA_ID=:dataid"""
-        log.info(qLSData)
-        for id in dataids:
-            result = pd.read_sql_query(qLSData,engine,params={'dataid':id})
-            
-class HFOCLumi(BrilDataSource):
-    def __init__(self):
-        super(HFOCLumi,self).__init__()
-        self._columns = ['DATAID','RUNNUM','LSNUM','INSTLUMI']
-    def from_lumidb(self,engine,runnum,schema='CMS_LUMI_PROD'):
-        log.info('%s.from_lumidb'%self.name)
-        datatab = '.'.join([schema,'LUMIDATA'])
-        lsdatatab = '.'.join([schema,'LUMISUMMARYV2'])
-        qDatatab = """select max(DATA_ID) from %s where RUNNUM=:runnum"""%(datatab)
-        log.info(qDatatab)        
-        dataids = pd.read_sql_query(qDatatab,engine,params={'runnum':runnum})
-        qLSData = """select INSTLUMI,BXLUMIVALUE_OCC1 from %s where DATA_ID=:dataid"""
-        log.info(qLSData)
-        for id in dataids:
-            result = pd.read_sql_query(qLSData,engine,params={'dataid':id})
-            
-class PixelLumi(BrilDataSource):
-    def __init__(self):
-        super(PixelLumi,self).__init__()
-        self._columns = ['DATAID','RUNNUM','CMSLSNUM','BXIDX','INSTLUMI']
-    def from_lumidb(self,engine,runnum,schema='CMS_LUMI_PROD'):
-        log.info('%s.from_lumidb'%self.name)
-        datatab = '.'.join([schema,'PIXELLUMIDATA'])
-        lsdatatab = '.'.join([schema,'PIXELLUMISUMMARYV2'])
-        qDatatab = """select max(DATA_ID) from %s where RUNNUM=:runnum"""%(datatab)
-        log.info(qDatatab)
-        dataids = pd.read_sql_query(qDatatab,engine,params={'runnum':runnum})        
-        qLSData = """select INSTLUMI from %s where DATA_ID=:dataid"""
-        for id in dataids:
-            result = pd.read_sql_query(qLSData,engine,params={'dataid':id})
-        return result
-    
-class Trg(BrilDataSource):
-    def __init__(self):
-        super(Trg,self).__init__()
-        self._columns = ['DATAID','RUNNUM','CMSLSNUM','TRGBITID','TRGBITNAMEID','PRESCIDX','PRESCVAL','COUNTS']
-    
-    def from_lumidb(self,engine,runnum,schema='CMS_LUMI_PROD'):
-        log.info('%s.from_lumidb'%self.name)
-        trgdatatab = '.'.join([schema,'TRGDATA'])
-        lstrgtab = '.'.join([schema,'LSTRG'])
-        qTrgid = """select max(DATA_ID) from %s where RUNNUM=:runnum"""%(trgdatatab)
-        log.info(qTrgid)
-        trgids = pd.read_sql_query(qTrgid,engine,params={'runnum':runnum})
-        qLSTrg = """select RUNNUM, CMSLSNUM, PRESCALEBLOB, TRGCOUNTBLOB from %s where DATA_ID=:dataid"""%(lstrgtab)
-        log.info(qLSTrg)
-        lstrgresult = pd.read_sql_query(qLSTrg,engine,{'dataid':id})
-        return lstrgresult
-    
-    def from_sourcedb(self,engine,runnum,minls=1,nls=1):
-        log.info('%s.from_sourcedb'%self.name)
-        gtschema = 'CMS_GT'
-        gtmonschema = 'CMS_GT_MON'
-        qTech = """select COUNT_BX as COUNTS,LUMI_SECTION as CMSLSNUM,SCALER_INDEX as TRGBITID from CMS_GT_MON.V_SCALERS_FDL_TECH where RUN_NUMBER=:runnum and LUMI_SECTION=:lsnum order by SCALER_INDEX """
-        log.info(qTech)
-        qAlgo = """select COUNT_BX as COUNTS,LUMI_SECTION as CMSLSNUM,SCALER_INDEX as TRGBITID from CMS_GT_MON.V_SCALERS_FDL_ALGO where RUN_NUMBER=:runnum and LUMI_SECTION=:lsnum order by SCALER_INDEX """
-        log.info(qAlgo)
-        qPrescIdx = """select LUMI_SECTION,PRESCALE_INDEX from CMS_GT_MON.LUMI_SECTIONS where RUN_NUMBER=:runnum and LUMI_SECTION=:lsnum """
-        log.info(qPrescIdx)
-        
-class TrgConfig(BrilDataSource):
-    def __init__(self):
-        super(Trg,self).__init__()
-        self._columns = ['DATAID','RUNNUM','ALGOMASK_HIGH','ALGOMASK_LOW','TECHMASK']
-    def from_lumidb(self,engine,runnum,schema='CMS_LUMI_PRO'):
-        log.info('%s.from_lumidb'%self.name)
-        trgdatatab = '.'.join([schema,'TRGDATA'])
-        qTrgid = """select max(DATA_ID) from %s where RUNNUM=:runnum"""%(trgdatatab)
-        log.info(qTrgid)
-        trgid = pd.read_sql_query(qTrgid,engine,params={'runnum':runnum})
-        qTrgRun = """select RUNNUM as RUNNUM, ALGOMASK_H as ALGOMASK_HIGH,ALGOMASK_L as ALGOMASK_LOW,TECHMASK as TECHMASK from %s where DATA_ID=:dataid"""%(trgdatatab)
-        log.info(qTrgRun)
-        trgmaskresult = pd.read_sql_query(qTrgRun,engine,{'dataid':id})
-        trgmaskresult.columns = self._columns[:1]
-        return trgmaskresult
-    
-    def from_sourcedb(self,engine,runnum):
-        """
-        algomask_high, algomask_low
-        127,126,...,63,62,0
-        ttmask
-        63,62,...0
-        """
-        log.info('%s.from_sourcedb'%self.name)
-        qKey = """select GT_RS_KEY,RUN_NUMBER from CMS_GT_MON.GLOBAL_RUNS where RUN_NUMBER=:runnum"""
-        qTechMask = """select %s from CMS_GT.GT_PARTITION_FINOR_TT tt, CMS_GT.GT_RUN_SETTINGS r where tt.ID=r.FINOR_TT_FK and r.ID=:gt_rs_key"""%(ttvars)
-        qAlgoMask = """select %s from CMS_GT.GT_PARTITION_FINOR_ALGO algo, CMS_GT.GT_RUN_SETTINGS r where algo.ID=r.FINOR_ALGO_FK and r.ID=:gt_rs_key"""%(ttvars)
-    
-class Hlt(BrilDataSource):
-    def __init__(self):
-        super(Hlt,self).__init__()
-        self._columns = ['DATAID','HLTPATHID','RUNNUM','CMSLSNUM','PRESCIDX','PRESCVAL','L1PASS','HLTACCEPT']
-    def from_lumidb(self,engine,runnum,schema='CMS_LUMI_PROD'):
-        log.info('%s.from_lumidb'%self.name)
-        hltdatatab = 'HLTDATA'
-        tab = '.'.join([schema,hltdatatab])
-        qRun="""select max(DATA_ID) as DATAID from %s where RUNNUM=:runnum"""%(tab)
-        lshlttab = 'LSHLT'
-        tab = '.'.join([schema,lshlttab])
-        qLS="""select DATA_ID as DATAID, RUNNUM as RUNNUM, CMSLSNUM as CMSLSNUM, PRESCALEBLOB as PRESCALEBLOB, HLTACCEPTBLOB as HLTACCEPTBLOB from %s where DATA_ID=:dataid"""%(tab)
-        log.info(qRun)
-        log.info(qLS)
-        dataid = pd.read_sql_query(qRun,engine,params={'runnum':runnum})
-        for id in dataid:
-            result = pd.read_sql_query(qLS,engine,params={'dataid':id})
-            #unpack blobs
-        return result
-    def from_sourcedb(self,engine,runnum,minls=1,mls=1):
-        log.info('%s.from_sourcedb'%self.name)
-        gtschema = 'CMS_GT'
-        gtmonschema = 'CMS_GT_MON'
-        
-class TrgHltSeedMap(BrilDataSource):
-    def __init__(self):
-        super(TrgHltSeedMap,self).__init__()
-        self._columns = ['hltpathid','hltconfigid','l1seedid']
-    def to_brildb(self,engine,data,schema='',chunksize=None):
-        super(TrgHltSeedMap,self)._to_brildb(engine,data,schema=schema,index=False)
-    def to_csv(self,filepath_or_buffer,data):
-        super(TrgHltSeedMap,self)._to_csv(filepath_or_buffer,data,index=False)    
-    def from_sourcedb(self,engine):
-        log.info('%s.from_sourcedb'%self.name)
-        q = """select p.PATHID as hltpathid, c.CONFIGID as hltconfigid, s.PARAMID as l1seedid from CMS_HLT.STRINGPARAMVALUES s,CMS_HLT.paths p, CMS_HLT.parameters, CMS_HLT.superidparameterassoc, CMS_HLT.modules, CMS_HLT.moduletemplates, CMS_HLT.pathmoduleassoc, CMS_HLT.configurationpathassoc, CMS_HLT.configurations c where parameters.paramid=s.paramid and superidparameterassoc.paramid=parameters.paramid and modules.superid=superidparameterassoc.superid and moduletemplates.superid=modules.templateid and pathmoduleassoc.moduleid=modules.superid and p.pathid=pathmoduleassoc.pathid and configurationpathassoc.pathid=p.pathid and c.configid=configurationpathassoc.configid and moduletemplates.name='HLTLevel1GTSeed' and parameters.name='L1SeedsLogicalExpression' and p.ISENDPATH=0 and p.NAME like 'HLT/_%' escape '/' and s.VALUE not like '\"NOT %' and s.VALUE not like '% NOT %' and s.VALUE not like '%(%'"""
-        log.info(q)
-        result = pd.read_sql_query(q,engine,params={})
-        result.columns = self._columns
-        return result
-        
-class Deadtime(BrilDataSource):
-    def __init__(self):
-        super(Deadtime,self).__init__()
-        self._columns = ['DATAID','RUNNUM','LSNUM','DEADTIMEFRAC']
-    def from_lumidb(self,engine,runnum,schema='CMS_LUMI_PROD'):
-        log.info('%s.from_lumidb'%self.name)
-        trgdatatab = 'TRGDATA'
-        tab = '.'.join([schema,trgdatatab])
-        qRun="""select max(DATA_ID) as DATAID from %s where RUNNUM=:runnum"""%(tab)
-        lstrgtab = 'LSTRG'
-        tab = '.'.join([schema,lstrgtab])
-        qLS="""select DATA_ID as DATAID,RUNNUM as RUNNUM, CMSLSNUM as LSNUM, DEADFRAC as DEADFRAC from %s where DATA_ID=:dataid"""%(tab)        
-        log.info(qRun)
-        log.info(qLS)
-        dataid = pd.read_sql_query(qRun,engine,params={'runnum':runnum})
-        for id in dataid:
-            result = pd.read_sql_query(qLS,engine,params={'dataid':id})
-        result.columns = self._columns
-        return result
-    
-    def from_sourcedb(self,engine,runnum,minls=1,nls=1):
-        log.info('%s.from_sourcedb'%self.name)
-        qDeadFrac = """select FRACTION as DEADTIMEFRAC,LUMI_SECTION as LSNUM from CMS_GT_MON.V_SCALERS_TCS_DEADTIME where RUN_NUMBER=:runnum AND and LUMI_SECTION=:lsnum and SCALER_NAME='DeadtimeBeamActive'"""
-        log.info(qDeadFrac)
-        for lsnum in range(minls,minls+1):
-            lsdeadfrac = pd.read_sql_query(q,engine,params={'runnum':runnum,'lsnum':lsnum})
-            print lsdeadfrac
-            
-##### Results ######
-class LumiResult(BrilDataSource):
-    def __init__(self):
-        super(LumiResult,self).__init__(datasourcename)
-        self._datasourcename = datasourcename
-        self._columns = ['RUNNUM','LSNUM','CMSLSNUM','FILLNUM','BEAMSTATUS','ISONLINE','DELIVERED','RECORDED','AVGPU','DATATAGID','NORMTAGID']
-    def from_lumidb(self,engine,runnum,schema='CMS_LUMI_PROD'):       
-        log.info('%s.from_lumidb'%self.name)
-        if not os.path.isfile(get_filepath_or_buffer(engine)):
-            if self._datasourcename.lower() != 'hfoclumi':
-                print 'No data in lumidb for %s '%(self._datasourcename)
-                return None
-            q = """select RUNNUM as RUNNUM,LS as LSNUM,CMSLSNUM as CMSLSNUM,FILLNUM as FILLNUM,BEAMSTATUS as BEAMSTATUS ENERGY as EGEV, DELIVERED as DELIVERED, RECORDED as RECORDED , AVG_PU as AVGPU from CMS_LUMI_PROD.HFLUMIRESULT """
-            result = pd.read_sql_query(q,engine)
-            print result
-            
-class PixelLumiResult(BrilDataSource):
-    def __init__(self):
-        super(LumiResult,self).__init__()
-        self._columns = ['RUNNUM','CMSLSNUM','FILLNUM','BEAMSTATUS','ISONLINE','VALUE','AVGPU','DATATAGID','NORMTAGID']
-   
 import struct,array
 #def packArraytoBlob(iarray,typecode):
 #    '''
@@ -1441,10 +1016,13 @@ def insertDataTagEntry(engine,idtablename,datatagnameid,runnum,lsnum,fillnum=0,s
 ##    Query API
 ####################
 
-def buildselect_runls(inputSeries):
+def buildselect_runls(inputSeries,alias=''):
     '''
     output: [conditionstring, var_runs, var_lmins, var_lmaxs]
     '''
+    prefix = ''
+    if alias:
+        prefix = alias+'.'
     result = []
     bind_runindex = 0
     bind_lsindex = 0
@@ -1455,14 +1033,14 @@ def buildselect_runls(inputSeries):
     for run,lsrange in inputSeries.iteritems():
         runvar='r_%d'%(bind_runindex)
         var_runs[runvar] = run
-        s = 'RUNNUM=:%s and '%runvar
+        s = '%srunnum=:%s and '%(prefix,runvar)
         orss = []
         for lsmin,lsmax in lsrange:
             lminvar = 'lmin_%d'%(bind_lsindex)
             lmaxvar = 'lmax_%d'%(bind_lsindex)
             var_lmins[lminvar] = lsmin
             var_lmaxs[lmaxvar] = lsmax
-            orss.append( '(LSNUM>=:%s and LSNUM<=:%s)'%(lminvar,lmaxvar) )
+            orss.append( '(%slsnum>=:%s and %slsnum<=:%s)'%(prefix,lminvar,prefix,lmaxvar) )
             bind_lsindex = bind_lsindex + 1
         ss = '('+' or '.join(orss)+')'
         bind_runindex = bind_runindex + 1
@@ -1527,6 +1105,78 @@ def max_datatagOfRun(engine,runlist,schemaname=''):
 
 def table_exists(engine,tablename,schemaname=None):
     return engine.dialect.has_table(engine.connect(),tablename,schema=schemaname)
+
+def build_fillquery_condition(ftabalias,amodetagid=None,targetegev=None):
+    qCondition = ''
+    qPieces = []
+    binddict = {}
+    if amodetagid:
+        qPieces.append('%s.amodetagid=:amodetagid'%(ftabalias))
+        binddict['amodetagid'] = amodetagid
+    if targetegev:
+        qPieces.append('%s.targetegev=:targetegev'%(ftabalias))
+        binddict['targetegev'] = targetegev
+
+    if not qPieces: return ('',{})
+    qCondition = ' and '.join(qPieces)
+    return (qCondition,binddict)
+
+def build_idquery_condition(runmin=None,runmax=None,fillmin=None,tssecmin=None,tssecmax=None,fillmax=None,beamstatusid=None,runlsselect=None,datatagnameid=None):
+    qCondition = ''
+    qPieces = []
+    binddict = {}
+    if fillmin:
+        qPieces.append('fillnum>=:fillmin')
+        binddict['fillmin'] = fillmin
+    if fillmax:
+        qPieces.append('fillnum<=:fillmax')
+        binddict['fillmax'] = fillmax
+    if tssecmin:
+        qPieces.append('timestampsec>=:tssecmin')
+        binddict['tssecmin'] = tssecmin
+    if tssecmax:
+        qPieces.append('timestampsec<=:tssecmax')
+        binddict['tssecmax'] = tssecmax
+    if beamstatusid is not None:
+        qPieces.append('beamstatusid=:beamstatusid')
+        binddict['beamstatusid'] = beamstatusid        
+    if runlsselect is not None:
+        s_runls = buildselect_runls(runlsselect)
+        if s_runls:
+            s_runls_str = s_runls[0]
+            var_runs = s_runls[1]
+            var_lmins = s_runls[2]
+            var_lmaxs = s_runls[3]
+            qPieces.append(s_runls_str)
+            for runvarname,runvalue in var_runs.items():                
+                binddict[runvarname] = runvalue
+            for lminname,lmin in var_lmins.items():                
+                binddict[lminname] = lmin
+            for lmaxname,lmax in var_lmaxs.items():                
+                binddict[lmaxname] = lmax
+
+    if runmin and runmax :
+        if runmin==runmax:
+            qPieces.append('runnum=:runmin')
+            binddict['runmin'] = runmin
+        else:
+            qPieces.append('runnum>=:runmin and i.runnum<=:runmax')
+            binddict['runmin'] = runmin
+            binddict['runmax'] = runmax
+    elif runmin:
+        qPieces.append('runnum>=:runmin')
+        binddict['runmin'] = runmin
+    elif runmax:
+        qPieces.append('runnum<=:runmax')
+        binddict['runmax'] = runmax
+
+    if datatagnameid:
+        qPieces.append('datatagnameid<=:datatagnameid')
+        binddict['datatagnameid'] = datatagnameid
+        
+    if not qPieces: return ('',{})
+    qCondition = ' and '.join(qPieces)
+    return (qCondition,binddict)
 
 def build_query_condition(runmin=None,runmax=None,fillmin=None,tssecmin=None,tssecmax=None,fillmax=None,beamstatusid=None,amodetagid=None,targetegev=None,runlsselect=None,datatagnameid=None):
     qCondition = ''
@@ -1602,21 +1252,47 @@ def build_or_collection(varname,varnamealias,mycollection):
     return ['('+' or '.join(f)+')', binddict]
 
 def online_resultIter(engine,tablename,schemaname='',runmin=None,runmax=None,fillmin=None,tssecmin=None,tssecmax=None,fillmax=None,beamstatusid=None,amodetagid=None,targetegev=None,runlsselect=None,fields=[],sorted=False):
-    '''
-    get list of run/ls of the online tag
+    '''    
+    get online bestlumi
+    fields choices: [runnum,lsnum,fillnum,timestampsec,cmson,beamstatusid,delivered,recorded,bxdeliveredblob,avgpu,datasource,normtag,normtagid,amodetagid,targetegev,numbxbeamactive,norb,nbperls]
+    where amodetagid, targetegev,numbxbeamactive,norb,nbperls are implicitly fields of lhcfill table. 
     '''
     t = tablename
-    if schemaname: t=schemaname+'.'+t
+    if schemaname:
+        t=schemaname+'.'+t
     
-    (qCondition,binddict) = build_query_condition(runmin=runmin,runmax=runmax,fillmin=fillmin,fillmax=fillmax,tssecmin=tssecmin,tssecmax=tssecmax,beamstatusid=beamstatusid,amodetagid=amodetagid,targetegev=targetegev,runlsselect=runlsselect)
-    if not qCondition: return None
-    if not fields:
-        fields = ['runnum','lsnum']
-    else:
-        fields = fields
-    q = '''select %s from %s'''%(','.join(fields),t) + ' where '+qCondition
+    (qCondition,binddict) = build_idquery_condition(runmin=runmin,runmax=runmax,fillmin=fillmin,fillmax=fillmax,tssecmin=tssecmin,tssecmax=tssecmax,beamstatusid=beamstatusid,runlsselect=runlsselect)
+    (fCondition,fbinddict) = build_fillquery_condition('f',amodetagid=amodetagid,targetegev=targetegev)
+    
+    if not qCondition: return None #main table must be filtered
+    
+    if fCondition:
+        for fbk, fbv in fbinddict.items(): #merge binddict
+            binddict[fbk] = fbv
+    ifields = []
+    ffields = [] 
+    for f in fields:
+        if f in _lhcfill_fields:
+            ffields.append(f)
+        else:
+            ifields.append(f)
+    if not ifields:
+        ifields = ['runnum','lsnum']
+        
+    ifieldsStr = ','.join(['i.%s as %s'%(f,f) for f in ifields])
+    ffieldsStr = ','.join(['f.%s as %s'%(f,f) for f in ffields])
+    
+    q = "select %s from %s i"%(ifieldsStr,t) + ' where '+qCondition
+    if ffields:
+        ftab = 'lhcfill'
+        if schemaname:
+            ftab=schemaname+'.'+ftab
+        q = "select %s,%s from %s i, %s f"%(ifieldsStr,ffieldsStr,t,ftab) + ' where '+qCondition
+        if fCondition:
+            q = q+' and i.fillnum=f.fillnum and '+fCondition        
     if sorted:
         q = q+' order by runnum,lsnum'
+        
     log.debug('online_resultIter: '+q+' , '+str(binddict))
     connection = engine.connect()
     result = connection.execution_options(stream_result=True).execute(q,binddict)
@@ -1903,96 +1579,91 @@ def parseL1Seed(l1seed):
         cleanresult.append(string.strip(r))    
     return [exptype,cleanresult]
 
-def beamInfoIter(engine,suffix,datafields=[],idfields=[],schemaname='',runmin=None,runmax=None,fillmin=None,tssecmin=None,tssecmax=None,fillmax=None,beamstatusid=None,amodetagid=None,targetegev=None,runlsselect=None,sorted=False,datatagnameid=None):
+def build_joinwithdatatagid_query(datatablename,suffix,datafields,idfields,idcondition,datatagnameid=datatagnameid,ffields=[],fcondition='',schemaname='',sorted=False):
     '''
-    output: iterator
-    select b.egev as egev, a.datatagid as datatagid, a.runnum as run from cms_lumi_prod.beam_3 b,(select max(datatagid) as datatagid, runnum from cms_lumi_prod.ids_datatag group by runnum) a where a.datatagid=b.datatagid
-    '''
-    if not datafields: return None
-    (qCondition,binddict) = build_query_condition(runmin=runmin,runmax=runmax,fillmin=fillmin,fillmax=fillmax,tssecmin=tssecmin,tssecmax=tssecmax,beamstatusid=beamstatusid,amodetagid=amodetagid,targetegev=targetegev,runlsselect=runlsselect)
-    if not qCondition: return None
-    basetablename = 'beam'
-    idf = idfields
-    if datatagnameid:
-        idf = idfields+['datatagnameid']
-        binddict['datatagnameid'] = datatagnameid
-    q = build_joinwithdatatagid_query(basetablename,suffix,datafields,idf,qCondition,datatagnameid=datatagnameid,schemaname=schemaname,sorted=sorted)
-    log.debug('beamInfoIter: '+q)
-    log.debug(str(binddict))
-    connection = engine.connect()
-    result = connection.execution_options(stream_result=True).execute(q,binddict)
-    return iter(result)
-
-def build_joinwithdatatagid_query(datatablename,suffix,datafields,idfields,idcondition,datatagnameid=datatagnameid,schemaname='',sorted=False):
-    '''
-    if datatagnameid: add datatagnameid to idfield for a and a.datatagnameid<=:datatagnameid
+    if datatagnameid: add datatagnameid to idfield for i and i.datatagnameid<=:datatagnameid
+    if ffields, select also lhcfill fields
+    if fcondition, add also lhcfill join on fillnum
     '''
     idtablename = 'ids_datatag'
-    tablename = '_'.join([datatablename,str(suffix)])
+    filltablename = 'lhcfill'
+    btablename = '_'.join([datatablename,str(suffix)])    
     if schemaname:
-        tablename = '.'.join([schemaname,tablename])
         idtablename = '.'.join([schemaname,idtablename])
+        filltablename = '.'.join([schemaname,filltablename])
+        btablename = '.'.join([schemaname,btablename])
+        
     data_fieldstr = ','.join([ '%s%s as %s'%('b.',f,f) for f in datafields ])
-    id_fieldstr = ','.join([ '%s%s as %s'%('a.',f,f) for f in idfields ])
-    q = '''select a.datatagid as datatagid, %s, %s from %s b,'''%(data_fieldstr,id_fieldstr,tablename)    
-    id_fieldstr = groupbystr = ','.join( [str(f) for f in idfields] )
-    subq = '''(select max(datatagid) as datatagid, %s from %s where %s group by %s) a where a.datatagid=b.datatagid'''%(id_fieldstr,idtablename,idcondition,groupbystr)
+    id_fieldstr = ','.join([ '%s%s as %s'%('i.',f,f) for f in idfields ])
+    f_fieldstr = ','.join([ '%s%s as %s'%('f.',f,f) for f in ffields ])
+    if ffields:        
+        q = "select i.datatagid as datatagid, %s, %s, %s from %s b, %s f,"%(data_fieldstr,id_fieldstr,f_fieldstr,btablename,filltablename)    
+    else:        
+        q = "select i.datatagid as datatagid, %s, %s from %s b,"%(data_fieldstr,id_fieldstr,btablename)    
+    id_fieldstr = ','.join( [str(f) for f in idfields] )
+    groupbystr = ','.join( [str(f) for f in idfields] )
+    subq = "(select max(datatagid) as datatagid, %s from %s where %s group by %s) i where i.datatagid=b.datatagid"%(id_fieldstr,idtablename,idcondition,groupbystr)
     if datatagnameid:
-        subq += ' and a.datatagnameid<=:datatagnameid'
+        subq += ' and i.datatagnameid<=:datatagnameid'
     q = q+subq
+    if ffields:
+        q = q+' and i.fillnum=f.fillnum'
+    if fcondition:
+        q = q+' and '+fcondition
     if sorted:
         q = q+' order by runnum,lsnum'
     return q
 
-def det_resultDataIter(engine,datasource,suffix,datafields=[],idfields=[],schemaname='',runmin=None,runmax=None,fillmin=None,tssecmin=None,tssecmax=None,fillmax=None,beamstatusid=None,amodetagid=None,targetegev=None,runlsselect=None,sorted=False,datatagnameid=None):
+def dataIter(engine,datasource,datatype,suffix,datafields=[],idfields=[],schemaname='',runmin=None,runmax=None,fillmin=None,tssecmin=None,tssecmax=None,fillmax=None,beamstatusid=None,amodetagid=None,targetegev=None,runlsselect=None,sorted=False,datatagnameid=None):
     '''
+    3 table join: id table, lhcfill table, data table
+    input:
+        datasource: luminometer type
+        datatype: result or raw
+        suffix: table shard id
+        datafields: 
+        fields from lumidata table. choices [avglumi,bxlumiblob,fillnum,runnum,lsnum,timestampsec]
+        fields from beam table. choices [intenisty1,intensity2,bxidxblob,bxintensity1blob,bxintensity2blob]
+        idfields: fields from ids_datatag table and lhcfill table, [runnum,lsnum,fillnum,timestampsec,cmson,beamstatusid,amodetagid,targetegev,numbxbeamactive,norb,nbperls]
+
     output: iterator
-    select b.avglumi as avglumi, b.bxlumiblob as bxlumiblob, b.normtag as normtag, b.datatagid as datatagid, a.runnum as run , a.datatagnameid as datatagnameid from cms_lumi_prod._3 b,(select max(datatagid) as datatagid, runnum , datatagnameid from cms_lumi_prod.ids_datatag group by runnum) a where a.datatagid=b.datatagid and a.datatagnameid<=:datatagnameid   
+
+    select b.avglumi as avglumi, b.bxlumiblob as bxlumiblob, b.normtag as normtag, i.datatagid as datatagid, i.runnum as run , i.datatagnameid as datatagnameid from cms_lumi_prod.det_result_3 b,(select max(datatagid) as datatagid, runnum as runnum, datatagnameid from cms_lumi_prod.ids_datatag group by runnum) i, cms_lumi_prod.lhcfill f where i.datatagid=b.datatagid and i.datatagnameid<=:datatagnameid and f.fillnum=i.fillnum
+    
        if datatagnameid: add datatagnameid to idfields and binddict a 
     '''
-    if not datafields: return None
-    (qCondition,binddict) = build_query_condition(runmin=runmin,runmax=runmax,fillmin=fillmin,fillmax=fillmax,tssecmin=tssecmin,tssecmax=tssecmax,beamstatusid=beamstatusid,amodetagid=amodetagid,targetegev=targetegev,runlsselect=runlsselect)    
+    if not datafields:
+        return None
+    
+    (qCondition,binddict) = build_idquery_condition(runmin=runmin,runmax=runmax,fillmin=fillmin,fillmax=fillmax,tssecmin=tssecmin,tssecmax=tssecmax,beamstatusid=beamstatusid,runlsselect=runlsselect)
+    (fCondition,fbinddict) = build_fillquery_condition('f',amodetagid=amodetagid,targetegev=targetegev)
+    
     if not qCondition: return None
-    basetablename = datasource+'_result'
-    idf = idfields
+    if fCondition:
+        for fbk, fbv in fbinddict.items(): #merge binddict
+            binddict[fbk] = fbv
+    basetablename = datasource
+    if datatype:
+        basetablename = basetablename+'_'+datatype
+    
+    ifields = []
+    ffields = []
+    for f in idfields:
+        if f in _lhcfill_fields:
+            ffields.append(f)
+        else:
+            ifields.append(f)
+    idf = ifields
     if datatagnameid:
-        idf = idfields+['datatagnameid']
-        binddict['datatagnameid'] = datatagnameid
-    q = build_joinwithdatatagid_query(basetablename,suffix,datafields,idf,qCondition,datatagnameid=datatagnameid,schemaname=schemaname,sorted=sorted)    
-    log.debug('det_resultDataIter: '+q)
+        idf = ifields+['datatagnameid']
+        binddict['datatagnameid'] = datatagnameid        
+    q = build_joinwithdatatagid_query(basetablename,suffix,datafields,idf,qCondition,datatagnameid=datatagnameid,ffields=ffields,fcondition=fCondition,schemaname=schemaname,sorted=sorted)
+    
+    log.debug('dataIter %s %s: '%(datasource,datatype)+q)
     log.debug(str(binddict))
     connection = engine.connect()
     result = connection.execution_options(stream_result=True).execute(q,binddict)
     return iter(result)
-
-def det_rawDataIter(engine,datasource,suffix,datafields=[],idfields=[],schemaname='',runmin=None,runmax=None,fillmin=None,tssecmin=None,tssecmax=None,fillmax=None,beamstatusid=None,amodetagid=None,targetegev=None,runlsselect=None,sorted=False,datatagnameid=None):
-    '''
-    output: iterator
-    select b.rawlumi as rawlumi, b.bxrawlumiblob as bxrawlumiblob, b.datatagid as datatagid, a.runnum as run from cms_lumi_prod._3 b,(select max(datatagid) as datatagid, runnum from cms_lumi_prod.ids_datatag group by runnum) a where a.datatagid=b.datatagid
-    '''
-    if not datafields: return None
-    (qCondition,binddict) = build_query_condition(runmin=runmin,runmax=runmax,fillmin=fillmin,fillmax=fillmax,tssecmin=tssecmin,tssecmax=tssecmax,beamstatusid=beamstatusid,amodetagid=amodetagid,targetegev=targetegev,runlsselect=runlsselect)
-    if not qCondition: return None
-    basetablename = datasource+'_raw'
-    idf = idfields
-    if datatagnameid:
-        idf = idfields+['datatagnameid']
-        binddict['datatagnameid'] = datatagnameid
-    q = build_joinwithdatatagid_query(basetablename,suffix,datafields,idf,qCondition,datatagnameid=datatagnameid,schemaname=schemaname,sorted=sorted)
-    log.debug('det_rawDataIter: '+q)
-    log.debug(str(binddict))
-    connection = engine.connect()
-    result = connection.execution_options(stream_result=True).execute(q,binddict)
-    return iter(result)
-        
-#def trgMask(engine,datatagid):
-#    '''
-#    output: [trgmask1,...,trgmask6]
-#    '''
-#    result = 192*[0]
-#    q = '''select trgmask1,trgmask2,trgmask3,trgmask4,trgmask5,trgmask5 from RUNINFO where datatagid=:datatagid'''
-#    result = pd.read_sql_query(q,engine,params={'datatagid':datatagid})
-#    return result
 
 
 
