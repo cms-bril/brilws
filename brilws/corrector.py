@@ -20,12 +20,24 @@ class FunctionFactory(object):
         if afterglowthresholds:
             result = self.afterglow(result,nbx,afterglowthresholds)
         return result
-            
+    
     def poly1d(self,*args,**kwds):
-        ivalue = args[0]
-        coefs = kwds['coefs']
-        if isinstance(coefs,str):
-            coefs = np.fromstring(coefs, dtype=np.float, sep=',')
+        ivalue = args[0]                #avglumi or bxlumi
+        ncollidingbx = args[1]
+        coefsStr = kwds['coefs']
+        bxcoefs = np.fromstring(coefsStr, dtype=np.float, sep=',')            
+        if isinstance(ivalue,collections.Iterable) or len(bxcoefs)==1: #is bx lumi or only a const term 
+            f = np.poly1d(bxcoefs)
+            return f(ivalue)
+            
+        coefs = copy.deepcopy(bxcoefs)
+        maxpower = len(bxcoefs)-1 
+        for i,c in enumerate(bxcoefs):    #recalculate coefs for avg lumi
+            currentpower = maxpower-i     #current term power=maxpower-i
+            if currentpower>1:            #the only term having no need of change is power=1
+                coefs[i] = np.divide(c,ncollidingbx**(currentpower-1))
+            elif currentpower==0:
+                coefs[-1] = ncollidingbx*c #const term is ncollidingbx*const
         f = np.poly1d(coefs)
         return f(ivalue)
     
