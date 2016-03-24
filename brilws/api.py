@@ -1121,24 +1121,36 @@ def build_fillquery_condition(ftabalias,amodetagid=None,targetegev=None):
     qCondition = ' and '.join(qPieces)
     return (qCondition,binddict)
 
-def build_idquery_condition(runmin=None,runmax=None,fillmin=None,tssecmin=None,tssecmax=None,fillmax=None,beamstatusid=None,runlsselect=None,datatagnameid=None):
+def build_idquery_condition(alias,runmin=None,runmax=None,fillmin=None,tssecmin=None,tssecmax=None,fillmax=None,beamstatusid=None,runlsselect=None,datatagnameid=None):
     qCondition = ''
     qPieces = []
     binddict = {}
-    if fillmin:
-        qPieces.append('fillnum>=:fillmin')
+    a = ''
+    if alias:
+        a = alias+'.'
+        
+    if fillmin and fillmax:
+        if fillmin==fillmax:
+            qPieces.append('%sfillnum=:fillnum'%a)
+            binddict['fillnum'] = fillmin
+        else:
+            qPieces.append('%sfillnum>=:fillmin and %sfillnum<=:fillmax'%(a,a))
+            binddict['fillmin'] = fillmin
+            binddict['fillmax'] = fillmax
+    elif fillmin:
+        qPieces.append('%sfillnum>=:fillmin'%a)
         binddict['fillmin'] = fillmin
-    if fillmax:
-        qPieces.append('fillnum<=:fillmax')
+    elif fillmax:
+        qPieces.append('%sfillnum<=:fillmax'%a)
         binddict['fillmax'] = fillmax
     if tssecmin:
-        qPieces.append('timestampsec>=:tssecmin')
+        qPieces.append('%stimestampsec>=:tssecmin'%a)
         binddict['tssecmin'] = tssecmin
     if tssecmax:
-        qPieces.append('timestampsec<=:tssecmax')
+        qPieces.append('%stimestampsec<=:tssecmax'%a)
         binddict['tssecmax'] = tssecmax
     if beamstatusid is not None:
-        qPieces.append('beamstatusid=:beamstatusid')
+        qPieces.append('%sbeamstatusid=:beamstatusid'%a)
         binddict['beamstatusid'] = beamstatusid        
     if runlsselect is not None:
         s_runls = buildselect_runls(runlsselect)
@@ -1157,84 +1169,21 @@ def build_idquery_condition(runmin=None,runmax=None,fillmin=None,tssecmin=None,t
 
     if runmin and runmax :
         if runmin==runmax:
-            qPieces.append('runnum=:runmin')
+            qPieces.append('%srunnum=:runmin'%a)
             binddict['runmin'] = runmin
         else:
-            qPieces.append('runnum>=:runmin and i.runnum<=:runmax')
+            qPieces.append( '%srunnum>=:runmin and %srunnum<=:runmax'%(a,a) )
             binddict['runmin'] = runmin
             binddict['runmax'] = runmax
     elif runmin:
-        qPieces.append('runnum>=:runmin')
+        qPieces.append('%srunnum>=:runmin'%a)
         binddict['runmin'] = runmin
     elif runmax:
-        qPieces.append('runnum<=:runmax')
+        qPieces.append('%srunnum<=:runmax'%a)
         binddict['runmax'] = runmax
 
     if datatagnameid:
-        qPieces.append('datatagnameid<=:datatagnameid')
-        binddict['datatagnameid'] = datatagnameid
-        
-    if not qPieces: return ('',{})
-    qCondition = ' and '.join(qPieces)
-    return (qCondition,binddict)
-
-def build_query_condition(runmin=None,runmax=None,fillmin=None,tssecmin=None,tssecmax=None,fillmax=None,beamstatusid=None,amodetagid=None,targetegev=None,runlsselect=None,datatagnameid=None):
-    qCondition = ''
-    qPieces = []
-    binddict = {}
-    if fillmin:
-        qPieces.append('fillnum>=:fillmin')
-        binddict['fillmin'] = fillmin
-    if fillmax:
-        qPieces.append('fillnum<=:fillmax')
-        binddict['fillmax'] = fillmax
-    if tssecmin:
-        qPieces.append('timestampsec>=:tssecmin')
-        binddict['tssecmin'] = tssecmin
-    if tssecmax:
-        qPieces.append('timestampsec<=:tssecmax')
-        binddict['tssecmax'] = tssecmax
-    if beamstatusid is not None:
-        qPieces.append('beamstatusid=:beamstatusid')
-        binddict['beamstatusid'] = beamstatusid    
-    if amodetagid is not None:
-        qPieces.append('amodetagid=:amodetagid')
-        binddict['amodetagid'] = amodetagid    
-    if targetegev:
-        qPieces.append('targetegev=:targetegev')
-        binddict['targetegev'] = targetegev
-    if runlsselect is not None:
-        s_runls = buildselect_runls(runlsselect)
-        if s_runls:
-            s_runls_str = s_runls[0]
-            var_runs = s_runls[1]
-            var_lmins = s_runls[2]
-            var_lmaxs = s_runls[3]
-            qPieces.append(s_runls_str)
-            for runvarname,runvalue in var_runs.items():                
-                binddict[runvarname] = runvalue
-            for lminname,lmin in var_lmins.items():                
-                binddict[lminname] = lmin
-            for lmaxname,lmax in var_lmaxs.items():                
-                binddict[lmaxname] = lmax
-
-    if runmin and runmax :
-        if runmin==runmax:
-            qPieces.append('runnum=:runmin')
-            binddict['runmin'] = runmin
-        else:
-            qPieces.append('runnum>=:runmin and runnum<=:runmax')
-            binddict['runmin'] = runmin
-            binddict['runmax'] = runmax
-    elif runmin:
-        qPieces.append('runnum>=:runmin')
-        binddict['runmin'] = runmin
-    elif runmax:
-        qPieces.append('runnum<=:runmax')
-        binddict['runmax'] = runmax
-
-    if datatagnameid:
-        qPieces.append('datatagnameid<=:datatagnameid')
+        qPieces.append('%sdatatagnameid<=:datatagnameid'%s)
         binddict['datatagnameid'] = datatagnameid
         
     if not qPieces: return ('',{})
@@ -1261,7 +1210,7 @@ def online_resultIter(engine,tablename,schemaname='',runmin=None,runmax=None,fil
     if schemaname:
         t=schemaname+'.'+t
     
-    (qCondition,binddict) = build_idquery_condition(runmin=runmin,runmax=runmax,fillmin=fillmin,fillmax=fillmax,tssecmin=tssecmin,tssecmax=tssecmax,beamstatusid=beamstatusid,runlsselect=runlsselect)
+    (qCondition,binddict) = build_idquery_condition('i',runmin=runmin,runmax=runmax,fillmin=fillmin,fillmax=fillmax,tssecmin=tssecmin,tssecmax=tssecmax,beamstatusid=beamstatusid,runlsselect=runlsselect)
     (fCondition,fbinddict) = build_fillquery_condition('f',amodetagid=amodetagid,targetegev=targetegev)
     
     if not qCondition: return None #main table must be filtered
@@ -1288,8 +1237,10 @@ def online_resultIter(engine,tablename,schemaname='',runmin=None,runmax=None,fil
         if schemaname:
             ftab=schemaname+'.'+ftab
         q = "select %s,%s from %s i, %s f"%(ifieldsStr,ffieldsStr,t,ftab) + ' where '+qCondition
-        if fCondition:
-            q = q+' and i.fillnum=f.fillnum and '+fCondition        
+        if ffieldsStr:
+            q = q+' and i.fillnum=f.fillnum '
+            if fCondition:
+                q = q+' and '+fCondition        
     if sorted:
         q = q+' order by runnum,lsnum'
         
@@ -1635,7 +1586,7 @@ def dataIter(engine,datasource,datatype,suffix,datafields=[],idfields=[],scheman
     if not datafields:
         return None
     
-    (qCondition,binddict) = build_idquery_condition(runmin=runmin,runmax=runmax,fillmin=fillmin,fillmax=fillmax,tssecmin=tssecmin,tssecmax=tssecmax,beamstatusid=beamstatusid,runlsselect=runlsselect)
+    (qCondition,binddict) = build_idquery_condition('',runmin=runmin,runmax=runmax,fillmin=fillmin,fillmax=fillmax,tssecmin=tssecmin,tssecmax=tssecmax,beamstatusid=beamstatusid,runlsselect=runlsselect)
     (fCondition,fbinddict) = build_fillquery_condition('f',amodetagid=amodetagid,targetegev=targetegev)
     
     if not qCondition: return None
