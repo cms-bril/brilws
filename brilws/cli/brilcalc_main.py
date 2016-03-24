@@ -238,7 +238,6 @@ def lumi_per_normtag(shards,lumiquerytype,dbengine,dbschema,runtot,datasource=No
                         livefrac = 0.
                 avglumi = row['avglumi']
                 ncollidingbx = row['numbxbeamactive']
-                avgpu = lumip.avgpu(avglumi,ncollidingbx,g_minbias)
                 if validitychecker is not None:
                     if not lastvalidity or not validitychecker.isvalid(runnum,lastvalidity):
                         lastvalidity = validitychecker.getvalidity(runnum)
@@ -248,6 +247,7 @@ def lumi_per_normtag(shards,lumiquerytype,dbengine,dbschema,runtot,datasource=No
                     avglumi = corrector.FunctionCaller(normfunc,*f_args,**f_kwds)    
                 delivered = np.divide(avglumi*lslengthsec,scalefactor)
                 recorded = delivered*livefrac
+                avgpu = lumip.avgpu( avglumi,ncollidingbx,g_minbias)
                 if hltl1map:    #--hltpath precheck missing
                     if hltmissing and recorded>0:
                         log.error("Found non-zero recorded lumi with no hlt monitoring run %d ls %d, force hltpath specific recorded=0. Please report this incident to hlt group"%(runnum,lsnum))
@@ -403,7 +403,10 @@ def brilcalc_main(progname=sys.argv[0]):
           ftable = None
           csvwriter = None
           vfunc_lumiunit = np.vectorize(formatter.lumiunit)
-          checkjson = parseresult['--checkjson']
+          checkjson = True
+          if parseresult['--without-checkjson'] or not parseresult['-i']:
+              checkjson = False
+              
           g_returnedls = []
           g_nulldeadtime = {}
           g_headers = {}
