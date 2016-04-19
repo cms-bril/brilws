@@ -18,12 +18,7 @@ BEAM_&suffix:         #per ls
     - intensity2: float
     - bxidxblob: blob
     - bxintensity1blob: blob
-    - bxintensity2blob: blob
-    - ncollidingbx: uint16
-    - bxconfig1blob: blob
-    - bxconfig2blob: blob
-    - ncollidables: uint16
-    - collidable: blob
+    - bxintensity2blob: blob   
    pk: [datatagid]
 
 HFOC_RAW_&suffix:
@@ -57,8 +52,6 @@ BCM1F_RAW_&suffix:
     - timestampsec: uint32
     - avglumi: float
     - bxlumiblob: blob
-    - bkgplusz: float
-    - bkgminusz: float
    pk: [ datatagid ]
    
 PLTTK_RAW_&suffix: #per ls
@@ -141,19 +134,6 @@ PLTZERO_RESULT_&suffix:
     - bxlumiblob: blob
    pk: [datatagid,normtagid]
    
-PLTTK_RESULT_&suffix:
-   columns:
-    - datatagid: int64
-    - fillnum: uint32
-    - runnum: uint32
-    - lsnum: uint32
-    - timestampsec: uint32
-    - normtag: string
-    - normtagid: int64
-    - avglumi: float
-    - bxlumiblob: blob
-   pk: [datatagid,normtagid]  
-
 BCM1F_RESULT_&suffix:
    columns:
     - datatagid: int64
@@ -197,7 +177,4 @@ ONLINE_RESULT_&suffix:
     - avgpu: float
     - datasource: string
     - normtag: string
-    - normtagid: int64
-    - amodetagid: uint16
-    - targetegev: uint16
    pk: [runnum,lsnum]

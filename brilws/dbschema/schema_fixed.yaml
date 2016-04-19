@@ -33,6 +33,17 @@ DATATAGS:
    pk: [datatagnameid]
    unique: [datatagname]
 
+LHCFILL:         #per fill
+   columns:
+    - fillnum: uint32
+    - timestampsec: uint32
+    - norb: uint16
+    - nbperls: uint16
+    - amodetagid: uint16
+    - numbxbeamactive: uint16
+    - targetegev: uint16
+   pk: [fillnum] 
+    
 IDS_DATATAG:     #per ls
    columns:
     - datatagnameid: int64
@@ -41,11 +52,8 @@ IDS_DATATAG:     #per ls
     - runnum: uint32
     - lsnum: uint32
     - timestampsec: uint32
-    - norb: uint32
     - cmson: bool
-    - targetegev: uint16
     - beamstatusid: uint16
-    - amodetagid: uint16
-    - deadtimefrac: float 
+    - deadtimefrac: float
    pk: [datatagid] 
    unique: [ [datatagnameid,runnum,lsnum] ]
