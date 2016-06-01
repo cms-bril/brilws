@@ -92,6 +92,13 @@ DT_RAW_&suffix:         #per ls
     - avglumi: float
    pk: [ datatagid ]
 
+RADMON_RAW_&suffix:         #per ls
+   columns:
+    - datatagid: int64
+    - runnum: uint32
+    - lsnum: uint32
+    - avglumi: float
+   pk: [ datatagid ]
    
 ##### Result tables #####
 
@@ -162,7 +169,15 @@ DT_RESULT_&suffix:         #per ls
     - lsnum: uint32
     - avglumi: float
    pk: [ datatagid ]
-   
+
+RADMON_RESULT_&suffix:
+   columns:
+    - datatagid: int64
+    - runnum: uint32
+    - lsnum: uint32
+    - avglumi: float
+   pk: [ datatagid ]
+
 ONLINE_RESULT_&suffix:
    columns:
     - runnum: uint32
