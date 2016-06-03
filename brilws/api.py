@@ -1548,17 +1548,19 @@ def build_joinwithdatatagid_query(datatablename,suffix,datafields,idfields,idcon
     id_fieldstr = ','.join([ '%s%s as %s'%('i.',f,f) for f in idfields ])
     f_fieldstr = ','.join([ '%s%s as %s'%('f.',f,f) for f in ffields ])
     if ffields:        
-        q = "select i.datatagid as datatagid, %s, %s, %s from %s b, %s f,"%(data_fieldstr,id_fieldstr,f_fieldstr,btablename,filltablename)    
+        q = "select i.datatagid as datatagid, %s, %s, %s from %s b, %s f, %s i"%(data_fieldstr,id_fieldstr,f_fieldstr,btablename,filltablename,idtablename)    
     else:        
-        q = "select i.datatagid as datatagid, %s, %s from %s b,"%(data_fieldstr,id_fieldstr,btablename)    
+        q = "select i.datatagid as datatagid, %s, %s from %s b,%s i"%(data_fieldstr,id_fieldstr,btablename,idtablename)    
     id_fieldstr = ','.join( [str(f) for f in idfields] )
-    groupbystr = ','.join( [str(f) for f in idfields] )
-    subq = "(select max(datatagid) as datatagid, %s from %s where %s group by %s) i where i.datatagid=b.datatagid"%(id_fieldstr,idtablename,idcondition,groupbystr)
+    #groupbystr = ','.join( [str(f) for f in idfields] )
+    #subq = "(select max(datatagid) as datatagid, %s from %s where %s group by %s) i where i.datatagid=b.datatagid"%(id_fieldstr,idtablename,idcondition,groupbystr)
     if datatagnameid:
-        subq += ' and i.datatagnameid<=:datatagnameid'
-    q = q+subq
+        idcondition += ' and datatagnameid<=:datatagnameid'
+    subq = "(select max(datatagid) from %s where %s)"%(idtablename,idcondition)
+    
+    q = q+' where i.datatagid='+subq+' and b.datatagid=i.datatagid'
     if ffields:
-        q = q+' and i.fillnum=f.fillnum'
+        q = q+' and i.fillnum=f.fillnum'        
     if fcondition:
         q = q+' and '+fcondition
     if sorted:
@@ -1577,11 +1579,10 @@ def dataIter(engine,datasource,datatype,suffix,datafields=[],idfields=[],scheman
         fields from beam table. choices [intenisty1,intensity2,bxidxblob,bxintensity1blob,bxintensity2blob]
         idfields: fields from ids_datatag table and lhcfill table, [runnum,lsnum,fillnum,timestampsec,cmson,beamstatusid,amodetagid,targetegev,numbxbeamactive,norb,nbperls]
 
-    output: iterator
-
-    select b.avglumi as avglumi, b.bxlumiblob as bxlumiblob, b.normtag as normtag, i.datatagid as datatagid, i.runnum as run , i.datatagnameid as datatagnameid from cms_lumi_prod.det_result_3 b,(select max(datatagid) as datatagid, runnum as runnum, datatagnameid from cms_lumi_prod.ids_datatag group by runnum) i, cms_lumi_prod.lhcfill f where i.datatagid=b.datatagid and i.datatagnameid<=:datatagnameid and f.fillnum=i.fillnum
+    output: iterator    
     
        if datatagnameid: add datatagnameid to idfields and binddict a 
+
     '''
     if not datafields:
         return None
