@@ -349,6 +349,8 @@ def findtagname(dbengine,datatagname,dbschema):
             raise RuntimeError('no tag found')
         datatagname = r[0]
         datatagnameid = r[1]
+    if not datatagnameid:
+        raise RuntimeError('No tag %s found'%datatagname)   
     return (datatagname,datatagnameid)
 
           
