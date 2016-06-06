@@ -1153,7 +1153,7 @@ def build_idquery_condition(alias,runmin=None,runmax=None,fillmin=None,tssecmin=
         qPieces.append('%sbeamstatusid=:beamstatusid'%a)
         binddict['beamstatusid'] = beamstatusid        
     if runlsselect is not None:
-        s_runls = buildselect_runls(runlsselect)
+        s_runls = buildselect_runls(runlsselect,alias=alias)
         if s_runls:
             s_runls_str = s_runls[0]
             var_runs = s_runls[1]
@@ -1563,6 +1563,7 @@ def build_joinwithdatatagid_query(datatablename,suffix,datafields,idfields,idcon
         subq = '(select i.datatagid as datatagid,%s,%s,%s,%s from %s i, %s b, %s f where i.fillnum=f.fillnum and i.datatagid=b.datatagid'%(id_fieldstr_alias,data_fieldstr_alias,f_fieldstr_alias,rankfield,idtablename,btablename,filltablename)
     else:
         subq = '(select i.datatagid as datatagid,%s,%s,%s from %s i, %s b where i.datatagid=b.datatagid'%(id_fieldstr_alias,data_fieldstr_alias,rankfield,idtablename,btablename)
+
     subq = subq+' and '+idcondition
     if fcondition:
         subq = subq+' and '+fcondition
