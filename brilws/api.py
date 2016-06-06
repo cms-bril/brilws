@@ -1535,34 +1535,42 @@ def build_joinwithdatatagid_query(datatablename,suffix,datafields,idfields,idcon
     if datatagnameid: add datatagnameid to idfield for i and i.datatagnameid<=:datatagnameid
     if ffields, select also lhcfill fields
     if fcondition, add also lhcfill join on fillnum
+    
     '''
     idtablename = 'ids_datatag'
     filltablename = 'lhcfill'
     btablename = '_'.join([datatablename,str(suffix)])    
     if schemaname:
         idtablename = '.'.join([schemaname,idtablename])
-        filltablename = '.'.join([schemaname,filltablename])
         btablename = '.'.join([schemaname,btablename])
-        
-    data_fieldstr = ','.join([ '%s%s as %s'%('b.',f,f) for f in datafields ])
-    id_fieldstr = ','.join([ '%s%s as %s'%('i.',f,f) for f in idfields ])
-    f_fieldstr = ','.join([ '%s%s as %s'%('f.',f,f) for f in ffields ])
+        filltablename = '.'.join([schemaname,filltablename])        
+
+    data_fieldstr = ','.join([ '%s'%f for f in datafields ])
+    id_fieldstr = ','.join([ '%s'%f for f in idfields ])
+    f_fieldstr = ','.join([ '%s'%f for f in ffields ])
+
     if ffields:        
-        q = "select i.datatagid as datatagid, %s, %s, %s from %s b, %s f, %s i"%(data_fieldstr,id_fieldstr,f_fieldstr,btablename,filltablename,idtablename)    
+        q = "select datatagid,%s,%s,%s "%(data_fieldstr,id_fieldstr,f_fieldstr)
     else:        
-        q = "select i.datatagid as datatagid, %s, %s from %s b,%s i"%(data_fieldstr,id_fieldstr,btablename,idtablename)    
-    id_fieldstr = ','.join( [str(f) for f in idfields] )
-    #groupbystr = ','.join( [str(f) for f in idfields] )
-    #subq = "(select max(datatagid) as datatagid, %s from %s where %s group by %s) i where i.datatagid=b.datatagid"%(id_fieldstr,idtablename,idcondition,groupbystr)
-    if datatagnameid:
-        idcondition += ' and datatagnameid<=:datatagnameid'
-    subq = "(select max(datatagid) from %s where %s)"%(idtablename,idcondition)
-    
-    q = q+' where i.datatagid='+subq+' and b.datatagid=i.datatagid'
-    if ffields:
-        q = q+' and i.fillnum=f.fillnum'        
+        q = "select datatagid,%s,%s "%(data_fieldstr,id_fieldstr)
+   
+    id_fieldstr_alias = ','.join([ '%s%s as %s'%('i.',f,f) for f in idfields ])
+    data_fieldstr_alias = ','.join([ '%s%s as %s'%('b.',f,f) for f in datafields ])
+    f_fieldstr_alias = ','.join([ '%s%s as %s'%('f.',f,f) for f in ffields ])
+    rankfield = "rank() over(partition by i.runnum,i.lsnum order by i.datatagid desc) rnk"    
+
+    if ffields:        
+        subq = '(select i.datatagid as datatagid,%s,%s,%s,%s from %s i, %s b, %s f where i.fillnum=f.fillnum and i.datatagid=b.datatagid'%(id_fieldstr_alias,data_fieldstr_alias,f_fieldstr_alias,rankfield,idtablename,btablename,filltablename)
+    else:
+        subq = '(select i.datatagid as datatagid,%s,%s,%s from %s i, %s b where i.datatagid=b.datatagid'%(id_fieldstr_alias,data_fieldstr_alias,rankfield,idtablename,btablename)
+    subq = subq+' and '+idcondition
     if fcondition:
-        q = q+' and '+fcondition
+        subq = subq+' and '+fcondition
+    if datatagnameid:
+        subq = subq+' and i.datatagnameid<=:datatagnameid'
+    subq = subq+')'
+    q = q+ ' from %s where rnk=1'%(subq)
+    
     if sorted:
         q = q+' order by runnum,lsnum'
     return q
@@ -1574,20 +1582,19 @@ def dataIter(engine,datasource,datatype,suffix,datafields=[],idfields=[],scheman
         datasource: luminometer type
         datatype: result or raw
         suffix: table shard id
-        datafields: 
-        fields from lumidata table. choices [avglumi,bxlumiblob,fillnum,runnum,lsnum,timestampsec]
-        fields from beam table. choices [intenisty1,intensity2,bxidxblob,bxintensity1blob,bxintensity2blob]
+        datafields:         
+          fields from lumidata table. choices [avglumi,bxlumiblob,fillnum,runnum,lsnum,timestampsec]
+          fields from beam table. choices [intenisty1,intensity2,bxidxblob,bxintensity1blob,bxintensity2blob]
         idfields: fields from ids_datatag table and lhcfill table, [runnum,lsnum,fillnum,timestampsec,cmson,beamstatusid,amodetagid,targetegev,numbxbeamactive,norb,nbperls]
-
+        
     output: iterator    
-    
        if datatagnameid: add datatagnameid to idfields and binddict a 
 
     '''
     if not datafields:
         return None
     
-    (qCondition,binddict) = build_idquery_condition('',runmin=runmin,runmax=runmax,fillmin=fillmin,fillmax=fillmax,tssecmin=tssecmin,tssecmax=tssecmax,beamstatusid=beamstatusid,runlsselect=runlsselect)
+    (qCondition,binddict) = build_idquery_condition('i',runmin=runmin,runmax=runmax,fillmin=fillmin,fillmax=fillmax,tssecmin=tssecmin,tssecmax=tssecmax,beamstatusid=beamstatusid,runlsselect=runlsselect)
     (fCondition,fbinddict) = build_fillquery_condition('f',amodetagid=amodetagid,targetegev=targetegev)
     
     if not qCondition: return None
