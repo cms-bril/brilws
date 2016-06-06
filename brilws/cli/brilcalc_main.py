@@ -181,7 +181,7 @@ def lumi_per_normtag(shards,lumiquerytype,dbengine,dbschema,runtot,datasource=No
             if checkjson:
                 g_returnedls.append((runnum,lsnum))
             if lumiquerytype == 'bestresultonline': ##bestlumi
-                if row.has_key('delivered') and row['delivered']:
+                if row.has_key('delivered') and row['delivered']:                    
                     delivered = np.divide(row['delivered']*lslengthsec,scalefactor)
                 if delivered>0 and row.has_key('recorded') and row['recorded']:
                     recorded = np.divide(row['recorded']*lslengthsec,scalefactor)
@@ -244,7 +244,7 @@ def lumi_per_normtag(shards,lumiquerytype,dbengine,dbschema,runtot,datasource=No
                     [normfunc,normparam] = validitychecker.getvaliddata(lastvalidity[0])             
                     f_args = (avglumi,ncollidingbx)
                     f_kwds = ast.literal_eval(normparam)                          
-                    avglumi = corrector.FunctionCaller(normfunc,*f_args,**f_kwds)    
+                    avglumi = corrector.FunctionCaller(normfunc,*f_args,**f_kwds)
                 delivered = np.divide(avglumi*lslengthsec,scalefactor)
                 recorded = delivered*livefrac
                 avgpu = lumip.avgpu( avglumi,ncollidingbx,g_minbias)

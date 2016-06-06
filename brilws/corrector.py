@@ -36,7 +36,13 @@ class FunctionFactory(object):
         for i,c in enumerate(bxcoefs):    #recalculate coefs for avg lumi
             currentpower = maxpower-i     #current term power=maxpower-i
             if currentpower>1:            #the only term having no need of change is power=1
-                coefs[i] = np.divide(c,ncollidingbx**(currentpower-1))
+                #coefs[i] = np.divide(c,ncollidingbx**(currentpower-1))
+                with np.errstate(divide='ignore', invalid='ignore'):
+                    coe = np.true_divide(c,ncollidingbx**(currentpower-1))
+                    if coe == np.inf:
+                        coe = 0
+                    coe = np.nan_to_num(coe)
+                    coefs[i] = coe
             elif currentpower==0:
                 coefs[-1] = ncollidingbx*c #const term is ncollidingbx*const
         f = np.poly1d(coefs)
