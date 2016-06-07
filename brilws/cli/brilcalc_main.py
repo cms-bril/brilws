@@ -182,9 +182,9 @@ def lumi_per_normtag(shards,lumiquerytype,dbengine,dbschema,runtot,datasource=No
                 g_returnedls.append((runnum,lsnum))
             if lumiquerytype == 'bestresultonline': ##bestlumi
                 if row.has_key('delivered') and row['delivered']:                    
-                    delivered = np.divide(row['delivered']*lslengthsec,scalefactor)
+                    delivered = np.true_divide(row['delivered']*lslengthsec,scalefactor)
                 if delivered>0 and row.has_key('recorded') and row['recorded']:
-                    recorded = np.divide(row['recorded']*lslengthsec,scalefactor)
+                    recorded = np.true_divide(row['recorded']*lslengthsec,scalefactor)
                 if delivered>0 and row.has_key('avgpu') and row['avgpu']:
                     avgpu = row['avgpu']
                 ds = 'UNKNOWN' 
@@ -194,13 +194,13 @@ def lumi_per_normtag(shards,lumiquerytype,dbengine,dbschema,runtot,datasource=No
                     if hltmissing and recorded>0:
                         log.error("Found non-zero recorded lumi with no hlt monitoring run %d ls %d, force hltpath specific recorded=0. Please report this incident to hlt group"%(runnum,lsnum))
                         recorded = 0.
-                livefrac = np.divide(recorded,delivered)
+                livefrac = np.true_divide(recorded,delivered)
                 if withBX:    #--xing
                     bxlumi = None
                     bxlumistr = '[]'
                     if row.has_key('bxdeliveredblob'):
                         bxdeliveredarray = np.array(api.unpackBlobtoArray(row['bxdeliveredblob'],'f'))                        
-                        totfactor = np.divide(lslengthsec,scalefactor)
+                        totfactor = np.true_divide(lslengthsec,scalefactor)
                         bxidx = xing_indexfilter(bxdeliveredarray,constfactor=totfactor,xingMin=xingMin,xingTr=xingTr,xingId=xingId)
                         if bxidx is not None and bxidx.size>0:
                             bxdelivered = bxdeliveredarray[bxidx]*totfactor
@@ -213,7 +213,7 @@ def lumi_per_normtag(shards,lumiquerytype,dbengine,dbschema,runtot,datasource=No
                                 if bxlumi is not None:
                                     a = map(formatter.bxlumi,bxlumi/thispresc)  
                                     bxlumistr = '['+' '.join(a)+']'                                
-                                display.add_row( ['%d:%d'%(runnum,fillnum),'%d:%d'%(lsnum,cmslsnum),dtime,pth,'%.3f'%(np.divide(delivered,thispresc)),'%.3f'%(np.divide(recorded,thispresc)),ds,'%s'%bxlumistr] , fh=fh, csvwriter=csvwriter, ptable=ptable)                                
+                                display.add_row( ['%d:%d'%(runnum,fillnum),'%d:%d'%(lsnum,cmslsnum),dtime,pth,'%.3f'%(np.true_divide(delivered,thispresc)),'%.3f'%(np.true_divide(recorded,thispresc)),ds,'%s'%bxlumistr] , fh=fh, csvwriter=csvwriter, ptable=ptable)                                
                         else:        #normal bx display                   
                             if bxlumi is not None:
                                 a = map(formatter.bxlumi,bxlumi)
@@ -225,7 +225,7 @@ def lumi_per_normtag(shards,lumiquerytype,dbengine,dbschema,runtot,datasource=No
                     if hltl1map:#--hltpath display
                         for pth in prescale_map.keys():
                             thispresc = prescale_map[pth]
-                            display.add_row( ['%d:%d'%(runnum,fillnum),'%d:%d'%(lsnum,cmslsnum), dtime, pth, '%.3f'%(np.divide(delivered,thispresc)),'%.3f'%(np.divide(recorded,thispresc)),ds] , fh=fh, csvwriter=csvwriter, ptable=ptable)                            
+                            display.add_row( ['%d:%d'%(runnum,fillnum),'%d:%d'%(lsnum,cmslsnum), dtime, pth, '%.3f'%(np.true_divide(delivered,thispresc)),'%.3f'%(np.true_divide(recorded,thispresc)),ds] , fh=fh, csvwriter=csvwriter, ptable=ptable)                            
                     else:       #normal display
                         display.add_row( ['%d:%d'%(runnum,fillnum),'%d:%d'%(lsnum,cmslsnum),dtime,beamstatus,'%d'%tegev,'%.3f'%(delivered),'%.3f'%(recorded),'%.1f'%(avgpu),ds] , fh=fh, csvwriter=csvwriter, ptable=ptable)                        
             else:               ###lumisource
@@ -245,7 +245,7 @@ def lumi_per_normtag(shards,lumiquerytype,dbengine,dbschema,runtot,datasource=No
                     f_args = (avglumi,ncollidingbx)
                     f_kwds = ast.literal_eval(normparam)                          
                     avglumi = corrector.FunctionCaller(normfunc,*f_args,**f_kwds)
-                delivered = np.divide(avglumi*lslengthsec,scalefactor)
+                delivered = np.true_divide(avglumi*lslengthsec,scalefactor)
                 recorded = delivered*livefrac
                 avgpu = lumip.avgpu( avglumi,ncollidingbx,g_minbias)
                 if hltl1map:    #--hltpath precheck missing
@@ -261,7 +261,7 @@ def lumi_per_normtag(shards,lumiquerytype,dbengine,dbschema,runtot,datasource=No
                         if validitychecker is not None:              
                             f_bxargs = (bxdeliveredarray,ncollidingbx)
                             bxdeliveredarray = corrector.FunctionCaller(normfunc,*f_bxargs,**f_kwds)
-                        totfactor = np.divide(lslengthsec,scalefactor)
+                        totfactor = np.true_divide(lslengthsec,scalefactor)
                         bxidx = xing_indexfilter(bxdeliveredarray,constfactor=totfactor,xingMin=xingMin,xingTr=xingTr,xingId=xingId)
                         if bxidx is not None and bxidx.size>0:                                      
                             bxdelivered =  bxdeliveredarray[bxidx]*totfactor
@@ -274,7 +274,7 @@ def lumi_per_normtag(shards,lumiquerytype,dbengine,dbschema,runtot,datasource=No
                             if bxlumi is not None:
                                 a = map(formatter.bxlumi,bxlumi/thispresc)  
                                 bxlumistr = '['+' '.join(a)+']'                                
-                            display.add_row( ['%d:%d'%(runnum,fillnum),'%d:%d'%(lsnum,cmslsnum),dtime,pth,'%.3f'%(np.divide(delivered,thispresc)),'%.3f'%(np.divide(recorded,thispresc)),datasource.upper(),'%s'%bxlumistr] , fh=fh, csvwriter=csvwriter, ptable=ptable)                            
+                            display.add_row( ['%d:%d'%(runnum,fillnum),'%d:%d'%(lsnum,cmslsnum),dtime,pth,'%.3f'%(np.true_divide(delivered,thispresc)),'%.3f'%(np.true_divide(recorded,thispresc)),datasource.upper(),'%s'%bxlumistr] , fh=fh, csvwriter=csvwriter, ptable=ptable)                            
                     else:       #normal xing display
                         if bxlumi is not None:
                             a = map(formatter.bxlumi,bxlumi)
@@ -285,7 +285,7 @@ def lumi_per_normtag(shards,lumiquerytype,dbengine,dbschema,runtot,datasource=No
                     if hltl1map: #--hltpath display
                         for pth in prescale_map.keys():
                             thispresc = prescale_map[pth]                            
-                            display.add_row( ['%d:%d'%(runnum,fillnum),'%d:%d'%(lsnum,cmslsnum),dtime,pth,'%.3f'%(np.divide(delivered,thispresc)),'%.3f'%(np.divide(recorded,thispresc)),datasource.upper()] , fh=fh, csvwriter=csvwriter, ptable=ptable)                            
+                            display.add_row( ['%d:%d'%(runnum,fillnum),'%d:%d'%(lsnum,cmslsnum),dtime,pth,'%.3f'%(np.true_divide(delivered,thispresc)),'%.3f'%(np.true_divide(recorded,thispresc)),datasource.upper()] , fh=fh, csvwriter=csvwriter, ptable=ptable)                            
                     else:        #normal display
                         display.add_row( ['%d:%d'%(runnum,fillnum),'%d:%d'%(lsnum,cmslsnum),dtime,beamstatus,'%d'%tegev,'%.3f'%(delivered),'%.3f'%(recorded),'%.1f'%(avgpu),datasource.upper()] , fh=fh, csvwriter=csvwriter, ptable=ptable)
             if not hltl1map:     #normal statistic collect
@@ -304,8 +304,8 @@ def lumi_per_normtag(shards,lumiquerytype,dbengine,dbschema,runtot,datasource=No
                         runtot[(pth,runnum)] = {'fill':fillnum,'dtime':dtime,'nls':0,'ncms':0,'delivered':0,'recorded':0}                        
                     runtot[ (pth,runnum)]['nls']+=1                
                     if cmson: runtot[ (pth,runnum) ]['ncms'] += 1
-                    runtot[ (pth,runnum) ]['delivered'] += np.divide(delivered,thispresc)
-                    runtot[ (pth,runnum) ]['recorded'] += np.divide(recorded,thispresc)      
+                    runtot[ (pth,runnum) ]['delivered'] += np.true_divide(delivered,thispresc)
+                    runtot[ (pth,runnum) ]['recorded'] += np.true_divide(recorded,thispresc)      
                 
 class ValidityChecker(object):
     def __init__(self, normdata):
