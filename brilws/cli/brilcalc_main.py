@@ -106,7 +106,6 @@ def lumi_per_normtag(shards,lumiquerytype,dbengine,dbschema,runtot,datasource=No
         g_ls_trglastscaled_old = 0
         prescale_map = {} # for global scope
         g_hltconfigid = 0
-        hmiss = []
         for row in lumiiter:
             fillnum = row['fillnum']
             runnum = row['runnum']
@@ -116,7 +115,6 @@ def lumi_per_normtag(shards,lumiquerytype,dbengine,dbschema,runtot,datasource=No
             cmson = row['cmson']
             if not cmson:
                 cmslsnum = 0
-            hltmissing = False            
             if hltl1map:
                 if cmslsnum==0: continue  #cms is not running, skip.                
                 if g_run_old!=runnum:     #on new run boundary, get hltconfigid
@@ -127,7 +125,6 @@ def lumi_per_normtag(shards,lumiquerytype,dbengine,dbschema,runtot,datasource=No
                     if not g_hltconfigid:
                         continue      
                     presc = api.get_prescidx_change(dbengine,runnum,schemaname=dbschema)#{runnum:[[lslastscaler,prescidx]] }
-                    hmiss = api.get_hltmissing(dbengine,runnum,schemaname=dbschema)# [missingls]
                     if presc.has_key(runnum):
                         presc = presc[runnum]
                 this_prescidx = None
@@ -176,8 +173,6 @@ def lumi_per_normtag(shards,lumiquerytype,dbengine,dbschema,runtot,datasource=No
                 d = datetime.fromtimestamp(int(timestampsec),tz=pytz.utc)
                 dtime = d.astimezone(totz).strftime(params._datetimefm)
             delivered = recorded = avgpu = livefrac = 0.
-            if hmiss and lsnum in hmiss:
-                hltmissing = True
             if checkjson:
                 g_returnedls.append((runnum,lsnum))
             if lumiquerytype == 'bestresultonline': ##bestlumi
@@ -190,10 +185,6 @@ def lumi_per_normtag(shards,lumiquerytype,dbengine,dbschema,runtot,datasource=No
                 ds = 'UNKNOWN' 
                 if row.has_key('datasource') and row['datasource']:
                     ds = row['datasource']
-                if hltl1map: #--hltpath precheck missing
-                    if hltmissing and recorded>0:
-                        log.error("Found non-zero recorded lumi with no hlt monitoring run %d ls %d, force hltpath specific recorded=0. Please report this incident to hlt group"%(runnum,lsnum))
-                        recorded = 0.
                 livefrac = np.true_divide(recorded,delivered)
                 if withBX:    #--xing
                     bxlumi = None
@@ -247,12 +238,7 @@ def lumi_per_normtag(shards,lumiquerytype,dbengine,dbschema,runtot,datasource=No
                     avglumi = corrector.FunctionCaller(normfunc,*f_args,**f_kwds)
                 delivered = np.true_divide(avglumi*lslengthsec,scalefactor)
                 recorded = delivered*livefrac
-                avgpu = lumip.avgpu( avglumi,ncollidingbx,g_minbias)
-                if hltl1map:    #--hltpath precheck missing
-                    if hltmissing and recorded>0:
-                        log.error("Found non-zero recorded lumi with no hlt monitoring run %d ls %d, force hltpath specific recorded=0. Please report this incident to hlt group"%(runnum,lsnum))
-                        recorded = 0.
-                        livefrac = 0.
+                avgpu = lumip.avgpu( avglumi,ncollidingbx,g_minbias)                
                 if withBX:      #--xing
                     bxlumi = None
                     bxlumistr = '[]'
