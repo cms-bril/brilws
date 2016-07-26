@@ -53,7 +53,50 @@ def xing_indexfilter(arr,constfactor=1.,xingMin=0.,xingTr=0.,xingId=[]):
         posidx = np.array(xingId)-1 #array position index is bunch index - 1
         return np.intersect1d(np.array(posidx),vidx)    
     return vidx
-        
+
+def totalprescaleNEW(hltprescval,l1seedlogic,l1prescvals):
+    '''
+    1) if ONE single seed, take it
+    2) if OR:  (A.1 OR A.2 OR A.3 ...) ignore the triggers with prescale 0, and take the minimum of the remaining prescale values:
+        if max(A.i) == 0
+                A = 0
+        else
+                A = min(A.i | A.i > 0)
+    3) if AND: A AND B AND C ... take the product of the prescale values A * B * C ...
+    4) (optional)
+       if (A.1 OR A.2 OR A.3 ...) AND (B.1 OR B.2 OR ...) AND ...
+       - for each group, take the lowest non-zero prescale, or 0 if they are all zero
+         if max(A.i) = 0
+                A =
+         else
+                A = min(A.i | A.i > 0)
+       - take the product of the prescales thus obtained:
+         P = A * B * ...
+       users still take their own risk and should use their own judgement.
+    5)  if NOT, or a combination of AND/OR and NOT, reject
+    '''
+    totpresc = 0
+    if not hltprescval or not l1prescvals or not l1seedlogic:
+        return totpresc
+    if np.all( np.array(l1prescvals)==1 ):
+        totpresc = hltprescval        
+    elif l1seedlogic=='ONE':
+        totpresc = hltprescval*l1prescvals[0]
+    elif l1seedlogic=='OR':
+        if np.max( np.array(l1prescvals) ) == 0:
+            return totpresc
+        else:
+            l = np.array(l1prescvals)
+            l1p = np.min( l[l>0] )
+        totpresc = hltprescval*l1p
+    elif l1seedlogic=='AND':
+        if np.max( np.array(l1prescvals) ) == 0:
+            return totpresc
+        l1p = np.prod( np.array(l1prescvals) )
+        totpresc = hltprescval*l1p    
+    return totpresc
+
+    
 def totalprescale(hltprescval,l1seedlogic,l1prescvals):
     totpresc = 0
     if not hltprescval or not l1prescvals or not l1seedlogic:
@@ -63,6 +106,7 @@ def totalprescale(hltprescval,l1seedlogic,l1prescvals):
     elif l1seedlogic=='ONE':
         totpresc = hltprescval*l1prescvals[0]
     elif l1seedlogic=='OR':
+        
         totpresc = hltprescval*np.min(l1prescvals)
     elif l1seedlogic=='AND':
         totpresc = hltprescval*np.max(l1prescvals)    
@@ -158,7 +202,7 @@ def lumi_per_normtag(shards,lumiquerytype,dbengine,dbschema,runtot,datasource=No
                             l1keys = [ k for k in rl.keys() if k[0]==this_prescidx ]
                             l1vals = [ rl[k] for k in l1keys ]                       
                             l1prescvals = [ v[0] for v in l1vals ]                            
-                            totpresc = totalprescale(hltprescval,l1seedlogic,l1prescvals)
+                            totpresc = totalprescaleNEW(hltprescval,l1seedlogic,l1prescvals)
                             if not totpresc:
                                 continue
                         prescale_map[hltpathname] = totpresc   
@@ -833,7 +877,7 @@ def brilcalc_main(progname=sys.argv[0]):
                                   l1inner = map(formatter.bitprescFormatter,l1bits)
                                   l1bitsStr = ' '.join(l1inner)                          
                                   hltpathStr = '/'.join([hltpathname,str(hltprescval)])
-                                  totpresc = totalprescale(hltprescval,l1seedlogic,l1prescvals)
+                                  totpresc = totalprescaleNEW(hltprescval,l1seedlogic,l1prescvals)
                                   display.add_row( [ '%d'%runnum, '%d'%lsnum, '%d'%prescidx, '%d'%totpresc,'%s'%hltpathStr, '%s'%l1seedlogic, '%s'%l1bitsStr], fh=fh, csvwriter=csvwriter, ptable=ptable )  
                   del hltl1map
               else:
