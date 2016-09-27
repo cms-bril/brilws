@@ -84,13 +84,13 @@ _maxrun = 999999
 
 class brilwsException(Exception):
     pass
-
-class NotSupersetError(brilwsException):
-    def __init__(self, message, runnum,superset,subset):
-        super(brilwsException, self).__init__(message)
-        self.runnum = runnum
-        self.superset = superset
-        self.subset = subset
+        
+#class NotSupersetError(brilwsException):
+#    def __init__(self, message, runnum,superset,subset):
+#        super(brilwsException, self).__init__(message)
+#        self.runnum = runnum
+#        self.superset = superset
+#        self.subset = subset
     
 def expandrange(element):
     '''
@@ -107,7 +107,7 @@ def consecutive(npdata, stepsize=1):
     output: list of ndarrays
     '''
     return np.split(npdata, np.where(np.diff(npdata) != stepsize )[0]+1)
-    
+
 def checksuperset(iovseries,cmsseries):
     '''
     input:
@@ -125,6 +125,16 @@ def checksuperset(iovseries,cmsseries):
         if not iovdict.has_key(runnum):            
             iovdict[runnum] = []            
         iovdict[runnum] = iovdict[runnum]+vi.tolist()
+
+    #check all requested runs must be covered in normtag
+    diffruns = []
+    for runnum in cmsseries.index.tolist():
+        if not runnum in iovdict.keys():
+            diffruns.append(runnum)
+    #raise UnNormedRunError('UnNormedRunError',diffruns)
+    
+    diffls = {}
+    #check for each run, normtag ls must be the superset
     for runnum in sorted(iovdict.keys()):
         lsrange = iovdict[runnum]
         if runnum in cmsseries.index:
@@ -133,8 +143,12 @@ def checksuperset(iovseries,cmsseries):
             if not set(lsrange).issuperset(cmslsvals_flat):
                 supersetlist = [[min(x),max(x)] for x in consecutive(np.array(lsrange))]
                 subsetlist = cmsseries[runnum]
-                raise NotSupersetError('NotSupersetError',runnum,supersetlist,subsetlist)
-        
+                if not diffls.has_key(runnum):
+                    diffls[runnum] = []
+                diffls[runnum] = (supersetlist,subsetlist) 
+                #raise NotSupersetError('NotSupersetError',runnum,supersetlist,subsetlist)
+    return (diffruns,diffls)
+            
 def mergerangeseries(x,y):
     '''
     merge two range type series

@@ -495,7 +495,8 @@ def brilcalc_main(progname=sys.argv[0]):
 
           lumiquerytype = 'detraw'
           normtag = normtagname = 'withoutcorrection'
-          parseerrors = []
+          parsediffruns = None
+          parsediffls = None
           if not pargs.withoutcorrection:
               normtag = pargs.iovtagSelect
               if not normtag:                  
@@ -512,11 +513,7 @@ def brilcalc_main(progname=sys.argv[0]):
                       if pargs.runlsSeries is None:
                           mergedselect = normtag
                       else:
-                          try:
-                              api.checksuperset([x[1] for x in normtag],pargs.runlsSeries)
-                          except api.NotSupersetError,e:
-                              parseerrors.append(e)
-                              #log.error('run %d, %s is not a superset of %s'%(e.runnum,str(e.superset),str(e.subset)))
+                          (parsediffruns, parsediffls) = api.checksuperset([x[1] for x in normtag],pargs.runlsSeries)                         
                           mergedselect = api.mergeiovrunls(normtag,pargs.runlsSeries)
                       normtagname = 'composite'
                       for item in mergedselect:
@@ -638,12 +635,14 @@ def brilcalc_main(progname=sys.argv[0]):
               else:
                   for pentry in hltpathSummary:
                       print >> fh, '#'+','.join( [ '%s'%pentry[0],'%d'%pentry[1],'%d'%pentry[2],'%d'%pentry[3],'%.3f'%pentry[4],'%.3f'%pentry[5] ] )
-       
-          if parseerrors:
+          if parsediffruns or parsediffls:
               print '\nWarning: problems found in merging -i and --normtag selections:'
-              for e in parseerrors:
-                  print '  run %d, %s is not a superset of %s'%(e.runnum,str(e.superset),str(e.subset))
-              print
+              if parsediffruns:
+                  print '  runs %s are not covered by normtag'%(parsediffruns)
+              if parsediffls:
+                  for r in parsediffls.keys():
+                      print '  in run %d %s is not a superset of %s'%(r, parsediffls[r][0], parsediffls[r][1])
+          print         
 
           if checkjson:
               selectlist = []
