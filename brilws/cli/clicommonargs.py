@@ -1,3 +1,4 @@
+from sqlalchemy.dialects.oracle import frontier
 from brilws import api,params,RegexValidator
 import re,time,os,sys
 from datetime import datetime
@@ -314,19 +315,24 @@ class parser(object):
     @property
     def withoutcorrection(self):
         return self._withoutcorrection
+
     @property
     def connecturl(self):
         if not os.path.isfile(self._dbconnect):
-            if not self._servicemap.has_key(self._dbconnect): raise ValueError('service %s is not defined'%self._dbconnect)
+            if not self._servicemap.has_key(self._dbconnect):
+                raise ValueError('service %s is not defined'%self._dbconnect)
             protocol = self._servicemap[self._dbconnect][0]
-            if protocol!='oracle': raise ValueError('protocol %s is not supported'%protocol)
-            user = self._servicemap[self._dbconnect][1]
-            passwd = self._servicemap[self._dbconnect][2].decode('base64')
+            if protocol not in ['oracle','frontier'] : raise ValueError('protocol %s is not supported'%protocol)       
             descriptor = self._servicemap[self._dbconnect][3]
-            connecturl = 'oracle+cx_oracle://%s:%s@%s'%(user,passwd,descriptor)
-            return connecturl
-        else:
-            return self._dbconnect
+            if protocol == 'oracle':
+                user = self._servicemap[self._dbconnect][1]
+                passwd = self._servicemap[self._dbconnect][2].decode('base64')
+                connecturl = 'oracle+cx_oracle://%s:%s@%s'%(user,passwd,descriptor)
+            else:                
+                connecturl = 'oracle+frontier://%s'%(descriptor)
+        else:  #only webconfig frontier takes file as -c argument
+            connecturl = 'oracle+frontier:///%s/%s'%(self._dbconnect,'LumiCalc')            
+        return connecturl        
         
     @property
     def yamlfile(self):

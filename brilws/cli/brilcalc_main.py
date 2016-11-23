@@ -425,6 +425,7 @@ def brilcalc_main(progname=sys.argv[0]):
           pargs = clicommonargs.parser(parseresult)
           dbschema = ''
           if not pargs.dbconnect.find('oracle')!=-1: dbschema = 'cms_lumi_prod'
+          log.debug('connecturl: %s'%pargs.connecturl)
           dbengine = create_engine(pargs.connecturl)
           
           selectionkwds = {}
