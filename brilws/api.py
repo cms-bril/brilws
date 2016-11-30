@@ -261,10 +261,13 @@ def parseiovtagselectionJSON(filepath_or_buffer):
         d = spacer.sub('',d) #remove whitespace
         word = re.compile(r'(\w*[A-Za-z]\w*),')
         d = word.sub(r'"\1",',d) #add quotes to iovtag field
-        result = pd.Series( ast.literal_eval(d) )
+        result = pd.Series( ast.literal_eval(d) ) #Series returns unicode
     final = []
     for r in result:
-        iovtag = r[0]
+        if r[0] and isinstance(r[0],unicode):
+            iovtag = str(r[0])
+        else:
+            iovtag = r[0]
         payload = r[1:]
         for piece in payload :
             if isinstance(piece,dict):
