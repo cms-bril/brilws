@@ -1611,18 +1611,9 @@ def dataIter(engine,datasource,datatype,suffix,datafields=[],idfields=[],scheman
     '''
     if not datafields:
         return None
-    
-    (qCondition,binddict) = build_idquery_condition('i',runmin=runmin,runmax=runmax,fillmin=fillmin,fillmax=fillmax,tssecmin=tssecmin,tssecmax=tssecmax,beamstatusid=beamstatusid,runlsselect=runlsselect)
-    (fCondition,fbinddict) = build_fillquery_condition('f',amodetagid=amodetagid,targetegev=targetegev)
-    
-    if not qCondition: return None
-    if fCondition:
-        for fbk, fbv in fbinddict.items(): #merge binddict
-            binddict[fbk] = fbv
     basetablename = datasource
     if datatype:
         basetablename = basetablename+'_'+datatype
-    
     ifields = []
     ffields = []
     for f in idfields:
@@ -1633,14 +1624,48 @@ def dataIter(engine,datasource,datatype,suffix,datafields=[],idfields=[],scheman
     idf = ifields
     if datatagnameid:
         idf = ifields+['datatagnameid']
-        binddict['datatagnameid'] = datatagnameid        
-    q = build_joinwithdatatagid_query(basetablename,suffix,datafields,idf,qCondition,datatagnameid=datatagnameid,ffields=ffields,fcondition=fCondition,schemaname=schemaname,sorted=sorted)
+         
+    (fCondition,fbinddict) = build_fillquery_condition('f',amodetagid=amodetagid,targetegev=targetegev)
+
+    if runlsselect is not None :
+        runlssplit_nrows = 100
+        runlssplit_nchunks = 1
+        if runlsselect.size>runlssplit_nrows:
+            log.debug('runlsselect of size %s should be splitted'%runlsselect.size)
+            runlssplit_nchunks =  runlsselect.size//runlssplit_nrows + 1
+        runls_array = np.array_split(runlsselect, runlssplit_nchunks)                    
+        output = itertools.chain()
+        connection = engine.connect()
+        for runlsselect_i in runls_array:
+            (qCondition,binddict) = build_idquery_condition('i',runmin=runmin,runmax=runmax,fillmin=fillmin,fillmax=fillmax,tssecmin=tssecmin,tssecmax=tssecmax,beamstatusid=beamstatusid,runlsselect=runlsselect_i)
+            if not qCondition:
+                return None
+            if fCondition:
+                for fbk, fbv in fbinddict.items(): #merge binddict
+                    binddict[fbk] = fbv
+            if datatagnameid:
+                binddict['datatagnameid'] = datatagnameid        
+            q = build_joinwithdatatagid_query(basetablename,suffix,datafields,idf,qCondition,datatagnameid=datatagnameid,ffields=ffields,fcondition=fCondition,schemaname=schemaname,sorted=sorted)    
+            log.debug('dataIter %s %s: '%(datasource,datatype)+q)
+            log.debug(str(binddict))
+        
+            result = connection.execution_options(stream_result=True).execute(q,binddict)    
+            output = itertools.chain( output, iter(result) )
+        return output
+    else:
+        connection = engine.connect()
+        (qCondition,binddict) = build_idquery_condition('i',runmin=runmin,runmax=runmax,fillmin=fillmin,fillmax=fillmax,tssecmin=tssecmin,tssecmax=tssecmax,beamstatusid=beamstatusid,runlsselect=None)
+        if not qCondition:
+            return None
+        if fCondition:
+            for fbk, fbv in fbinddict.items(): #merge binddict
+                binddict[fbk] = fbv
+        if datatagnameid:
+            binddict['datatagnameid'] = datatagnameid        
+        q = build_joinwithdatatagid_query(basetablename,suffix,datafields,idf,qCondition,datatagnameid=datatagnameid,ffields=ffields,fcondition=fCondition,schemaname=schemaname,sorted=sorted)
     
-    log.debug('dataIter %s %s: '%(datasource,datatype)+q)
-    log.debug(str(binddict))
-    connection = engine.connect()
-    result = connection.execution_options(stream_result=True).execute(q,binddict)
-    return iter(result)
-
-
+        log.debug('dataIter %s %s: '%(datasource,datatype)+q)
+        log.debug(str(binddict))        
+        result = connection.execution_options(stream_result=True).execute(q,binddict)    
+        return iter(result) 
 
