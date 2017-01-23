@@ -224,8 +224,9 @@ def mergeiovrunls(iovselect,cmsselect):
             x = final[-1][1]                
             y = runlsdict            
             final[-1][1] = merge_two_dicts_onkeys(x,y)
-        coutiovpiece+=1
-    return final
+        coutiovpiece+=1    
+    #return final
+    return [ [x[0],pd.Series(x[1])] for x in final ] # turn the second element to Series
 
 def parseselectionJSON(filepath_or_buffer):
     d = get_filepath_or_buffer(filepath_or_buffer)
