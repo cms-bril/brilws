@@ -1226,15 +1226,10 @@ def online_resultIter(engine,tablename,schemaname='',runmin=None,runmax=None,fil
     t = tablename
     if schemaname:
         t=schemaname+'.'+t
-    
-    (qCondition,binddict) = build_idquery_condition('i',runmin=runmin,runmax=runmax,fillmin=fillmin,fillmax=fillmax,tssecmin=tssecmin,tssecmax=tssecmax,beamstatusid=beamstatusid,runlsselect=runlsselect)
+    ftab = 'lhcfill'
+    if schemaname:
+        ftab=schemaname+'.'+ftab
     (fCondition,fbinddict) = build_fillquery_condition('f',amodetagid=amodetagid,targetegev=targetegev)
-    
-    if not qCondition: return None #main table must be filtered
-    
-    if fCondition:
-        for fbk, fbv in fbinddict.items(): #merge binddict
-            binddict[fbk] = fbv
     ifields = []
     ffields = [] 
     for f in fields:
@@ -1242,30 +1237,63 @@ def online_resultIter(engine,tablename,schemaname='',runmin=None,runmax=None,fil
             ffields.append(f)
         else:
             ifields.append(f)
+            
     if not ifields:
         ifields = ['runnum','lsnum']
         
     ifieldsStr = ','.join(['i.%s as %s'%(f,f) for f in ifields])
     ffieldsStr = ','.join(['f.%s as %s'%(f,f) for f in ffields])
-    
-    q = "select %s from %s i"%(ifieldsStr,t) + ' where '+qCondition
-    if ffields:
-        ftab = 'lhcfill'
-        if schemaname:
-            ftab=schemaname+'.'+ftab
-        q = "select %s,%s from %s i, %s f"%(ifieldsStr,ffieldsStr,t,ftab) + ' where '+qCondition
-        if ffieldsStr:
-            q = q+' and i.fillnum=f.fillnum '
-            if fCondition:
-                q = q+' and '+fCondition        
-    if sorted:
-        q = q+' order by runnum,lsnum'
-        
-    log.debug('online_resultIter: '+q+' , '+str(binddict))
-    connection = engine.connect()
-    result = connection.execution_options(stream_result=True).execute(q,binddict)
-    return iter(result)        
 
+    if runlsselect is None:
+        (qCondition,binddict) = build_idquery_condition('i',runmin=runmin,runmax=runmax,fillmin=fillmin,fillmax=fillmax,tssecmin=tssecmin,tssecmax=tssecmax,beamstatusid=beamstatusid,runlsselect=None)
+        if not qCondition: return None #main table must be filtered
+        if fCondition:
+            for fbk, fbv in fbinddict.items(): #merge binddict
+                binddict[fbk] = fbv
+        q = "select %s from %s i"%(ifieldsStr,t) + ' where '+qCondition
+        if ffields:       
+            q = "select %s,%s from %s i, %s f"%(ifieldsStr,ffieldsStr,t,ftab) + ' where '+qCondition
+            if ffieldsStr:
+                q = q+' and i.fillnum=f.fillnum '
+                if fCondition:
+                    q = q+' and '+fCondition        
+        if sorted:
+            q = q+' order by runnum,lsnum'
+        
+        log.debug('online_resultIter: '+q+' , '+str(binddict))
+        connection = engine.connect()
+        result = connection.execution_options(stream_result=True).execute(q,binddict)
+        return iter(result)
+    else:
+        runlssplit_nrows = 100
+        runlssplit_nchunks = 1
+        if runlsselect.size>runlssplit_nrows:
+            log.debug('runlsselect of size %s should be splitted'%runlsselect.size)
+            runlssplit_nchunks =  runlsselect.size//runlssplit_nrows + 1
+        runls_array = np.array_split(runlsselect, runlssplit_nchunks)
+        output = itertools.chain()
+        connection = engine.connect()
+        for runlsselect_i in runls_array:
+            (qCondition,binddict) = build_idquery_condition('i',runmin=runmin,runmax=runmax,fillmin=fillmin,fillmax=fillmax,tssecmin=tssecmin,tssecmax=tssecmax,beamstatusid=beamstatusid,runlsselect=runlsselect_i)
+            if not qCondition: return None #main table must be filtered
+            if fCondition:
+                for fbk, fbv in fbinddict.items(): #merge binddict
+                    binddict[fbk] = fbv
+            q = "select %s from %s i"%(ifieldsStr,t) + ' where '+qCondition
+            if ffields:       
+                q = "select %s,%s from %s i, %s f"%(ifieldsStr,ffieldsStr,t,ftab) + ' where '+qCondition
+                if ffieldsStr:
+                    q = q+' and i.fillnum=f.fillnum '
+                    if fCondition:
+                        q = q+' and '+fCondition        
+            if sorted:
+                q = q+' order by runnum,lsnum'
+        
+            log.debug('online_resultIter: '+q+' , '+str(binddict))
+            result = connection.execution_options(stream_result=True).execute(q,binddict)
+            output = itertools.chain( output, iter(result) )
+        return output
+    
 ###############
 # trg queries
 ###############
