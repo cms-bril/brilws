@@ -1,15 +1,19 @@
 import ast
 import numpy as np
 import collections
-import copy
+from numpy.polynomial import polynomial as P
 
+class FunctionRoot(object):
+    def __init__(self,*args):
+        self.root = []
+        for a in args:
+            self.root.append(a)
+        
 class FunctionFactory(object):
 
-    
     def hcaldrift(self,ivalue,rawavglumi,intglumi,nbx,a0=1.0,a1=0.0,a2=0.0,drift=0.0,c1=0.0,afterglowthresholds=''):
         '''
-        pain . later maybe
-        
+        this is a pain . just dump here. make it usable again only if later maybe used.        
         '''
         avglumi = 0.
         if c1 and nbx>0:
@@ -22,92 +26,95 @@ class FunctionFactory(object):
             result = self.afterglow(result,nbx,afterglowthresholds)
         return result
     
-    def poly1d(self,*args,**kwds):
-        ivalue = args[0]                #avglumi or bxlumi
-        ncollidingbx = args[1]
+    def poly1d(self,functionroot,ncollidingbx,**kwds):
+        '''
+        root0: avglumi or bxlumi        
+        '''
+        ivalue = functionroot.root[0]
         coefsStr = kwds['coefs']
-        bxcoefs = np.fromstring(coefsStr, dtype=np.float, sep=',')            
-        if isinstance(ivalue,collections.Iterable) or len(bxcoefs)==1: #is bx lumi or only a const term 
-            f = np.poly1d(bxcoefs)
-            return f(ivalue)
-            
-        coefs = copy.deepcopy(bxcoefs)
-        maxpower = len(bxcoefs)-1 
-        for i,c in enumerate(bxcoefs):    #recalculate coefs for avg lumi
-            currentpower = maxpower-i     #current term power=maxpower-i
-            if currentpower>1:            #the only term having no need of change is power=1
-                #coefs[i] = np.divide(c,ncollidingbx**(currentpower-1))
-                with np.errstate(divide='ignore', invalid='ignore'):
-                    coe = np.true_divide(c,ncollidingbx**(currentpower-1))
-                    if coe == np.inf:
-                        coe = 0
-                    coe = np.nan_to_num(coe)
-                    coefs[i] = coe
-            elif currentpower==0:
-                coefs[-1] = ncollidingbx*c #const term is ncollidingbx*const
-        f = np.poly1d(coefs)
-        return f(ivalue)
-    
-    def poly1d_tostring(self,*args,**kwds):
-        coefs = kwds['coefs']
-        if isinstance(coefs,str):
-            coefs = np.fromstring(coefs, dtype=np.float, sep=',')
-        f = np.poly1d(coefs)
-        return 'poly1d: %s'%f
-    
-    def inversepoly1d(self,*args,**kwds):
-        return 1./self.poly1d(*args,**kwds)
+        coefs = np.fromstring(coefsStr, dtype=np.float, sep=',')
+        if not isinstance(ivalue,collections.Iterable) : #is totallumi, in this case, need to use term totallumi/nbx
+            with np.errstate(divide='ignore',invalid='ignore'):
+                ivalue = np.true_divide(ivalue,ncollidingbx)
+                if ivalue == np.inf:
+                    ivalue = 0
+                ivalue = np.nan_to_num(ivalue)
+        if len(coefs)>1:
+            coefs = coefs[::-1] #reverse the order because polyval coefs order is reverse of np.poly1d
+        if isinstance(ivalue,collections.Iterable) :
+            return P.polyval(ivalue,coefs)
+        else:
+            return ncollidingbx*P.polyval(ivalue,coefs)
+                    
+    def poly2dlL(self,functionroot,ncollidingbx,**kwds):
+        '''
+        poly2d of l=bxlumi, L=totallumi
+        c00 + c10*x + c01*y (n=1)
+        c00 + c10*x + c01*y + c20*x**2 + c02*y**2 + c11*x*y (n=2)
+        if l is scalar, scale l to y/NBX, then the final result is NBX*singleresult
+        otherwise, make l,L  the same shape
+        '''
+        l = functionroot.root[0]  #per bunch lumi or totallumi
+        L = functionroot.root[1] #total lumi
+        totlumi = 0
+        bxlumi = 0
 
-    def inversepoly1d_tostring(self,*args,**kwds):
-        return 'inversepoly1d: 1/%s'%(self.poly1d_tostring(*args,**kwds))
+        if isinstance(l,collections.Iterable):
+            bxlumi = np.array(l)
+            totlumi = np.full_like(bxlumi, L)
+        else:
+            with np.errstate(divide='ignore',invalid='ignore'):
+                bxlumi = np.true_divide(l/ncollidingbx)
+                if bxlumi == np.inf:
+                    bxlumi = 0
+                bxlumi = np.nan_to_num(bxlumi)                    
+            totlumi = L
+
+        coefsStr = kwds['coefs']
+        coefs = np.array(ast.literal_eval(coefsStr), dtype=np.float)
+        if isinstance(l,collections.Iterable):
+            return P.polyval2d(totlumi,bxlumi,coefs)
+        else:
+            return ncollidingbx*P.polyval2d(totlumi,bxlumi,coefs)
     
-    def afterglow(self,*args,**kwds):
-        ivalue = args[0]
-        ncollidingbx = args[1]
+    def inversepoly1d(self,functionroot,ncollidingbx,**kwds):
+        return 1./self.poly1d(functionroot,ncollidingbx,**kwds)
+    
+    def afterglow(self,functionroot,ncollidingbx,**kwds):
+        ivalue = functionroot.root[0]
         afterglowthresholds = kwds['afterglowthresholds']
         afterglow = 1.
-        if isinstance(afterglowthresholds,str):
-            if afterglowthresholds[-1]!=',': afterglowthresholds+=','
-            afterglowthresholds = np.array(ast.literal_eval(afterglowthresholds))
+
+        if afterglowthresholds[-1]!=',':
+            afterglowthresholds+=','
+        afterglowthresholds = np.array(ast.literal_eval(afterglowthresholds))
         for (bxthreshold,c) in afterglowthresholds:
             if ncollidingbx >= bxthreshold:
                 afterglow = c
         return ivalue*afterglow
     
-    def afterglow_tostring(self,*args,**kwds):
-        return 'afterglow: %s'%(kwds['afterglowthresholds'])
+    #def afterglow_tostring(self,functionroot,ncollidingbx,**kwds):
+    #    return 'afterglow: %s'%(kwds['afterglowthresholds'])
 
-    def poly1dWafterglow(self,*args,**kwds):
+    def poly1dWafterglow(self,functionroot,ncollidingbx,**kwds):
         '''
         poly1d*afterglow
         '''
-        newargs = [ self.poly1d(*args,**kwds) ]
-        if len(args)>1: newargs = newargs+list(args[1:])
-        result = self.afterglow(*tuple(newargs),**kwds)
+        poly1dresult = self.poly1d(functionroot,ncollidingbx**kwds)
+        fr = FunctionRoot(polu1dresult)
+        result = self.afterglow(fr,**kwds)
         return result
-
-    def poly1dWafterglow_tostring(self,*args,**kwds):
-        return '('+poly1d_tostring(**kwds)+')*('+afterglow_tostring(**kwds)+')'
-
-    def inversepoly1dWafterglow(self,*args,**kwds):
+ 
+    def inversepoly1dWafterglow(self,functionroot,ncollidingbx,**kwds):
         '''
         poly1d*afterglow
         '''
-        result = self.inversepoly1d(*args,**kwds)
-        args[0] = result
-        result = self.afterglow(*args,**kwds)
+        inverseresult = self.inversepoly1d(functionroot,**kwds)
+        fr = FunctionRoot(inverseresult)
+        result = self.afterglow(fr,**kwds)
         return result
-
-    def inversepoly1dWafterglow_tostring(self,*args,**kwds):
-        return '('+inversepoly1d_tostring(**kwds)+')*('+afterglow_tostring(**kwds)+')'
     
-    def chooser(self,*args,**kwds):        
-        return args[0]
-
-    def chooser_tostring(self,*args,**kwds):
-        return 'chooser: %s'%(args[0])
-        
-def FunctionCaller(funcName,*args,**kwds):
+def FunctionCaller(funcName,functionroot,ncollidingbx,**kwds):
     fac = FunctionFactory()
     try:
         myfunc = getattr(fac,funcName,None)
@@ -115,35 +122,33 @@ def FunctionCaller(funcName,*args,**kwds):
         print '[ERROR] unknown correction function '+funcName
         raise
     if callable(myfunc):
-        return myfunc(*args,**kwds)
+        return myfunc(functionroot,ncollidingbx,**kwds)
     else:
         raise ValueError('uncallable function '+funcName)
-
-    
+     
 if __name__=='__main__':
-    ivalue = np.array([1.,2.,35.])
-    result = FunctionCaller('poly1d',ivalue,coefs=np.array([2.,0.]))
-    print result
-    print FunctionCaller('poly1d_tostring',coefs=np.array([2.,0.]))    
-    result = FunctionCaller('inversepoly1d',ivalue,coefs=np.array([2.,0.]))
-    print result
+    ivalue = np.array([2.,2.,2.])
+    nbx=3
+    fr = FunctionRoot(ivalue)
+    result = FunctionCaller('poly1d',fr,nbx,coefs='2.0,1.0,0.')
+    print 'result perbunch ',result
+
+    ivalue = 6
+    fr = FunctionRoot(ivalue)
+    result = FunctionCaller('poly1d',fr,nbx,coefs='2.0,1.0,0.')
+    print 'result  total ',result
     
-
-    result = FunctionCaller('chooser','aa')
-    print result
-
-    result = FunctionCaller('afterglow',ivalue,3,afterglowthresholds=[(1,2),(2,5)])
+    result = FunctionCaller('afterglow',fr,nbx,afterglowthresholds='(1,2),(2,5),')
     print result
  
-    result = FunctionCaller('afterglow',ivalue,3,afterglowthresholds='(1,2),')
+    result = FunctionCaller('afterglow',fr,nbx,afterglowthresholds='(1,2),')
     print result
 
-    print FunctionCaller('afterglow_tostring',afterglowthresholds='(1,2),(2,5)')
-
-
-
+    fr = FunctionRoot([1,2,3],2)
+    print FunctionCaller('poly2dlL',fr,nbx,coefs='[[3,2,1],[-10,4,0],[2,0,0]]')
+    '''
     ##accumulative function sequence
-    fs = [ ['poly1d',[ivalue],{'coefs':np.array([2.,0.])}], ['afterglow',[ivalue,3], {'afterglowthresholds':'(1,2),(2,5)'}] ]
+    fs = [ ['poly1d',[ivalue,nbx],{'coefs':np.array([2.,0.])}], ['afterglow',[ivalue,3], {'afterglowthresholds':'(1,2),(2,5)'}] ]
 
     result = None
     for f in fs:
@@ -155,4 +160,4 @@ if __name__=='__main__':
         result = FunctionCaller(f_name,*f_args,**f_kwds)
         print 'applying function: %s'%(FunctionCaller(f_name+'_tostring',**f_kwds))
     print 'final result ',result
-    
+    '''
