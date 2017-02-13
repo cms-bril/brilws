@@ -76,7 +76,7 @@ class FunctionFactory(object):
             return P.polyval2d(totlumi,bxlumi,coefs)
         else:
             return ncollidingbx*P.polyval2d(totlumi,bxlumi,coefs)
-    
+
     def inversepoly1d(self,functionroot,ncollidingbx,**kwds):
         return 1./self.poly1d(functionroot,ncollidingbx,**kwds)
     
@@ -113,6 +113,24 @@ class FunctionFactory(object):
         fr = FunctionRoot(inverseresult)
         result = self.afterglow(fr,**kwds)
         return result
+
+    def afterglowWpoly2dlL(self,functionroot,ncollidingbx,**kwds):
+        '''
+        afterglow*poly2dlL
+        '''
+        afterglowresult = self.afterglow(functionroot,**kwd)
+        fr = FunctionRoot(afterglowresult)
+        result = self.poly2dlL(fr,**kwds)
+        return result
+    
+    def poly2dlLWafterglow(self,functionroot,ncollidingbx,**kwds):
+        '''
+        poly2dlL*afterglow
+        '''
+        polyresult = self.poly2dlL(functionroot,**kwd)
+        fr = FunctionRoot(polyresult)
+        result = self.poly2dlL(fr,**kwds)
+        return result
     
 def FunctionCaller(funcName,functionroot,ncollidingbx,**kwds):
     fac = FunctionFactory()
@@ -146,18 +164,5 @@ if __name__=='__main__':
 
     fr = FunctionRoot([1,2,3],2)
     print FunctionCaller('poly2dlL',fr,nbx,coefs='[[3,2,1],[-10,4,0],[2,0,0]]')
-    '''
-    ##accumulative function sequence
-    fs = [ ['poly1d',[ivalue,nbx],{'coefs':np.array([2.,0.])}], ['afterglow',[ivalue,3], {'afterglowthresholds':'(1,2),(2,5)'}] ]
 
-    result = None
-    for f in fs:
-        f_name = f[0]        
-        f_args = f[1]
-        if result is not None:
-            f_args[0] = result
-        f_kwds = f[2]
-        result = FunctionCaller(f_name,*f_args,**f_kwds)
-        print 'applying function: %s'%(FunctionCaller(f_name+'_tostring',**f_kwds))
-    print 'final result ',result
-    '''
+    
