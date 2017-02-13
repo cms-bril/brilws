@@ -104,34 +104,37 @@ class FunctionFactory(object):
         '''
         poly1dresult = self.poly1d(functionroot,ncollidingbx**kwds)
         fr = FunctionRoot(polu1dresult)
-        result = self.afterglow(fr,**kwds)
+        result = self.afterglow(fr,ncollidingbx,**kwds)
         return result
  
     def inversepoly1dWafterglow(self,functionroot,ncollidingbx,**kwds):
         '''
         poly1d*afterglow
         '''
-        inverseresult = self.inversepoly1d(functionroot,**kwds)
+        inverseresult = self.inversepoly1d(functionroot,ncollidingbx,**kwds)
         fr = FunctionRoot(inverseresult)
-        result = self.afterglow(fr,**kwds)
+        result = self.afterglow(fr,ncollidingbx,**kwds)
         return result
 
     def afterglowWpoly2dlL(self,functionroot,ncollidingbx,**kwds):
         '''
         afterglow*poly2dlL
         '''
-        afterglowresult = self.afterglow(functionroot,**kwd)
-        fr = FunctionRoot(afterglowresult)
-        result = self.poly2dlL(fr,**kwds)
+        l = functionroot.root[0]
+        L = functionroot.root[1]
+        afterglowl = self.afterglow(FunctionRoot(l),ncollidingbx,**kwds)
+        afterglowL = self.afterglow(FunctionRoot(L),ncollidingbx,**kwds)
+        fr = FunctionRoot(afterglowl,afterglowL)
+        result = self.poly2dlL(fr,ncollidingbx,**kwds)
         return result
     
     def poly2dlLWafterglow(self,functionroot,ncollidingbx,**kwds):
         '''
         poly2dlL*afterglow
         '''
-        polyresult = self.poly2dlL(functionroot,**kwd)
+        polyresult = self.poly2dlL(functionroot,ncollidingbx,**kwds)
         fr = FunctionRoot(polyresult)
-        result = self.poly2dlL(fr,**kwds)
+        result = self.afterglow(fr,ncollidingbx,**kwds)
         return result
     
 def FunctionCaller(funcName,functionroot,ncollidingbx,**kwds):
