@@ -271,13 +271,14 @@ def lumi_per_normtag(shards,lumiquerytype,dbengine,dbschema,runtot,datasource=No
                         if cmslsnum!=0:
                             g_nulldeadtime.setdefault(runnum,[]).append(lsnum)
                         livefrac = 0.
-                avglumi = row['avglumi']
+                uncorrectedavglumi = row['avglumi'] #uncorrected, hz/ub
+                avglumi = uncorrectedavglumi
                 ncollidingbx = row['numbxbeamactive']
                 if validitychecker is not None:
                     if not lastvalidity or not validitychecker.isvalid(runnum,lastvalidity):
                         lastvalidity = validitychecker.getvalidity(runnum)
                     [normfunc,normparam] = validitychecker.getvaliddata(lastvalidity[0])
-                    f_roots = corrector.FunctionRoot(avglumi,avglumi)
+                    f_roots = corrector.FunctionRoot(uncorrectedavglumi,uncorrectedavglumi)
                     #f_args = (avglumi,ncollidingbx)
                     f_kwds = ast.literal_eval(normparam)                          
                     avglumi = corrector.FunctionCaller(normfunc,f_roots,ncollidingbx,**f_kwds)
@@ -291,7 +292,7 @@ def lumi_per_normtag(shards,lumiquerytype,dbengine,dbschema,runtot,datasource=No
                         bxdeliveredarray = np.array(api.unpackBlobtoArray(row['bxlumiblob'],'f'))
                         if validitychecker is not None:              
                             #f_bxargs = (bxdeliveredarray,ncollidingbx)
-                            f_roots = corrector.FunctionRoot(bxdeliveredarray,avglumi)
+                            f_roots = corrector.FunctionRoot(bxdeliveredarray,uncorrectedavglumi)
                             bxdeliveredarray = corrector.FunctionCaller(normfunc,f_roots,ncollidingbx,**f_kwds)
                         totfactor = np.true_divide(lslengthsec,scalefactor)
                         bxidx = xing_indexfilter(bxdeliveredarray,constfactor=totfactor,xingMin=xingMin,xingTr=xingTr,xingId=xingId)

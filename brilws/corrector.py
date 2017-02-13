@@ -63,8 +63,10 @@ class FunctionFactory(object):
             bxlumi = np.array(l)
             totlumi = np.full_like(bxlumi, L)
         else:
+            if l!=L:
+                raise ValueError('l and L are of different value ')
             with np.errstate(divide='ignore',invalid='ignore'):
-                bxlumi = np.true_divide(l/ncollidingbx)
+                bxlumi = np.true_divide(L,ncollidingbx)
                 if bxlumi == np.inf:
                     bxlumi = 0
                 bxlumi = np.nan_to_num(bxlumi)                    
@@ -73,9 +75,9 @@ class FunctionFactory(object):
         coefsStr = kwds['coefs']
         coefs = np.array(ast.literal_eval(coefsStr), dtype=np.float)
         if isinstance(l,collections.Iterable):
-            return P.polyval2d(totlumi,bxlumi,coefs)
+            return P.polyval2d(bxlumi,totlumi,coefs)
         else:
-            return ncollidingbx*P.polyval2d(totlumi,bxlumi,coefs)
+            return ncollidingbx*P.polyval2d(bxlumi,totlumi,coefs)
 
     def inversepoly1d(self,functionroot,ncollidingbx,**kwds):
         return 1./self.poly1d(functionroot,ncollidingbx,**kwds)
@@ -165,4 +167,5 @@ if __name__=='__main__':
     fr = FunctionRoot([1,2,3],2)
     print FunctionCaller('poly2dlL',fr,nbx,coefs='[[3,2,1],[-10,4,0],[2,0,0]]')
 
-    
+    fr = FunctionRoot(3,3)
+    print FunctionCaller('poly2dlL',fr,nbx,coefs='[[3,2,1],[-10,4,0],[2,0,0]]')
