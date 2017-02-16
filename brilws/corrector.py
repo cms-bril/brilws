@@ -103,7 +103,7 @@ class FunctionFactory(object):
         poly1d*afterglow
         '''
         poly1dresult = self.poly1d(functionroot,ncollidingbx,**kwds)
-        fr = FunctionRoot(polu1dresult)
+        fr = FunctionRoot(poly1dresult)
         result = self.afterglow(fr,ncollidingbx,**kwds)
         return result
  
