@@ -54,17 +54,6 @@ BCM1F_RAW_&suffix:
     - bxlumiblob: blob
    pk: [ datatagid ]
    
-PLTTK_RAW_&suffix: #per ls
-   columns:
-    - datatagid: int64
-    - fillnum: uint32
-    - runnum: uint32
-    - lsnum: uint32
-    - timestampsec: uint32
-    - avglumi: float
-    - bxlumiblob: blob
-   pk: [ datatagid ]
-
 PLTZERO_RAW_&suffix: #per ls
    columns:
     - datatagid: int64
@@ -195,3 +184,14 @@ ONLINE_RESULT_&suffix:
     - datasource: string
     - normtag: string
    pk: [runnum,lsnum]
+   
+ATLAS_RESULT_&suffix:
+  columns:
+   - runnum: uint32
+   - lsnum: uint32
+   - fillnum: uint32
+   - timestampsec: uint32
+   - beamstatusid: uint16
+   - delivered: float
+   - bxdeliveredblob: blob
+  pk: [runnum,lsnum]
