@@ -763,7 +763,7 @@ def iov_insertdata(engine,iovtagname,datasource,iovdata,applyto='lumi',isdefault
         for sincedict in iovdata:
             sincerunnum = sincedict.keys()[0]
             payloaddata = sincedict.values()[0]
-            func = sincedict[sincerunnum]['func']
+            func = str(sincedict[sincerunnum]['func'])
             sincecomments =  sincedict[sincerunnum]['comments']
             payloadstr = str(sincedict[sincerunnum]['payload'])
             log.debug( 'append to tag %s since %d'%(iovtagname,sincerunnum) )
