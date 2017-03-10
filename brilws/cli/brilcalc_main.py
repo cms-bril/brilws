@@ -274,32 +274,31 @@ def lumi_per_normtag(shards,lumiquerytype,dbengine,dbschema,runtot,datasource=No
                 uncorrectedavglumi = row['avglumi'] #uncorrected, hz/ub
                 avglumi = uncorrectedavglumi
                 ncollidingbx = row['numbxbeamactive']
+                uncorrectedbxlumi = None
+                if row.has_key('bxlumiblob'):
+                    uncorrectedbxlumi = np.array(api.unpackBlobtoArray(row['bxlumiblob'],'f'))
+                bxlumi = uncorrectedbxlumi
                 if validitychecker is not None:
                     if not lastvalidity or not validitychecker.isvalid(runnum,lastvalidity):
                         lastvalidity = validitychecker.getvalidity(runnum)
                     [normfunc,normparam] = validitychecker.getvaliddata(lastvalidity[0])
-                    f_roots = corrector.FunctionRoot(uncorrectedavglumi,uncorrectedavglumi)
-                    #f_args = (avglumi,ncollidingbx)
-                    f_kwds = ast.literal_eval(normparam)                          
-                    avglumi = corrector.FunctionCaller(normfunc,f_roots,ncollidingbx,**f_kwds)
-                delivered = np.true_divide(avglumi*lslengthsec,scalefactor)
+                    if withBX:
+                        (avglumi,bxlumi) = corrector.applyCorrectionStr( normfunc,normparam, corrector.FunctionRoot(uncorrectedbxlumi,avglumi,ncollidingbx) )
+                    else:
+                        avglumi = corrector.applyCorrectionStr( normfunc,normparam, corrector.FunctionRoot(avglumi,avglumi,ncollidingbx) )[0]
+
+                totfactor = np.true_divide(lslengthsec,scalefactor)
+                delivered = avglumi*totfactor
                 recorded = delivered*livefrac
                 avgpu = lumip.avgpu( avglumi,ncollidingbx,g_minbias)                
                 if withBX:      #--xing
-                    bxlumi = None
                     bxlumistr = '[]'
-                    if row.has_key('bxlumiblob'):                                  
-                        bxdeliveredarray = np.array(api.unpackBlobtoArray(row['bxlumiblob'],'f'))
-                        if validitychecker is not None:              
-                            #f_bxargs = (bxdeliveredarray,ncollidingbx)
-                            f_roots = corrector.FunctionRoot(bxdeliveredarray,uncorrectedavglumi)
-                            bxdeliveredarray = corrector.FunctionCaller(normfunc,f_roots,ncollidingbx,**f_kwds)
-                        totfactor = np.true_divide(lslengthsec,scalefactor)
-                        bxidx = xing_indexfilter(bxdeliveredarray,constfactor=totfactor,xingMin=xingMin,xingTr=xingTr,xingId=xingId)
+                    if bxlumi is not None:                                                         
+                        bxidx = xing_indexfilter(bxlumi,constfactor=totfactor,xingMin=xingMin,xingTr=xingTr,xingId=xingId)
                         if bxidx is not None and bxidx.size>0:                                      
-                            bxdelivered =  bxdeliveredarray[bxidx]*totfactor
+                            bxdelivered =  bxlumi[bxidx]*totfactor
                             bxlumi = np.transpose( np.array([bxidx+1,bxdelivered,bxdelivered*livefrac]) )               
-                        del bxdeliveredarray
+                        del uncorrectedbxlumi
                         del bxidx
                     if hltl1map:#--hltpath xing display
                         for pth in prescale_map.keys():
