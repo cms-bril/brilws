@@ -1,3 +1,4 @@
+master_doc= 'index'
 from recommonmark.parser import CommonMarkParser
 
 source_parsers = {
