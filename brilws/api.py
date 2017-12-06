@@ -1266,8 +1266,8 @@ def online_resultIter(engine,tablename,schemaname='',runmin=None,runmax=None,fil
         result = connection.execution_options(stream_result=True).execute(q,binddict)
         return iter(result)
     else:
-        runlssplit_nrows = 100
-        runlssplit_nchunks = 1
+        runlssplit_nrows = 20 # the true chunk size
+        runlssplit_nchunks = 1 # initial value
         if runlsselect.size>runlssplit_nrows:
             log.debug('runlsselect of size %s should be splitted'%runlsselect.size)
             runlssplit_nchunks =  runlsselect.size//runlssplit_nrows + 1
@@ -1657,8 +1657,8 @@ def dataIter(engine,datasource,datatype,suffix,datafields=[],idfields=[],scheman
     (fCondition,fbinddict) = build_fillquery_condition('f',amodetagid=amodetagid,targetegev=targetegev)
 
     if runlsselect is not None :
-        runlssplit_nrows = 100
-        runlssplit_nchunks = 1
+        runlssplit_nrows = 20 # true chunksize
+        runlssplit_nchunks = 1 # initial value
         if runlsselect.size>runlssplit_nrows:
             log.debug('runlsselect of size %s should be splitted'%runlsselect.size)
             runlssplit_nchunks =  runlsselect.size//runlssplit_nrows + 1
