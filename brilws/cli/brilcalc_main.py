@@ -260,7 +260,7 @@ def lumi_per_normtag(shards,lumiquerytype,dbengine,dbschema,runtot,datasource=No
                     if hltl1map:#--hltpath display
                         for pth in prescale_map.keys():
                             thispresc = prescale_map[pth]
-                            display.add_row( ['%d:%d'%(runnum,fillnum),'%d:%d'%(lsnum,cmslsnum), dtime, pth, '%.3f'%(np.true_divide(delivered,thispresc)),'%.3f'%(np.true_divide(recorded,thispresc)),ds] , fh=fh, csvwriter=csvwriter, ptable=ptable)                            
+                            display.add_row( ['%d:%d'%(runnum,fillnum),'%d:%d'%(lsnum,cmslsnum), dtime, pth, '%.3f'%(np.true_divide(delivered,thispresc)),'%.3f'%(np.true_divide(recorded,thispresc)),'%.1f'%(avgpu),ds] , fh=fh, csvwriter=csvwriter, ptable=ptable)                            
                     else:       #normal display
                         display.add_row( ['%d:%d'%(runnum,fillnum),'%d:%d'%(lsnum,cmslsnum),dtime,beamstatus,'%d'%tegev,'%.3f'%(delivered),'%.3f'%(recorded),'%.1f'%(avgpu),ds] , fh=fh, csvwriter=csvwriter, ptable=ptable)                        
             else:               ###lumisource
@@ -317,7 +317,7 @@ def lumi_per_normtag(shards,lumiquerytype,dbengine,dbschema,runtot,datasource=No
                     if hltl1map: #--hltpath display
                         for pth in prescale_map.keys():
                             thispresc = prescale_map[pth]                            
-                            display.add_row( ['%d:%d'%(runnum,fillnum),'%d:%d'%(lsnum,cmslsnum),dtime,pth,'%.3f'%(np.true_divide(delivered,thispresc)),'%.3f'%(np.true_divide(recorded,thispresc)),datasource.upper()] , fh=fh, csvwriter=csvwriter, ptable=ptable)                            
+                            display.add_row( ['%d:%d'%(runnum,fillnum),'%d:%d'%(lsnum,cmslsnum),dtime,pth,'%.3f'%(np.true_divide(delivered,thispresc)),'%.3f'%(np.true_divide(recorded,thispresc)),'%.1f'%(avgpu),datasource.upper()] , fh=fh, csvwriter=csvwriter, ptable=ptable)                            
                     else:        #normal display
                         display.add_row( ['%d:%d'%(runnum,fillnum),'%d:%d'%(lsnum,cmslsnum),dtime,beamstatus,'%d'%tegev,'%.3f'%(delivered),'%.3f'%(recorded),'%.1f'%(avgpu),datasource.upper()] , fh=fh, csvwriter=csvwriter, ptable=ptable)
             if not hltl1map:     #normal statistic collect
@@ -450,7 +450,7 @@ def brilcalc_main(progname=sys.argv[0]):
           g_headers['bylsheader'] = ['run:fill','ls','time','beamstatus','E(GeV)','delivered(/ub)','recorded(/ub)','avgpu','source']
           g_headers['runheader_hltpath'] = ['run:fill','time','ncms','hltpath','delivered(/ub)','recorded(/ub)']
           g_headers['footer_hltpath'] = ['hltpath','nfill','nrun','ncms','totdelivered(/ub)','totrecorded(/ub)']
-          g_headers['bylsheader_hltpath'] = ['run:fill','ls','time','hltpath','delivered(/ub)','recorded(/ub)','source']
+          g_headers['bylsheader_hltpath'] = ['run:fill','ls','time','hltpath','delivered(/ub)','recorded(/ub)','avgpu','source']
           g_minbias = pargs.minbias
           scalefactor = pargs.scalefactor
           lumiunitstr = parseresult['-u']         
