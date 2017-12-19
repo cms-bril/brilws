@@ -144,7 +144,8 @@ def lumi_per_normtag(shards,lumiquerytype,dbengine,dbschema,runtot,datasource=No
             if withBX: rfields = rfields+['bxlumiblob']
             lumiiter = api.dataIter(dbengine,datasource,datatype,shard,datafields=rfields,idfields=idfields,schemaname=dbschema,fillmin=fillmin,fillmax=fillmax,runmin=runmin,runmax=runmax,amodetagid=amodetagid,targetegev=egev,beamstatusid=beamstatusid,tssecmin=tssecmin,tssecmax=tssecmax,runlsselect=runlsSeries,sorted=True,datatagnameid=datatagnameid)                    
                   
-        if not lumiiter: continue
+        if lumiiter is None:
+            continue
 
         g_run_old = 0
         g_ls_trglastscaled_old = 0
