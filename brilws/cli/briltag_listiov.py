@@ -8,7 +8,7 @@ Options:
       -c CONNECT               Service name [default: offline]
       -p AUTHPATH              Authentication file
       --name TAGNAME           IOV tag name 
-      --type DATASOURCE        Data source type. bcm1f,plt,pxl,hfoc,hfet
+      --type DATASOURCE        Data source type. bcm1f,bcm1fsi,bcm1futca,plt,pxl,hfoc,hfet
       --applyto APPLYTO        Type of correction applied. lumi
       --isdefault              Show only default tags [default: False]
 

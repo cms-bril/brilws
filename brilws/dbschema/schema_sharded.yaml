@@ -82,12 +82,26 @@ DT_RAW_&suffix:         #per ls
     - avglumi: float
    pk: [ datatagid ]
 
-RADMON_RAW_&suffix:         #per ls
+BCM1FSI_RAW_&suffix: #per ls
    columns:
     - datatagid: int64
+    - fillnum: uint32
     - runnum: uint32
     - lsnum: uint32
+    - timestampsec: uint32
     - avglumi: float
+    - bxlumiblob: blob
+   pk: [ datatagid ]
+
+BCM1FUTCA_RAW_&suffix: #per ls
+   columns:
+    - datatagid: int64
+    - fillnum: uint32
+    - runnum: uint32
+    - lsnum: uint32
+    - timestampsec: uint32
+    - avglumi: float
+    - bxlumiblob: blob
    pk: [ datatagid ]
    
 ##### Result tables #####
@@ -144,14 +158,31 @@ BCM1F_RESULT_&suffix:
     - bxlumiblob: blob
    pk: [datatagid,normtagid]
 
-PXL_RESULT_&suffix:         #per ls
+BCM1FSI_RESULT_&suffix:
    columns:
     - datatagid: int64
+    - fillnum: uint32
     - runnum: uint32
     - lsnum: uint32
+    - timestampsec: uint32
+    - normtag: string
+    - normtagid: int64
     - avglumi: float
     - bxlumiblob: blob
-   pk: [ datatagid ]
+   pk: [datatagid,normtagid]
+
+BCM1FUTCA_RESULT_&suffix:
+   columns:
+    - datatagid: int64
+    - fillnum: uint32
+    - runnum: uint32
+    - lsnum: uint32
+    - timestampsec: uint32
+    - normtag: string
+    - normtagid: int64
+    - avglumi: float
+    - bxlumiblob: blob
+   pk: [datatagid,normtagid]
    
 DT_RESULT_&suffix:         #per ls
    columns:
@@ -161,13 +192,6 @@ DT_RESULT_&suffix:         #per ls
     - avglumi: float
    pk: [ datatagid ]
 
-RADMON_RESULT_&suffix:
-   columns:
-    - datatagid: int64
-    - runnum: uint32
-    - lsnum: uint32
-    - avglumi: float
-   pk: [ datatagid ]
 
 ONLINE_RESULT_&suffix:
    columns:
@@ -185,13 +209,13 @@ ONLINE_RESULT_&suffix:
     - normtag: string
    pk: [runnum,lsnum]
    
-ATLAS_RESULT_&suffix:
-  columns:
-   - runnum: uint32
-   - lsnum: uint32
-   - fillnum: uint32
-   - timestampsec: uint32
-   - beamstatusid: uint16
-   - delivered: float
-   - bxdeliveredblob: blob
-  pk: [runnum,lsnum]
+#ATLAS_RESULT_&suffix:
+# columns:
+#   - runnum: uint32
+#  - lsnum: uint32
+#  - fillnum: uint32
+#  - timestampsec: uint32
+#   - beamstatusid: uint16
+#  - delivered: float
+#   - bxdeliveredblob: blob
+#  pk: [runnum,lsnum]
