@@ -604,6 +604,8 @@ def brilcalc_main(progname=sys.argv[0]):
               hltpathSummary = []
               runtot_df = pd.DataFrame.from_dict(runtot,orient='index')
               grouped = runtot_df.groupby(level=0) #group by hltpath
+              totalpathdelivered = 0
+              totalpathrecorded = 0
               for hn,g in grouped:
                   nruns = g.index.size
                   nfills = int(g['fill'].nunique())
@@ -611,7 +613,7 @@ def brilcalc_main(progname=sys.argv[0]):
                   totdelivered = g['delivered'].sum()
                   totrecorded = g['recorded'].sum()
                   display.add_row( [ hn, '%d'%nfills, '%d'%nruns, '%d'%ncmsls,'%.3f'%(totdelivered),'%.3f'%(totrecorded)], fh=fh, csvwriter=None, ptable=ftable)                  
-                  if not pargs.byls and not pargs.withBX: #hltpath, run table
+                  if not pargs.byls and not pargs.withBX: #hltpath, run table                      
                       for i,v in g.iterrows():
                           pname = i[0]
                           trun = i[1]
@@ -621,7 +623,10 @@ def brilcalc_main(progname=sys.argv[0]):
                           tdelivered = v['delivered']
                           trecorded = v['recorded']
                           display.add_row( [ '%d:%d'%(trun,tfill), ttime, tncmsls, pname, '%.3f'%tdelivered, '%.3f'%trecorded], fh=fh, csvwriter=csvwriter, ptable=ptable )
-                  hltpathSummary.append([hn,nfills,nruns,ncmsls,totdelivered,totrecorded])   
+                  hltpathSummary.append([hn,nfills,nruns,ncmsls,totdelivered,totrecorded])
+                  totalpathdelivered =  totalpathdelivered+totdelivered
+                  totalpathrecorded = totalpathrecorded+totrecorded
+                   
               del runtot_df
           
           if pargs.totable:              
@@ -631,14 +636,24 @@ def brilcalc_main(progname=sys.argv[0]):
               display.show_table(ftable,pargs.outputstyle)
               del ptable
               del ftable
+              if pargs.hltpath:
+                  print '#Sum delivered : %.3f'%totalpathdelivered
+                  print '#Sum recorded : %.3f'%totalpathrecorded
           else:              
               print >> fh, '#Summary:'                  
               print >> fh, '#'+','.join(footer)
               if not pargs.hltpath:
                   print >> fh, '#'+','.join( [ '%d'%nfills,'%d'%nruns,'%d'%nls,'%d'%ncmsls,'%.3f'%(totdelivered),'%.3f'%(totrecorded)] )
               else:
+                  totalpathdelivered = 0
+                  totalpathrecorded = 0
                   for pentry in hltpathSummary:
                       print >> fh, '#'+','.join( [ '%s'%pentry[0],'%d'%pentry[1],'%d'%pentry[2],'%d'%pentry[3],'%.3f'%pentry[4],'%.3f'%pentry[5] ] )
+                      totalpathdelivered =  totalpathdelivered+pentry[4]
+                      totalpathrecorded = totalpathrecorded+pentry[5]
+                  print >> fh,'#'
+                  print >> fh,'#Sum delivered  : %.3f'%totalpathdelivered
+                  print >> fh,'#Sum recorded : %.3f'%totalpathrecorded
           if parsediffruns or parsediffls:
               print '\nWarning: problems found in merging -i and --normtag selections:'
               if parsediffruns:
