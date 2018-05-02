@@ -74,11 +74,13 @@ PXL_RAW_&suffix:        #per ls
     - bxlumiblob: blob
    pk: [datatagid]
 
-DT_RAW_&suffix:         #per ls
+DT_RAW_&suffix:         #per ls but from online
    columns:
     - datatagid: int64
+    - fillnum: uint32
     - runnum: uint32
     - lsnum: uint32
+    - timestampsec: uint32
     - avglumi: float
    pk: [ datatagid ]
 
@@ -184,13 +186,17 @@ BCM1FUTCA_RESULT_&suffix:
     - bxlumiblob: blob
    pk: [datatagid,normtagid]
    
-DT_RESULT_&suffix:         #per ls
+DT_RESULT_&suffix:         #per ls but from online
    columns:
     - datatagid: int64
+    - fillnum: uint32
     - runnum: uint32
     - lsnum: uint32
+    - timestampsec: uint32
+    - normtag: string
+    - normtagid: int64
     - avglumi: float
-   pk: [ datatagid ]
+   pk: [ datatagid,normtagid]
 
 
 ONLINE_RESULT_&suffix:
