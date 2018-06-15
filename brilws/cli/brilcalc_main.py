@@ -418,7 +418,8 @@ def brilcalc_main(progname=sys.argv[0]):
     parseresult = {}
     global g_returnedls #[(run,ls),...]
     global g_nulldeadtime #{run:[]}
-    global g_minbias #minbias xsec
+    global g_minbias #minbias xsec    
+    
     try:
       if args['<command>'] == 'lumi':
           import brilcalc_lumi          
@@ -430,7 +431,22 @@ def brilcalc_main(progname=sys.argv[0]):
           if not pargs.dbconnect.find('oracle')!=-1: dbschema = 'cms_lumi_prod'
           log.debug('connecturl: %s'%pargs.connecturl)
           dbengine = create_engine(pargs.connecturl)
-          
+
+          totz=utctmzone
+          if pargs.cerntime:
+              totz=cerntmzone
+          elif pargs.tssec:
+              totz=None          
+
+          fillmin = pargs.fillmin
+          fillmax = pargs.fillmax
+          runmin = pargs.runmin
+          runmax = pargs.runmax
+          amodetagid = pargs.amodetagid
+          egev = pargs.egev
+          beamstatusid = pargs.beamstatusid
+          tssecmin = pargs.tssecmin
+          tssecmax = pargs.tssecmax
           selectionkwds = {}
           normtag = None          
                       
@@ -515,7 +531,9 @@ def brilcalc_main(progname=sys.argv[0]):
               else:
                   if isinstance(normtag,list): #normtag is list
                       if pargs.runlsSeries is None:
-                          mergedselect = normtag
+                          checkjson = False
+                          #mergedselect = normtag
+                          mergedselect = api.mergeiovrunlsWithDB(dbengine,normtag,runmin=runmin,runmax=runmax,fillmin=fillmin,fillmax=fillmax,tssecmin=tssecmin,tssecmax=tssecmax,schemaname=dbschema)                          
                       else:
                           (parsediffruns, parsediffls) = api.checksuperset([x[1] for x in normtag],pargs.runlsSeries)                         
                           mergedselect = api.mergeiovrunls(normtag,pargs.runlsSeries)
@@ -527,7 +545,8 @@ def brilcalc_main(progname=sys.argv[0]):
                           if not iovtag_meta: raise ValueError('requested iovtags do not exist')  
                           datasource = iovtag_meta[2].lower()
                           datasources.append( [lumiquerytype,iovtag,datasource,runlsdict] )
-                  else:  #normtag is string 
+                  else:  #normtag is string (iov tag)
+                      sys.exit(0)
                       datasource = pargs.lumitype
                       normtagname = normtag
                       if datasource is None: #det lumi with correction
@@ -547,22 +566,6 @@ def brilcalc_main(progname=sys.argv[0]):
           
           runtot = {} #{(hltpath,run): { 'fill':fillnum,'time':dtime,'nls':1,'ncms':int(cmson),'delivered':delivered,'recorded':recorded} }
                                
-          totz=utctmzone
-          if pargs.cerntime:
-              totz=cerntmzone
-          elif pargs.tssec:
-              totz=None          
-
-          fillmin = pargs.fillmin
-          fillmax = pargs.fillmax
-          runmin = pargs.runmin
-          runmax = pargs.runmax
-          amodetagid = pargs.amodetagid
-          egev = pargs.egev
-          beamstatusid = pargs.beamstatusid
-          tssecmin = pargs.tssecmin
-          tssecmax = pargs.tssecmax
-          
           hltl1map = None
           
           if pargs.hltpath is not None:
@@ -584,7 +587,8 @@ def brilcalc_main(progname=sys.argv[0]):
               sys.exit(1)
           log.debug('shards: '+str(shards))
           
-          for [qtype,ntag,dsource,rselect] in datasources:             
+          rselect = []
+          for [qtype,ntag,dsource,rselect] in datasources:
               lumi_per_normtag(shards,qtype,dbengine,dbschema,runtot,datasource=dsource,normtag=ntag,withBX=pargs.withBX,byls=pargs.byls,fh=fh,csvwriter=csvwriter,ptable=ptable,scalefactor=scalefactor,totz=totz,fillmin=fillmin,fillmax=fillmax,runmin=runmin,runmax=runmax,amodetagid=amodetagid,egev=egev,beamstatusid=beamstatusid,tssecmin=tssecmin,tssecmax=tssecmax,runlsSeries=rselect,hltl1map=hltl1map,ignorel1mask=parseresult['--ignore-mask'],xingMin=pargs.xingMin,xingTr=pargs.xingTr,xingId=pargs.xingId,checkjson=checkjson,datatagnameid=datatagnameid)  
           
           if pargs.hltpath is None:

@@ -192,6 +192,68 @@ def merge_two_dicts_onkeys(x,y):
     z = merge_two_dicts(z,y)
     return z
 
+def mergeiovrunlsWithDB(dbengine,iovselect,runmin=None,runmax=None,fillmin=None,fillmax=None,tssecmin=None,tssecmax=None,schemaname=''):
+    '''
+    merge iovselect list and run range selected from DB
+    input:
+        cmsselect: pd.Series from dict {run:[[]],}
+        other paramters are input to DB queries
+        select min(runnum),max(runnum) from IDS_DATATAG where ....)
+    output:
+         [ [x[0],pd.Series(x[1])] for x in final ] 
+    '''
+    idtablename = 'ids_datatag'
+    if schemaname:
+         idtablename = '.'.join([schemaname,idtablename])
+    q = 'select min(runnum),max(runnum) from %s where '%idtablename
+    condition = []
+    condition_data = {}
+    if runmin==runmax and runmin is not None:
+        condition.append('runnum=:runnum')
+        condition_data['runnum'] = runmin
+    else:
+        if runmin:
+            condition.append('runnum>=:runmin')
+            condition_data['runmin'] = runmin
+        if runmax:
+             condition.append('runnum<=:runmax' )
+             condition_data['runmax'] = runmax
+    if fillmin==fillmax and fillmin is not None:
+        condition.append('fillnum=:fillnum')
+        condition_data['fillnum'] = fillmin
+    else:
+        if fillmin:
+            condition.append('fillnum>=:fillmin')
+            condition_data['fillmin'] = fillmin
+        if fillmax:
+             condition.append('fillnum<=:fillmax' )
+             condition_data['fillmax'] = fillmax
+    if tssecmin:
+        condition.append('timestampsec>=:tssecmin')
+        condition_data['tssecmin'] = tssecmin
+    if tssecmax:
+        condition.append('timestampsec<=:tssecmax')
+        condition_data['tssecmax'] = tssecmax
+    conditionStr = ' AND '.join(condition)
+    q = q+conditionStr
+    log.debug('mergeiovrunlsWithDB: '+q+' , '+str(condition_data))
+    connection = dbengine.connect()
+    r = connection.execution_options(stream_result=True).execute(q,condition_data)
+    output = r.fetchall()
+    r.close()    
+
+    result = []    
+    minrun = output[0][0]
+    maxrun = output[0][1]
+    if minrun is None or maxrun is None:
+        return result
+
+    for [iovtag,iovtagrunls] in iovselect:        
+        slim = iovtagrunls[ iovtagrunls.index.isin( range(minrun,maxrun+1) ) ]
+        if not slim.empty:
+            result.append( [iovtag,slim] )
+    return result
+
 def mergeiovrunls(iovselect,cmsselect):
     '''
     merge iovselect list and cms runls select dict
