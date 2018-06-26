@@ -546,7 +546,6 @@ def brilcalc_main(progname=sys.argv[0]):
                           datasource = iovtag_meta[2].lower()
                           datasources.append( [lumiquerytype,iovtag,datasource,runlsdict] )
                   else:  #normtag is string (iov tag)
-                      sys.exit(0)
                       datasource = pargs.lumitype
                       normtagname = normtag
                       if datasource is None: #det lumi with correction
