@@ -253,7 +253,7 @@ def lumi_per_normtag(shards,lumiquerytype,dbengine,dbschema,runtot,datasource=No
                         else:        #normal bx display                   
                             if bxlumi is not None:
                                 a = map(formatter.bxlumi,bxlumi)
-                                bxlumistr = '['+' '.join(a)+']'
+                                bxlumistr = '['+' '.join(a)+']'                            
                             display.add_row( ['%d:%d'%(runnum,fillnum),'%d:%d'%(lsnum,cmslsnum),dtime,beamstatus,'%d'%tegev,'%.3f'%(delivered),'%.3f'%(recorded),'%.1f'%(avgpu),ds,'%s'%bxlumistr] , fh=fh, csvwriter=csvwriter, ptable=ptable)                            
                     del bxlumi
                     
@@ -294,11 +294,13 @@ def lumi_per_normtag(shards,lumiquerytype,dbengine,dbschema,runtot,datasource=No
                 avgpu = lumip.avgpu( avglumi,ncollidingbx,g_minbias)                
                 if withBX:      #--xing
                     bxlumistr = '[]'
-                    if bxlumi is not None:                                                         
-                        bxidx = xing_indexfilter(bxlumi,constfactor=totfactor,xingMin=xingMin,xingTr=xingTr,xingId=xingId)
+                    if bxlumi is not None:
+                        bxidx = xing_indexfilter(bxlumi,constfactor=totfactor,xingMin=xingMin,xingTr=xingTr,xingId=xingId)                        
                         if bxidx is not None and bxidx.size>0:                                      
                             bxdelivered =  bxlumi[bxidx]*totfactor
-                            bxlumi = np.transpose( np.array([bxidx+1,bxdelivered,bxdelivered*livefrac]) )               
+                            bxlumi = np.transpose( np.array([bxidx+1,bxdelivered,bxdelivered*livefrac]) )
+                        else:
+                            bxlumi = None                       
                         del uncorrectedbxlumi
                         del bxidx
                     if hltl1map:#--hltpath xing display
@@ -306,12 +308,12 @@ def lumi_per_normtag(shards,lumiquerytype,dbengine,dbschema,runtot,datasource=No
                             thispresc = prescale_map[pth]                            
                             if bxlumi is not None:
                                 a = map(formatter.bxlumi,bxlumi/thispresc)  
-                                bxlumistr = '['+' '.join(a)+']'                                
+                                bxlumistr = '['+' '.join(a)+']'                            
                             display.add_row( ['%d:%d'%(runnum,fillnum),'%d:%d'%(lsnum,cmslsnum),dtime,pth,'%.3f'%(np.true_divide(delivered,thispresc)),'%.3f'%(np.true_divide(recorded,thispresc)),datasource.upper(),'%s'%bxlumistr] , fh=fh, csvwriter=csvwriter, ptable=ptable)                            
                     else:       #normal xing display
                         if bxlumi is not None:
-                            a = map(formatter.bxlumi,bxlumi)
-                            bxlumistr = '['+' '.join(a)+']'
+                            a = map(formatter.bxlumi,bxlumi)                            
+                            bxlumistr = '['+' '.join(a)+']'                        
                         display.add_row( ['%d:%d'%(runnum,fillnum),'%d:%d'%(lsnum,cmslsnum),dtime,beamstatus,'%d'%tegev,'%.3f'%(delivered),'%.3f'%(recorded),'%.1f'%(avgpu),datasource.upper(),'%s'%bxlumistr] , fh=fh, csvwriter=csvwriter, ptable=ptable)                        
                     del bxlumi
                 elif byls:       #--byls
