@@ -1,6 +1,20 @@
 import numpy as np
+import decimal 
+
+#def bxlumi(x):
+#    return '%d %.4f %.4f'%(x[0],x[1],x[2])
+
+dec_ctx = decimal.Context()
+dec_ctx.prec = 9
+
+def lumi(x):
+    return '{:f}'.format(dec_ctx.create_decimal(x))
+
 def bxlumi(x):
-    return '%d %.4f %.4f'%(x[0],x[1],x[2])
+    #return '%d %.7f %.7f'%(x[0],x[1],x[2]))
+    #return '%d %s %s' % (x[0],format(dec_ctx.create_decimal(x[1]), 'f'), '%.8f' % x[2] )
+    return '{:d} {:f} {:f}'.format(int(x[0]),dec_ctx.create_decimal(x[1]), dec_ctx.create_decimal(x[2] ))
+    
 def bxintensity(x):
     return '%d %.4e %.4e'%(x[0],x[1],x[2])
 

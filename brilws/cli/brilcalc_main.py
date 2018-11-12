@@ -249,21 +249,21 @@ def lumi_per_normtag(shards,lumiquerytype,dbengine,dbschema,runtot,datasource=No
                                 if bxlumi is not None:
                                     a = map(formatter.bxlumi,bxlumi/thispresc)  
                                     bxlumistr = '['+' '.join(a)+']'                                
-                                display.add_row( ['%d:%d'%(runnum,fillnum),'%d:%d'%(lsnum,cmslsnum),dtime,pth,'%.3f'%(np.true_divide(delivered,thispresc)),'%.3f'%(np.true_divide(recorded,thispresc)),ds,'%s'%bxlumistr] , fh=fh, csvwriter=csvwriter, ptable=ptable)                                
+                                display.add_row( ['%d:%d'%(runnum,fillnum),'%d:%d'%(lsnum,cmslsnum),dtime,pth,formatter.lumi(np.true_divide(delivered,thispresc)),formatter.lumi(np.true_divide(recorded,thispresc)),ds,'%s'%bxlumistr] , fh=fh, csvwriter=csvwriter, ptable=ptable)                                
                         else:        #normal bx display                   
                             if bxlumi is not None:
                                 a = map(formatter.bxlumi,bxlumi)
                                 bxlumistr = '['+' '.join(a)+']'                            
-                            display.add_row( ['%d:%d'%(runnum,fillnum),'%d:%d'%(lsnum,cmslsnum),dtime,beamstatus,'%d'%tegev,'%.3f'%(delivered),'%.3f'%(recorded),'%.1f'%(avgpu),ds,'%s'%bxlumistr] , fh=fh, csvwriter=csvwriter, ptable=ptable)                            
+                            display.add_row( ['%d:%d'%(runnum,fillnum),'%d:%d'%(lsnum,cmslsnum),dtime,beamstatus,'%d'%tegev,formatter.lumi(delivered),formatter.lumi(recorded),'%.1f'%(avgpu),ds,'%s'%bxlumistr] , fh=fh, csvwriter=csvwriter, ptable=ptable)                            
                     del bxlumi
                     
                 elif byls:      #--byls
                     if hltl1map:#--hltpath display
                         for pth in prescale_map.keys():
                             thispresc = prescale_map[pth]
-                            display.add_row( ['%d:%d'%(runnum,fillnum),'%d:%d'%(lsnum,cmslsnum), dtime, pth, '%.3f'%(np.true_divide(delivered,thispresc)),'%.3f'%(np.true_divide(recorded,thispresc)),'%.1f'%(avgpu),ds] , fh=fh, csvwriter=csvwriter, ptable=ptable)                            
+                            display.add_row( ['%d:%d'%(runnum,fillnum),'%d:%d'%(lsnum,cmslsnum), dtime, pth, formatter.lumi(np.true_divide(delivered,thispresc)),formatter.lumi(np.true_divide(recorded,thispresc)),'%.1f'%(avgpu),ds] , fh=fh, csvwriter=csvwriter, ptable=ptable)                            
                     else:       #normal display
-                        display.add_row( ['%d:%d'%(runnum,fillnum),'%d:%d'%(lsnum,cmslsnum),dtime,beamstatus,'%d'%tegev,'%.3f'%(delivered),'%.3f'%(recorded),'%.1f'%(avgpu),ds] , fh=fh, csvwriter=csvwriter, ptable=ptable)                        
+                        display.add_row( ['%d:%d'%(runnum,fillnum),'%d:%d'%(lsnum,cmslsnum),dtime,beamstatus,'%d'%tegev,formatter.lumi(delivered),formatter.lumi(recorded),'%.1f'%(avgpu),ds] , fh=fh, csvwriter=csvwriter, ptable=ptable)                        
             else:               ###lumisource
                 if row.has_key('deadtimefrac') :
                     if row['deadtimefrac'] is not None:
@@ -309,20 +309,20 @@ def lumi_per_normtag(shards,lumiquerytype,dbengine,dbschema,runtot,datasource=No
                             if bxlumi is not None:
                                 a = map(formatter.bxlumi,bxlumi/thispresc)  
                                 bxlumistr = '['+' '.join(a)+']'                            
-                            display.add_row( ['%d:%d'%(runnum,fillnum),'%d:%d'%(lsnum,cmslsnum),dtime,pth,'%.3f'%(np.true_divide(delivered,thispresc)),'%.3f'%(np.true_divide(recorded,thispresc)),datasource.upper(),'%s'%bxlumistr] , fh=fh, csvwriter=csvwriter, ptable=ptable)                            
+                            display.add_row( ['%d:%d'%(runnum,fillnum),'%d:%d'%(lsnum,cmslsnum),dtime,pth,formatter.lumi(np.true_divide(delivered,thispresc)),formatter.lumi(np.true_divide(recorded,thispresc)),datasource.upper(),'%s'%bxlumistr] , fh=fh, csvwriter=csvwriter, ptable=ptable)                            
                     else:       #normal xing display
                         if bxlumi is not None:
                             a = map(formatter.bxlumi,bxlumi)                            
                             bxlumistr = '['+' '.join(a)+']'                        
-                        display.add_row( ['%d:%d'%(runnum,fillnum),'%d:%d'%(lsnum,cmslsnum),dtime,beamstatus,'%d'%tegev,'%.3f'%(delivered),'%.3f'%(recorded),'%.1f'%(avgpu),datasource.upper(),'%s'%bxlumistr] , fh=fh, csvwriter=csvwriter, ptable=ptable)                        
+                        display.add_row( ['%d:%d'%(runnum,fillnum),'%d:%d'%(lsnum,cmslsnum),dtime,beamstatus,'%d'%tegev,formatter.lumi(delivered),formatter.lumi(recorded),'%.1f'%(avgpu),datasource.upper(),'%s'%bxlumistr] , fh=fh, csvwriter=csvwriter, ptable=ptable)                        
                     del bxlumi
                 elif byls:       #--byls
                     if hltl1map: #--hltpath display
                         for pth in prescale_map.keys():
                             thispresc = prescale_map[pth]                            
-                            display.add_row( ['%d:%d'%(runnum,fillnum),'%d:%d'%(lsnum,cmslsnum),dtime,pth,'%.3f'%(np.true_divide(delivered,thispresc)),'%.3f'%(np.true_divide(recorded,thispresc)),'%.1f'%(avgpu),datasource.upper()] , fh=fh, csvwriter=csvwriter, ptable=ptable)                            
+                            display.add_row( ['%d:%d'%(runnum,fillnum),'%d:%d'%(lsnum,cmslsnum),dtime,pth,formatter.lumi(np.true_divide(delivered,thispresc)),formatter.lumi(np.true_divide(recorded,thispresc)),'%.1f'%(avgpu),datasource.upper()] , fh=fh, csvwriter=csvwriter, ptable=ptable)                            
                     else:        #normal display
-                        display.add_row( ['%d:%d'%(runnum,fillnum),'%d:%d'%(lsnum,cmslsnum),dtime,beamstatus,'%d'%tegev,'%.3f'%(delivered),'%.3f'%(recorded),'%.1f'%(avgpu),datasource.upper()] , fh=fh, csvwriter=csvwriter, ptable=ptable)
+                        display.add_row( ['%d:%d'%(runnum,fillnum),'%d:%d'%(lsnum,cmslsnum),dtime,beamstatus,'%d'%tegev,formatter.lumi(delivered),formatter.lumi(recorded),'%.1f'%(avgpu),datasource.upper()] , fh=fh, csvwriter=csvwriter, ptable=ptable)
             if not hltl1map:     #normal statistic collect
                 if not runtot.has_key( ('',runnum) ):
                     runtot[('',runnum)] = {'fill':fillnum,'dtime':dtime,'nls':0,'ncms':0,'delivered':0,'recorded':0} 
@@ -602,8 +602,8 @@ def brilcalc_main(progname=sys.argv[0]):
               if not pargs.byls and not pargs.withBX: #run table
                   for hn,rn in sorted(runtot.keys()):
                       v = runtot[ (hn,rn) ]
-                      display.add_row( ['%d:%d'%(rn,v['fill']),v['dtime'],v['nls'],v['ncms'],'%.3f'%(v['delivered']),'%.3f'%(v['recorded']) ] , fh=fh, csvwriter=csvwriter, ptable=ptable)
-              display.add_row( [ '%d'%nfills, '%d'%nruns, '%d'%nls,'%d'%ncmsls,'%.3f'%(totdelivered),'%.3f'%(totrecorded)], fh=fh, csvwriter=None, ptable=ftable)              
+                      display.add_row( ['%d:%d'%(rn,v['fill']),v['dtime'],v['nls'],v['ncms'],formatter.lumi(v['delivered']),formatter.lumi(v['recorded']) ] , fh=fh, csvwriter=csvwriter, ptable=ptable)
+              display.add_row( [ '%d'%nfills, '%d'%nruns, '%d'%nls,'%d'%ncmsls,formatter.lumi(totdelivered),formatter.lumi(totrecorded)], fh=fh, csvwriter=None, ptable=ftable)              
                   
           else:
               hltpathSummary = []
@@ -617,7 +617,7 @@ def brilcalc_main(progname=sys.argv[0]):
                   ncmsls =  int(g['ncms'].sum())
                   totdelivered = g['delivered'].sum()
                   totrecorded = g['recorded'].sum()
-                  display.add_row( [ hn, '%d'%nfills, '%d'%nruns, '%d'%ncmsls,'%.3f'%(totdelivered),'%.3f'%(totrecorded)], fh=fh, csvwriter=None, ptable=ftable)                  
+                  display.add_row( [ hn, '%d'%nfills, '%d'%nruns, '%d'%ncmsls,formatter.lumi(totdelivered),formatter.lumi(totrecorded)], fh=fh, csvwriter=None, ptable=ftable)                  
                   if not pargs.byls and not pargs.withBX: #hltpath, run table                      
                       for i,v in g.iterrows():
                           pname = i[0]
@@ -627,14 +627,14 @@ def brilcalc_main(progname=sys.argv[0]):
                           tncmsls = v['ncms']
                           tdelivered = v['delivered']
                           trecorded = v['recorded']
-                          display.add_row( [ '%d:%d'%(trun,tfill), ttime, tncmsls, pname, '%.3f'%tdelivered, '%.3f'%trecorded], fh=fh, csvwriter=csvwriter, ptable=ptable )
+                          display.add_row( [ '%d:%d'%(trun,tfill), ttime, tncmsls, pname, formatter.lumi(tdelivered), formatter.lumi(trecorded)], fh=fh, csvwriter=csvwriter, ptable=ptable )
                   hltpathSummary.append([hn,nfills,nruns,ncmsls,totdelivered,totrecorded])
                   totalpathdelivered =  totalpathdelivered+totdelivered
                   totalpathrecorded = totalpathrecorded+totrecorded
                    
               del runtot_df
           
-          if pargs.totable:              
+          if pargs.totable:  #to screen              
               print '#Data tag : %s , Norm tag: %s'%(datatagname,normtagname)
               display.show_table(ptable,pargs.outputstyle)
               print "#Summary: "
@@ -642,23 +642,24 @@ def brilcalc_main(progname=sys.argv[0]):
               del ptable
               del ftable
               if pargs.hltpath:
-                  print '#Sum delivered : %.3f'%totalpathdelivered
-                  print '#Sum recorded : %.3f'%totalpathrecorded
-          else:              
+                  print '#Sum delivered : %s'%formatter.lumi(totalpathdelivered)
+                  print '#Sum recorded : %s'%formatter.lumi(totalpathrecorded)
+          else:              #to file
               print >> fh, '#Summary:'                  
               print >> fh, '#'+','.join(footer)
               if not pargs.hltpath:
-                  print >> fh, '#'+','.join( [ '%d'%nfills,'%d'%nruns,'%d'%nls,'%d'%ncmsls,'%.3f'%(totdelivered),'%.3f'%(totrecorded)] )
+                  print >> fh, '#'+','.join( [ '%d'%nfills,'%d'%nruns,'%d'%nls,'%d'%ncmsls,formatter.lumi(totdelivered),formatter.lumi(totrecorded)] )
               else:
                   totalpathdelivered = 0
                   totalpathrecorded = 0
                   for pentry in hltpathSummary:
-                      print >> fh, '#'+','.join( [ '%s'%pentry[0],'%d'%pentry[1],'%d'%pentry[2],'%d'%pentry[3],'%.3f'%pentry[4],'%.3f'%pentry[5] ] )
+                      #print >> fh, '#'+','.join( [ '%s'%pentry[0],'%d'%pentry[1],'%d'%pentry[2],'%d'%pentry[3],'%.6f'%pentry[4],'%.6f'%pentry[5] ] )
+                      print >> fh, '#'+','.join( [ '%s'%pentry[0],'%d'%pentry[1],'%d'%pentry[2],'%d'%pentry[3], formatter.lumi(pentry[4]),formatter.lumi(pentry[5]) ] )
                       totalpathdelivered =  totalpathdelivered+pentry[4]
                       totalpathrecorded = totalpathrecorded+pentry[5]
                   print >> fh,'#'
-                  print >> fh,'#Sum delivered  : %.3f'%totalpathdelivered
-                  print >> fh,'#Sum recorded : %.3f'%totalpathrecorded
+                  print >> fh,'#Sum delivered  : %s'%formatter.lumi(totalpathdelivered)
+                  print >> fh,'#Sum recorded : %s'%formatter.lumi(totalpathrecorded)
           if parsediffruns or parsediffls:
               print '\nWarning: problems found in merging -i and --normtag selections:'
               if parsediffruns:
