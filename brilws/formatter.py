@@ -1,24 +1,38 @@
 import numpy as np
-import decimal 
 
-#def bxlumi(x):
-#    return '%d %.4f %.4f'%(x[0],x[1],x[2])
-
-dec_ctx = decimal.Context()
 dec_prec = 9
+dec_prec_value = 10 ** (-1 * dec_prec)
 
 def lumi(x):
-    xstr = str(round(x,dec_prec))
-    return '{:f}'.format(decimal.Decimal(xstr))
+    if abs(x)<dec_prec_value:
+        return '0'    
+    return '{:.9f}'.format(x)
 
 def bxlumi(x):
     bxid = int(x[0])
-    deliveredstr = str(round(x[1],dec_prec))
-    recordedstr = str(round(x[2],dec_prec))
-    return '{:d} {:f} {:f}'.format(bxid,decimal.Decimal(deliveredstr),decimal.Decimal(recordedstr))
+    vd = x[1]
+    if abs(vd)<dec_prec_value:    
+        return '{:d} 0 0'.format(bxid)
+    vr = x[2]
+    if abs(vr)<dec_prec_value:
+        return '{:d} {:.9f} 0'.format(bxid,vd)
+    return '{:d} {:.9f} {:.9f}'.format(bxid,vd,vr)
+
+def lumiE(x,prec):
+    v_str = '{:.{}}e'.format(x,prec)
+    return v_str
+
+def bxlumiE(x,prec):
+    bxid = int(x[0])
+    vd = x[1]
+    vr = x[2]
+    bxid_str = '{:d}'.format(bxid)
+    vd_str = '{:.{}}e'.format(vd,prec)
+    vr_str = '{:.{}}e'.format(vr,prec)
+    return ' '.join([bxidx_str,vd_str,vr_str])
     
-def bxintensity(x):
-    return '%d %.4e %.4e'%(x[0],x[1],x[2])
+def bxintensity(x):    
+    return '{:d} {:.4e} {:.4e}'.format(int(x[0]),x[1],x[2])
 
 def bitprescFormatter(x):
     bitname = x[0]
