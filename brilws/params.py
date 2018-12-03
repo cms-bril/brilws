@@ -5,6 +5,7 @@ _time_pattern = '^\d\d/\d\d/\d\d \d\d:\d\d:\d\d$'
 _hltpath_pattern = '^(HLT|DST|AlCa)_[\w\*\?\[\]\!]+$'
 _hltconfig_pattern = '^\d+$|^[0-9a-zA-Z\_\.\/\*\?\[\]\!]+$'
 _bxlist_pattern = r'(\d+)(,\s*\d+)*'
+_precision_pattern = '^(\d+)(e|f|E|F)$'
 _amodetagChoices = ['PROTPHYS','IONPHYS','PAPHYS']
 _beamstatusChoices = ['FLAT TOP','SQUEEZE','ADJUST','STABLE BEAMS']
 _lumitypeChoices = ['HFOC','PLTZERO','PLTTK','DT','PXL','BCM1F','BCM1FSI','PLTSLINK','BCM1FUTCA','HFET','RADMON']
@@ -17,4 +18,5 @@ _beamstatustoid = {'NO BEAM':0,'SETUP':1,'ABORT':2,'INJECTION PROBE BEAM':3,'INJ
 _idtobeamstatus = dict( (v,k) for k,v in _beamstatustoid.items() )
 _amodetagtoid = {'UNKNOWN':0,'PROTPHYS':1,'IONPHYS':2,'PAPHYS':3,'APPHYS':4,'TOTEMPHYS':5}
 _idtoamodetag = dict( (v,k) for k,v in _amodetagtoid.items() )
+
 
