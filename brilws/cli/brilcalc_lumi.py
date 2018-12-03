@@ -13,6 +13,7 @@ Options:
   -o OUTPUTFILE                 Output csv file. Special file '-' for stdout.
   -b BEAMSTATUS                 Beam mode. FLAT TOP,SQUEEZE,ADJUST,STABLE BEAMS
   -u UNIT                       Lumi unit. hz/ub,1e30/cm2s,/nb,1e33/cm2 [default: /ub]
+  --precision PRECISION         Use result precision [default: 9f]
   --amodetag AMODETAG           Accelerator mode 
   --beamenergy BEAMENERGY       Target single beam energy in GeV
   --minBiasXsec MINBIASXSEC     Minbias cross-section in ub [default: 80000.0]
@@ -44,11 +45,10 @@ from brilws.cli import clicommonargs
 def validate(optdict):
     result={}
     #extract sub argdict here
-    myvalidables = ['-c','-n','-f','-r','-i','-o','--amodetag','-b','--beamenergy','--minBiasXsec','--datatag','--normtag','--begin','--end','--output-style','--type','--hltpath','--xingId','--xingTr','--xingMin',str]
+    myvalidables = ['-c','-n','-f','-r','-i','-o','--amodetag','-b','--beamenergy','--minBiasXsec','--datatag','--normtag','--begin','--end','--output-style','--type','--hltpath','--xingId','--xingTr','--xingMin','--precision',str]
     argdict = dict((k,v) for k,v in clicommonargs.argvalidators.iteritems() if k in myvalidables)
     schema = Schema(argdict)
     result = schema.validate(optdict)
-
     if not result['-i'] and not result['-f'] and not result['-r'] and not result['--begin']:
         print 'Error: at least one time selection option in %s is required'%(','.join(['-i','-f','-r','--begin']))
         sys.exit(0)        
