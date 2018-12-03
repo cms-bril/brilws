@@ -10,8 +10,9 @@ import prettytable
 import pandas as pd
 import numpy as np
 import ast
-from brilws import api,params,display,formatter,lumiParameters,corrector
+from brilws import api,params,display,lumiParameters,corrector
 from brilws.cli import clicommonargs
+import brilws.formatter as fm
 import re,time, csv
 from datetime import datetime
 from sqlalchemy import *
@@ -112,8 +113,7 @@ def totalprescale(hltprescval,l1seedlogic,l1prescvals):
         totpresc = hltprescval*np.max(l1prescvals)    
     return totpresc
 
-def lumi_per_normtag(shards,lumiquerytype,dbengine,dbschema,runtot,datasource=None,normtag=None,withBX=False,byls=None,fh=None,csvwriter=None,ptable=None,scalefactor=1,totz=utctmzone,fillmin=None,fillmax=None,runmin=None,runmax=None,amodetagid=None,egev=None,beamstatusid=None,tssecmin=None,tssecmax=None,runlsSeries=None,hltl1map={},ignorel1mask=False,xingMin=0.,xingTr=0.,xingId=[],checkjson=False,datatagnameid=None):
-
+def lumi_per_normtag(shards,lumiquerytype,dbengine,dbschema,runtot,formatter,datasource=None,normtag=None,withBX=False,byls=None,fh=None,csvwriter=None,ptable=None,scalefactor=1,totz=utctmzone,fillmin=None,fillmax=None,runmin=None,runmax=None,amodetagid=None,egev=None,beamstatusid=None,tssecmin=None,tssecmax=None,runlsSeries=None,hltl1map={},ignorel1mask=False,xingMin=0.,xingTr=0.,xingId=[],checkjson=False,datatagnameid=None):
     validitychecker = None
     lastvalidity = None
     if normtag and normtag is not 'withoutcorrection':
@@ -249,7 +249,7 @@ def lumi_per_normtag(shards,lumiquerytype,dbengine,dbschema,runtot,datasource=No
                                 if bxlumi is not None:
                                     a = map(formatter.bxlumi,bxlumi/thispresc)  
                                     bxlumistr = '['+' '.join(a)+']'                                
-                                display.add_row( ['%d:%d'%(runnum,fillnum),'%d:%d'%(lsnum,cmslsnum),dtime,pth,formatter.lumi(np.true_divide(delivered,thispresc)),formatter.lumi(np.true_divide(recorded,thispresc)),ds,'%s'%bxlumistr] , fh=fh, csvwriter=csvwriter, ptable=ptable)                                
+                                display.add_row( ['%d:%d'%(runnum,fillnum),'%d:%d'%(lsnum,cmslsnum),dtime,pth,myformatter.lumi(np.true_divide(delivered,thispresc)),formatter.lumi(np.true_divide(recorded,thispresc)),ds,'%s'%bxlumistr] , fh=fh, csvwriter=csvwriter, ptable=ptable)                                
                         else:        #normal bx display                   
                             if bxlumi is not None:
                                 a = map(formatter.bxlumi,bxlumi)
@@ -429,6 +429,7 @@ def brilcalc_main(progname=sys.argv[0]):
           parseresult = brilcalc_lumi.validate(parseresult)          
           ##parse selection params
           pargs = clicommonargs.parser(parseresult)
+
           dbschema = ''
           if not pargs.dbconnect.find('oracle')!=-1: dbschema = 'cms_lumi_prod'
           log.debug('connecturl: %s'%pargs.connecturl)
@@ -451,12 +452,14 @@ def brilcalc_main(progname=sys.argv[0]):
           tssecmax = pargs.tssecmax
           selectionkwds = {}
           normtag = None          
-                      
           fh = None
           ptable = None
           ftable = None
           csvwriter = None
-          vfunc_lumiunit = np.vectorize(formatter.lumiunit)
+          myformat = pargs.oformat
+          myprecision = pargs.precision
+          myformatter = fm.Formatter(myformat,myprecision)
+          vfunc_lumiunit = np.vectorize(myformatter.lumiunit)
           checkjson = True
           if parseresult['--without-checkjson'] or not parseresult['-i']:
               checkjson = False
@@ -471,12 +474,13 @@ def brilcalc_main(progname=sys.argv[0]):
           g_headers['footer_hltpath'] = ['hltpath','nfill','nrun','ncms','totdelivered(/ub)','totrecorded(/ub)']
           g_headers['bylsheader_hltpath'] = ['run:fill','ls','time','hltpath','delivered(/ub)','recorded(/ub)','avgpu','source']
           g_minbias = pargs.minbias
-          scalefactor = pargs.scalefactor
+          scalefactor = pargs.scalefactor          
           lumiunitstr = parseresult['-u']         
-          if lumiunitstr not in formatter.lumiunit_to_scalefactor.keys(): raise ValueError('%s not recognised as lumi unit'%lumiunit)
-          lumiunitconversion = formatter.lumiunit_to_scalefactor[lumiunitstr]
+          if lumiunitstr not in myformatter.lumiunit_to_scalefactor.keys(): 
+              raise ValueError('%s not recognised as lumi unit'%lumiunit)
+          lumiunitconversion = myformatter.lumiunit_to_scalefactor[lumiunitstr]
           scalefactor = scalefactor*lumiunitconversion
-
+         
           if pargs.withBX:
               if pargs.hltpath is None:
                   header = g_headers['bylsheader']+['[bxidx bxdelivered(/ub) bxrecorded(/ub)]']
@@ -590,7 +594,7 @@ def brilcalc_main(progname=sys.argv[0]):
           
           rselect = []
           for [qtype,ntag,dsource,rselect] in datasources:
-              lumi_per_normtag(shards,qtype,dbengine,dbschema,runtot,datasource=dsource,normtag=ntag,withBX=pargs.withBX,byls=pargs.byls,fh=fh,csvwriter=csvwriter,ptable=ptable,scalefactor=scalefactor,totz=totz,fillmin=fillmin,fillmax=fillmax,runmin=runmin,runmax=runmax,amodetagid=amodetagid,egev=egev,beamstatusid=beamstatusid,tssecmin=tssecmin,tssecmax=tssecmax,runlsSeries=rselect,hltl1map=hltl1map,ignorel1mask=parseresult['--ignore-mask'],xingMin=pargs.xingMin,xingTr=pargs.xingTr,xingId=pargs.xingId,checkjson=checkjson,datatagnameid=datatagnameid)  
+              lumi_per_normtag(shards,qtype,dbengine,dbschema,runtot,myformatter,datasource=dsource,normtag=ntag,withBX=pargs.withBX,byls=pargs.byls,fh=fh,csvwriter=csvwriter,ptable=ptable,scalefactor=scalefactor,totz=totz,fillmin=fillmin,fillmax=fillmax,runmin=runmin,runmax=runmax,amodetagid=amodetagid,egev=egev,beamstatusid=beamstatusid,tssecmin=tssecmin,tssecmax=tssecmax,runlsSeries=rselect,hltl1map=hltl1map,ignorel1mask=parseresult['--ignore-mask'],xingMin=pargs.xingMin,xingTr=pargs.xingTr,xingId=pargs.xingId,checkjson=checkjson,datatagnameid=datatagnameid)  
           
           if pargs.hltpath is None:
               nruns = len(runtot.keys())
@@ -601,10 +605,11 @@ def brilcalc_main(progname=sys.argv[0]):
               totrecorded =  np.sum( [v['recorded'] for v in runtot.values() ] )
               if not pargs.byls and not pargs.withBX: #run table
                   for hn,rn in sorted(runtot.keys()):
-                      v = runtot[ (hn,rn) ]
-                      display.add_row( ['%d:%d'%(rn,v['fill']),v['dtime'],v['nls'],v['ncms'],formatter.lumi(v['delivered']),formatter.lumi(v['recorded']) ] , fh=fh, csvwriter=csvwriter, ptable=ptable)
-              display.add_row( [ '%d'%nfills, '%d'%nruns, '%d'%nls,'%d'%ncmsls,formatter.lumi(totdelivered),formatter.lumi(totrecorded)], fh=fh, csvwriter=None, ptable=ftable)              
-                  
+                      v = runtot[ (hn,rn) ]                      
+                      display.add_row( ['%d:%d'%(rn,v['fill']),v['dtime'],v['nls'],v['ncms'],myformatter.lumi(v['delivered']),myformatter.lumi(v['recorded']) ] , fh=fh, csvwriter=csvwriter, ptable=ptable)
+              
+              display.add_row( [ '%d'%nfills, '%d'%nruns, '%d'%nls,'%d'%ncmsls,myformatter.lumi(totdelivered),myformatter.lumi(totrecorded)], fh=fh, csvwriter=None, ptable=ftable)
+              
           else:
               hltpathSummary = []
               runtot_df = pd.DataFrame.from_dict(runtot,orient='index')
@@ -617,7 +622,7 @@ def brilcalc_main(progname=sys.argv[0]):
                   ncmsls =  int(g['ncms'].sum())
                   totdelivered = g['delivered'].sum()
                   totrecorded = g['recorded'].sum()
-                  display.add_row( [ hn, '%d'%nfills, '%d'%nruns, '%d'%ncmsls,formatter.lumi(totdelivered),formatter.lumi(totrecorded)], fh=fh, csvwriter=None, ptable=ftable)                  
+                  display.add_row( [ hn, '%d'%nfills, '%d'%nruns, '%d'%ncmsls,myformatter.lumi(totdelivered),myformatter.lumi(totrecorded)], fh=fh, csvwriter=None, ptable=ftable)                                 
                   if not pargs.byls and not pargs.withBX: #hltpath, run table                      
                       for i,v in g.iterrows():
                           pname = i[0]
@@ -627,7 +632,8 @@ def brilcalc_main(progname=sys.argv[0]):
                           tncmsls = v['ncms']
                           tdelivered = v['delivered']
                           trecorded = v['recorded']
-                          display.add_row( [ '%d:%d'%(trun,tfill), ttime, tncmsls, pname, formatter.lumi(tdelivered), formatter.lumi(trecorded)], fh=fh, csvwriter=csvwriter, ptable=ptable )
+                          if not pargs.eprecision:
+                              display.add_row( [ '%d:%d'%(trun,tfill), ttime, tncmsls, pname, myformatter.lumi(tdelivered), myformatter.lumi(trecorded)], fh=fh, csvwriter=csvwriter, ptable=ptable )
                   hltpathSummary.append([hn,nfills,nruns,ncmsls,totdelivered,totrecorded])
                   totalpathdelivered =  totalpathdelivered+totdelivered
                   totalpathrecorded = totalpathrecorded+totrecorded
@@ -642,24 +648,24 @@ def brilcalc_main(progname=sys.argv[0]):
               del ptable
               del ftable
               if pargs.hltpath:
-                  print '#Sum delivered : %s'%formatter.lumi(totalpathdelivered)
-                  print '#Sum recorded : %s'%formatter.lumi(totalpathrecorded)
+                  print '#Sum delivered : %s'%myformatter.lumi(totalpathdelivered)
+                  print '#Sum recorded : %s'%myformatter.lumi(totalpathrecorded)
           else:              #to file
               print >> fh, '#Summary:'                  
               print >> fh, '#'+','.join(footer)
               if not pargs.hltpath:
-                  print >> fh, '#'+','.join( [ '%d'%nfills,'%d'%nruns,'%d'%nls,'%d'%ncmsls,formatter.lumi(totdelivered),formatter.lumi(totrecorded)] )
+                  print >> fh, '#'+','.join( [ '%d'%nfills,'%d'%nruns,'%d'%nls,'%d'%ncmsls,myformatter.lumi(totdelivered),myformatter.lumi(totrecorded)] )
               else:
                   totalpathdelivered = 0
                   totalpathrecorded = 0
                   for pentry in hltpathSummary:
                       #print >> fh, '#'+','.join( [ '%s'%pentry[0],'%d'%pentry[1],'%d'%pentry[2],'%d'%pentry[3],'%.6f'%pentry[4],'%.6f'%pentry[5] ] )
-                      print >> fh, '#'+','.join( [ '%s'%pentry[0],'%d'%pentry[1],'%d'%pentry[2],'%d'%pentry[3], formatter.lumi(pentry[4]),formatter.lumi(pentry[5]) ] )
+                      print >> fh, '#'+','.join( [ '%s'%pentry[0],'%d'%pentry[1],'%d'%pentry[2],'%d'%pentry[3], myformatter.lumi(pentry[4]),myformatter.lumi(pentry[5]) ] )
                       totalpathdelivered =  totalpathdelivered+pentry[4]
                       totalpathrecorded = totalpathrecorded+pentry[5]
                   print >> fh,'#'
-                  print >> fh,'#Sum delivered  : %s'%formatter.lumi(totalpathdelivered)
-                  print >> fh,'#Sum recorded : %s'%formatter.lumi(totalpathrecorded)
+                  print >> fh,'#Sum delivered  : %s'%myformatter.lumi(totalpathdelivered)
+                  print >> fh,'#Sum recorded : %s'%myformatter.lumi(totalpathrecorded)
           if parsediffruns or parsediffls:
               print '\nWarning: problems found in merging -i and --normtag selections:'
               if parsediffruns:
@@ -771,7 +777,7 @@ def brilcalc_main(progname=sys.argv[0]):
                               bxintensity1array =  np.array(api.unpackBlobtoArray(row['bxintensity1blob'],'f'))
                               bxintensity2array =  np.array(api.unpackBlobtoArray(row['bxintensity2blob'],'f'))
                               bxintensity = np.transpose( np.array([bxidxarray+1,bxintensity1array,bxintensity2array]) )
-                              a = map(formatter.bxintensity,bxintensity)                          
+                              a = map(myformatter.bxintensity,bxintensity)                          
                               bxintensitystr = '['+' '.join(a)+']'
                               del bxintensity1array
                               del bxintensity2array
@@ -898,7 +904,7 @@ def brilcalc_main(progname=sys.argv[0]):
                                   l1vals = [ rl[k] for k in l1keys ]                       
                                   l1prescvals = [ v[0] for v in l1vals ]
                                   l1bits = zip(l1bitnames,l1prescvals)
-                                  l1inner = map(formatter.bitprescFormatter,l1bits)
+                                  l1inner = map(myformatter.bitprescFormatter,l1bits)
                                   l1bitsStr = ' '.join(l1inner)                          
                                   hltpathStr = '/'.join([hltpathname,str(hltprescval)])
                                   totpresc = totalprescaleNEW(hltprescval,l1seedlogic,l1prescvals)
