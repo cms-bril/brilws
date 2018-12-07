@@ -363,7 +363,7 @@ argvalidators = {
     '--xingMin': Or(None,And(Use(float), lambda n: n>0), error='--xingMin should be a positive number'),
     '--xingTr': Or(None,And(Use(float), lambda n: (n>0 and n<=1)), error='--xingTr should be a number in (0,1]'),
     '--xingId': Or(None,Or( Use(open),Use(RegexValidator.RegexValidator(params._bxlist_pattern))), error='--xingId should be a comma separated list of numbers'),
-    '--minBiasXsec': And(Use(float), lambda f: f>0, error='--minBiasXsec should be float > 0'),
+    '--minBiasXsec': Or(None,And(Use(float), lambda f: f>0), error='--minBiasXsec should be float > 0'),
     '-b': Or(None, And(str, lambda s: s.upper() in params._beamstatusChoices), error='-b must be in '+str(params._beamstatusChoices) ),
     '--begin': Or(None, And(str,Use(RegexValidator.RegexValidator(params._timeopt_pattern))), error='--begin wrong format'),
     '--end': Or(None, And(str,Use(RegexValidator.RegexValidator(params._timeopt_pattern))), error='--end wrong format'),
