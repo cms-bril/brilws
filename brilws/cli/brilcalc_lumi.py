@@ -16,7 +16,7 @@ Options:
   --precision PRECISION         Use result precision [default: 9f]
   --amodetag AMODETAG           Accelerator mode 
   --beamenergy BEAMENERGY       Target single beam energy in GeV
-  --minBiasXsec MINBIASXSEC     Minbias cross-section in ub [default: 80000.0]
+  --minBiasXsec MINBIASXSEC     Minbias cross-section in ub
   --datatag DATATAG             Data tag name
   --normtag NORMTAG             correction tag or combined correction tag selection file or string
   --begin BEGIN                 Min start time (MM/DD/YY HH24:MI:SS)/fill/run 
@@ -51,10 +51,7 @@ def validate(optdict):
     result = schema.validate(optdict)
     if not result['-i'] and not result['-f'] and not result['-r'] and not result['--begin']:
         print 'Error: at least one time selection option in %s is required'%(','.join(['-i','-f','-r','--begin']))
-        sys.exit(0)        
-    if result['--minBiasXsec'] and not result['--normtag']:
-       print 'Error: --minBiasXsec must be used with --normtag, quit.'
-       sys.exit(0) 
+        sys.exit(0)            
     return result
 
 if __name__ == '__main__':
