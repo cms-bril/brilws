@@ -52,6 +52,9 @@ def validate(optdict):
     if not result['-i'] and not result['-f'] and not result['-r'] and not result['--begin']:
         print 'Error: at least one time selection option in %s is required'%(','.join(['-i','-f','-r','--begin']))
         sys.exit(0)        
+    if result['--minBiasXsec'] and not result['--normtag']:
+       print 'Error: --minBiasXsec must be used with --normtag, quit.'
+       sys.exit(0) 
     return result
 
 if __name__ == '__main__':
