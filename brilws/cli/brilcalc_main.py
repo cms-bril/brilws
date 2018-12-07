@@ -28,7 +28,7 @@ ch.setFormatter(logformatter)
 log.addHandler(ch)
 
 lumip = lumiParameters.ParametersObject()
-lslengthsec= lumip.lslengthsec()
+lslengthsec= lumip.lslengthsec
 utctmzone = tz.gettz('UTC')
 cerntmzone = tz.gettz('CEST')
 
@@ -220,7 +220,7 @@ def lumi_per_normtag(shards,lumiquerytype,dbengine,dbschema,runtot,formatter,dat
             delivered = recorded = avgpu = livefrac = 0.
             if checkjson:
                 g_returnedls.append((runnum,lsnum))
-            if lumiquerytype == 'bestresultonline': ##bestlumi
+            if lumiquerytype == 'bestresultonline': ##bestlumi                                
                 if row.has_key('delivered') and row['delivered']:                    
                     delivered = np.true_divide(row['delivered']*lslengthsec,scalefactor)
                 if delivered>0 and row.has_key('recorded') and row['recorded']:
@@ -463,7 +463,13 @@ def brilcalc_main(progname=sys.argv[0]):
           checkjson = True
           if parseresult['--without-checkjson'] or not parseresult['-i']:
               checkjson = False
-              
+          if parseresult['--normtag']:
+              g_minbias = pargs.minbias or lumip.minbias
+          else:
+              if not pargs.minbias is None:
+                  print 'Error: --minBiasXsec cannot be used without --normtag, quit'
+                  sys.exit(0)
+                  
           g_returnedls = []
           g_nulldeadtime = {}
           g_headers = {}
@@ -472,8 +478,9 @@ def brilcalc_main(progname=sys.argv[0]):
           g_headers['bylsheader'] = ['run:fill','ls','time','beamstatus','E(GeV)','delivered(/ub)','recorded(/ub)','avgpu','source']
           g_headers['runheader_hltpath'] = ['run:fill','time','ncms','hltpath','delivered(/ub)','recorded(/ub)']
           g_headers['footer_hltpath'] = ['hltpath','nfill','nrun','ncms','totdelivered(/ub)','totrecorded(/ub)']
-          g_headers['bylsheader_hltpath'] = ['run:fill','ls','time','hltpath','delivered(/ub)','recorded(/ub)','avgpu','source']
-          g_minbias = pargs.minbias
+          g_headers['bylsheader_hltpath'] = ['run:fill','ls','time','hltpath','delivered(/ub)','recorded(/ub)','avgpu','source']          
+          
+          
           scalefactor = pargs.scalefactor          
           lumiunitstr = parseresult['-u']         
           if lumiunitstr not in myformatter.lumiunit_to_scalefactor.keys(): 
@@ -567,7 +574,6 @@ def brilcalc_main(progname=sys.argv[0]):
           
           log.debug('lumiquerytype %s'%lumiquerytype)          
           log.debug('scalefactor: %.2f'%pargs.scalefactor)                    
-          log.debug('minbias: %.1f'%g_minbias)
           
           runtot = {} #{(hltpath,run): { 'fill':fillnum,'time':dtime,'nls':1,'ncms':int(cmson),'delivered':delivered,'recorded':recorded} }
                                
