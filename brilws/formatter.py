@@ -3,6 +3,14 @@ import numpy as np
 #dec_prec = 9
 #dec_prec_value = 10 ** (-1 * dec_prec)
 
+def bxintensity(x):    
+    return '{:d} {:.4e} {:.4e}'.format(int(x[0]),x[1],x[2])
+
+def bitprescFormatter(x):
+    bitname = x[0]
+    prescval = x[1]
+    return '%s/%d'%(bitname,prescval)
+
 class Formatter:
     def __init__(self, formatstr, prec):
         self.formatstr = formatstr
@@ -16,7 +24,7 @@ class Formatter:
             return self.lumiE(x)
         if abs(x)<self.dec_prec_value:
             return '0'    
-        return '{:.{}f}'.format(x,self.prec)
+        return '{:.{}f}'.format(float(x),self.prec)
 
     def bxlumi(self,x):
         if self.formatstr=='e':
@@ -34,7 +42,7 @@ class Formatter:
         return ' '.join([bxid_str,vd_str,vr_str])
 
     def lumiE(self,x):
-        v_str = '{:.{}}e'.format(x,self.prec)
+        v_str = '{:.{}}e'.format(float(x),self.prec)
         return v_str
 
     def bxlumiE(self,x):
@@ -46,14 +54,6 @@ class Formatter:
         vr_str = '{:.{}}e'.format(vr,self.prec)
         return ' '.join([bxid_str,vd_str,vr_str])
     
-    def bxintensity(self,x):    
-        return '{:d} {:.4e} {:.4e}'.format(int(x[0]),x[1],x[2])
-
-    def bitprescFormatter(self,x):
-        bitname = x[0]
-        prescval = x[1]
-        return '%s/%d'%(bitname,prescval)
-
     @property
     def lumiunit_to_scalefactor(self):
         return {    
