@@ -291,7 +291,8 @@ def lumi_per_normtag(shards,lumiquerytype,dbengine,dbschema,runtot,formatter,dat
                 totfactor = np.true_divide(lslengthsec,scalefactor)
                 delivered = avglumi*totfactor
                 recorded = delivered*livefrac
-                avgpu = lumip.avgpu( avglumi,ncollidingbx,g_minbias)                
+                avgpu = lumip.avgpu( avglumi,ncollidingbx,g_minbias)
+
                 if withBX:      #--xing
                     bxlumistr = '[]'
                     if bxlumi is not None:
@@ -313,7 +314,7 @@ def lumi_per_normtag(shards,lumiquerytype,dbengine,dbschema,runtot,formatter,dat
                     else:       #normal xing display
                         if bxlumi is not None:
                             a = map(formatter.bxlumi,bxlumi)                            
-                            bxlumistr = '['+' '.join(a)+']'                        
+                            bxlumistr = '['+' '.join(a)+']'
                         display.add_row( ['%d:%d'%(runnum,fillnum),'%d:%d'%(lsnum,cmslsnum),dtime,beamstatus,'%d'%tegev,formatter.lumi(delivered),formatter.lumi(recorded),'%.1f'%(avgpu),datasource.upper(),'%s'%bxlumistr] , fh=fh, csvwriter=csvwriter, ptable=ptable)                        
                     del bxlumi
                 elif byls:       #--byls
@@ -322,7 +323,7 @@ def lumi_per_normtag(shards,lumiquerytype,dbengine,dbschema,runtot,formatter,dat
                             thispresc = prescale_map[pth]                            
                             display.add_row( ['%d:%d'%(runnum,fillnum),'%d:%d'%(lsnum,cmslsnum),dtime,pth,formatter.lumi(np.true_divide(delivered,thispresc)),formatter.lumi(np.true_divide(recorded,thispresc)),'%.1f'%(avgpu),datasource.upper()] , fh=fh, csvwriter=csvwriter, ptable=ptable)                            
                     else:        #normal display
-                        display.add_row( ['%d:%d'%(runnum,fillnum),'%d:%d'%(lsnum,cmslsnum),dtime,beamstatus,'%d'%tegev,formatter.lumi(delivered),formatter.lumi(recorded),'%.1f'%(avgpu),datasource.upper()] , fh=fh, csvwriter=csvwriter, ptable=ptable)
+                        display.add_row( ['%d:%d'%(runnum,fillnum),'%d:%d'%(lsnum,cmslsnum),dtime,beamstatus,'%d'%tegev,formatter.lumi(delivered),formatter.lumi(recorded),'%.1f'%(avgpu),datasource.upper()] , fh=fh, csvwriter=csvwriter, ptable=ptable)    
             if not hltl1map:     #normal statistic collect
                 if not runtot.has_key( ('',runnum) ):
                     runtot[('',runnum)] = {'fill':fillnum,'dtime':dtime,'nls':0,'ncms':0,'delivered':0,'recorded':0} 
@@ -463,11 +464,11 @@ def brilcalc_main(progname=sys.argv[0]):
           checkjson = True
           if parseresult['--without-checkjson'] or not parseresult['-i']:
               checkjson = False
-          if parseresult['--normtag']:
+          if parseresult['--normtag'] or parseresult['--type']:
               g_minbias = pargs.minbias or lumip.minbias
           else:
               if not pargs.minbias is None:
-                  print 'Error: --minBiasXsec cannot be used without --normtag, quit'
+                  print 'Error: --minBiasXsec cannot be used without --normtag 0r --type, quit'
                   sys.exit(0)
                   
           g_returnedls = []
@@ -638,8 +639,7 @@ def brilcalc_main(progname=sys.argv[0]):
                           tncmsls = v['ncms']
                           tdelivered = v['delivered']
                           trecorded = v['recorded']
-                          if not pargs.eprecision:
-                              display.add_row( [ '%d:%d'%(trun,tfill), ttime, tncmsls, pname, myformatter.lumi(tdelivered), myformatter.lumi(trecorded)], fh=fh, csvwriter=csvwriter, ptable=ptable )
+                          display.add_row( [ '%d:%d'%(trun,tfill), ttime, tncmsls, pname, myformatter.lumi(tdelivered), myformatter.lumi(trecorded)], fh=fh, csvwriter=csvwriter, ptable=ptable )
                   hltpathSummary.append([hn,nfills,nruns,ncmsls,totdelivered,totrecorded])
                   totalpathdelivered =  totalpathdelivered+totdelivered
                   totalpathrecorded = totalpathrecorded+totrecorded
@@ -783,7 +783,7 @@ def brilcalc_main(progname=sys.argv[0]):
                               bxintensity1array =  np.array(api.unpackBlobtoArray(row['bxintensity1blob'],'f'))
                               bxintensity2array =  np.array(api.unpackBlobtoArray(row['bxintensity2blob'],'f'))
                               bxintensity = np.transpose( np.array([bxidxarray+1,bxintensity1array,bxintensity2array]) )
-                              a = map(myformatter.bxintensity,bxintensity)                          
+                              a = map(fm.bxintensity,bxintensity)                          
                               bxintensitystr = '['+' '.join(a)+']'
                               del bxintensity1array
                               del bxintensity2array
@@ -810,7 +810,7 @@ def brilcalc_main(progname=sys.argv[0]):
           parseresult = brilcalc_trg.validate(parseresult)
           ##parse selection params
           pargs = clicommonargs.parser(parseresult)
-
+          
           ##db params
           dbschema = ''
           if not pargs.dbconnect.find('oracle')!=-1: dbschema = 'cms_lumi_prod'
@@ -910,7 +910,7 @@ def brilcalc_main(progname=sys.argv[0]):
                                   l1vals = [ rl[k] for k in l1keys ]                       
                                   l1prescvals = [ v[0] for v in l1vals ]
                                   l1bits = zip(l1bitnames,l1prescvals)
-                                  l1inner = map(myformatter.bitprescFormatter,l1bits)
+                                  l1inner = map(fm.bitprescFormatter,l1bits)
                                   l1bitsStr = ' '.join(l1inner)                          
                                   hltpathStr = '/'.join([hltpathname,str(hltprescval)])
                                   totpresc = totalprescaleNEW(hltprescval,l1seedlogic,l1prescvals)
