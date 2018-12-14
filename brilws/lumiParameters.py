@@ -5,7 +5,7 @@ class ParametersObject (object):
     def __init__ (self):
         self._NBX            = 3564  # number beam crossings
         self._numorbit       = 2**18 # 262144
-        self._minBiasXsec    = 8000.0 # default minBiasXsec unit: microbarn
+        self._minBiasXsec    = 80000.0 # default minBiasXsec unit: microbarn
         self._rotationRate    = 11245.613 # for 3.5 TeV Beam energy
         self._rotationTime    = 1 / self._rotationRate
         self._lumiSectionLen  = self._numorbit * self._rotationTime
