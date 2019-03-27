@@ -48,47 +48,71 @@ def open_validfiles(filenames,requiredtables):
     Output: [filehandle]
     '''    
     return filter(lambda x: x is not None,[_open_validfile(f,requiredtables) for f in filenames])
-    
-def dataRangeIter(filehandles,datatable,runmin=None,runmax=None,fillmin=None,tssecmin=None,tssecmax=None,fillmax=None):
-    '''
-    Iterator generating (tablehandle,data coordinate in files) based on range selection parameters
-    Input:
-        filehandles: input file handles
-        datatable: data table name without '/'
-        range selection parameters: runmin,runmax,fillmin,tssecmin,tssecmax,fillmax. None means select all        
-    Output: 
-       (tablehandle,data coordinate)
-    '''
-    conditions = []
-    if runmin and runmax and runmin==runmax:
-        conditions.append('(runnum == %d)'%runmin)   
-    elif runmin: 
-        conditions.append('(runnum >= %d)'%runmin)
-    elif runmax: 
-        conditions.append('(runnum <= %d)'%runmax)
-    if fillmin and fillmax and fillmin==fillmax:
-        conditions.append('(fillnum == %d)'%fillmin)
-    elif fillmin:
-        conditions.append('(fillnum >= %d)'%fillmin)
-    elif fillmax: 
-        conditions.append('(fillnum <= %d)'%fillmax)
-    if tssecmin and tssecmax and tssecmin==tssecmax:
-        conditions.append('(tssec == %d)'%tssecmin)
-    elif tssecmin: 
-        conditions.append('(tssec >= %d)'%tssecmin)
-    elif tssecmax: 
-        conditions.append('(tssec <= %d)'%tssecmax)
-    conditionStr = '&'.join(conditions)       
 
-    for f in filehandles:
-        log.debug('Processing '+f.filename)
-        n = f.get_node('/'+datatable)        
-        coordinates = n.get_where_list(conditionStr,sort=False)
-        if len(coordinates)==0:
-            continue
-        yield (n,coordinates) 
-    
+def _build_preselectcondition( runmin=None,runmax=None,fillmin=None,tssecmin=None,tssecmax=None,fillmax=None ):
+        if runmin==runmax==fillmin==tssecmin==tssecmax==fillmax==None:
+            return ''
+        conditions = []
+        if runmin and runmax and runmin==runmax:
+            conditions.append('(runnum == %d)'%runmin)   
+        elif runmin: 
+            conditions.append('(runnum >= %d)'%runmin)
+        elif runmax: 
+            conditions.append('(runnum <= %d)'%runmax)
+        if fillmin and fillmax and fillmin==fillmax:
+            conditions.append('(fillnum == %d)'%fillmin)
+        elif fillmin:
+            conditions.append('(fillnum >= %d)'%fillmin)
+        elif fillmax: 
+            conditions.append('(fillnum <= %d)'%fillmax)
+        if tssecmin and tssecmax and tssecmin==tssecmax:
+            conditions.append('(tssec == %d)'%tssecmin)
+        elif tssecmin: 
+            conditions.append('(tssec >= %d)'%tssecmin)
+        elif tssecmax: 
+            conditions.append('(tssec <= %d)'%tssecmax)
+        conditionStr = '&'.join(conditions) 
+        return conditionStr
 
+class dataRangeIterator:    
+    def __init__(self,filehandles,tablenames,conditionStr):
+        self._filehandles = filehandles
+        self._tablenames = tablenames
+        self._conditionStr = conditionStr
+
+    def _get_range_in_file(self,filehandle):
+        '''
+        Selected range of all tables in file
+        Output: {tablename:coordinates}
+        '''
+        result = {}
+        for tablename in self._tablenames:
+            n = filehandle.get_node('/'+tablename)
+            coordinates = n.get_where_list(self._conditionStr,sort=False)
+            #print type(coordinates)
+            if coordinates.size == 0: 
+                result[tablename] = None
+            else:
+                result[tablename] = coordinates.tolist()
+        return result
+ 
+    def next(self):
+        '''
+        Output: (filehandle, {tablename: coordinates})
+        '''
+        for f in self._filehandles: #loop over files
+            log.debug('Processing file '+f.filename)
+            alltables = f.root._v_children.keys()
+            if not _is_subset(self._tablenames,alltables):
+                print 'file %s does not contain all the tables, skip '%f.filename
+                continue
+            results = self._get_range_in_file(f)
+            if not results:
+                print 'nothing selected'
+                continue
+            yield (f,results) 
+
+    
 def dataFilter(tablehandle,coordinates,field_dtypes,runlsRangeSelectSeries=None,runlsnbPointFilterSeries=None):
     '''
     Filter input table nodes on fields based on runls range selection and runlsnb point selection conditions
@@ -131,8 +155,15 @@ def dataFilter(tablehandle,coordinates,field_dtypes,runlsRangeSelectSeries=None,
         all_fields.append(value)
     nrows = masks[np.nonzero(masks)].size
     log.debug('selected rows %d'%nrows)
-    result = np.core.records.fromarrays(all_fields,names=field_dtypes.names,dtype=field_dtypes)
+    result = np.core.records.fromarrays(all_fields,names=field_dtypes.names,dtype=field_dtypes)    
     return result
+
+def andFilter(irecordsSize,conditions):
+    masks = np.full(irecordsSize, True, dtype=bool) #default to select all      
+    for co in conditions:
+        #print 'passed n masks:', masks[np.nonzero(masks)].size
+        masks = np.logical_and(masks,co)
+    return masks
 
 def _make_runlsnb_Series(runlsnbarray):
     '''
@@ -146,44 +177,76 @@ def _make_runlsnb_Series(runlsnbarray):
 
 if __name__=='__main__':
     tables = ['beam','tcds','hfetlumi']
-    filenames = ['/home/zhen/data/7491/7491_327554_1812020507_1812020558.hd5','/home/zhen/data/7491/7491_327559_1812020558_1812020731.hd5','/home/zhen/data/7491/7491_327560_1812020731_1812021237.hd5']
-    filehandles = open_validfiles(filenames,tables)
-    print [x.filename for x in filehandles]
-
-    tcdsIter = dataRangeIter(filehandles,'tcds',fillmin=7491,fillmax=7491)
-    
     #runlsselect = pd.Series([[1340,1345],[1400,1500]], index=[327554,327554]) #pd.Series , index=runnum, value=[[lsmin,lsmax]]
     runlsselect = pd.Series([[1,10],[14,15]], index=[327560,327560]) #pd.Series , index=runnum, value=[[lsmin,lsmax]]
     #runlsselect = None
 
+    filenames = ['/home/zhen/data/7491/7491_327554_1812020507_1812020558.hd5','/home/zhen/data/7491/7491_327559_1812020558_1812020731.hd5','/home/zhen/data/7491/7491_327560_1812020731_1812021237.hd5']
+    filehandles = open_validfiles(filenames,tables)
+    conditionStr = _build_preselectcondition(fillmin=7491,fillmax=7491)
+    rangeIter = dataRangeIterator(filehandles,['tcds','beam','hfetlumi'],conditionStr)
+
     tcds_result_dtype = np.dtype( [('runnum','uint32'),('lsnum','uint32'),('nbnum','uint32'),('timestampsec','uint32'),('cmson','bool8'),('deadfrac','float32'),('ncollidingbx','uint32')] )
-    tcds_result = None      
-    then = time()
-    for (tablehandle,coordinates ) in tcdsIter:         
-        tcds_result = dataFilter(tablehandle,coordinates,field_dtypes=tcds_result_dtype,runlsRangeSelectSeries=runlsselect)
-    print 'Time processing tcds: ',time()-then
-    tcdsrunlsnbSeries = None
-    if tcds_result.size :
-      selected_time = np.column_stack((tcds_result['runnum'],tcds_result['lsnum'],tcds_result['nbnum']))       
-      tcdsrunlsnbSeries = _make_runlsnb_Series( selected_time )
-      #selected_time = np.vstack(set(tuple(row) for row in selected_time))
-  
-    if tcdsrunlsnbSeries is None:
-        print 'no tcds selected'
-        sys.exit(0)
-
-    print 'tcds result ',tcds_result.shape
-    dataIter = dataRangeIter(filehandles,'hfetlumi',fillmin=7491,fillmax=7491)
-    hfetlumi_result_dtype = np.dtype( [('runnum','uint32'),('lsnum','uint32'),('nbnum','uint32'),('timestampsec','uint32'),('avg','float32'),('avgraw','float32'),('bx','float32',(3564,)),('bxraw','float32',(3564,))] ) 
-    hfetlumi_result = None
-    then = time()
-    for (tablehandle,coordinates) in dataIter: 
-        hfetlumi_result = dataFilter(tablehandle,coordinates,field_dtypes=hfetlumi_result_dtype,runlsRangeSelectSeries=None,runlsnbPointFilterSeries=tcdsrunlsnbSeries)
-        #print hfetlumi_result
-
-    print 'hfetlumi result ',hfetlumi_result.shape
-    print 'Time processing hfetlumi: ',time()-then
+    beam_result_dtype = np.dtype( [('runnum','uint32'),('lsnum','uint32'),('nbnum','uint32'),('timestampsec','uint32'),('status','U28'),('targetegev','uint32')] )
+    data_result_dtype = np.dtype( [('runnum','uint32'),('lsnum','uint32'),('nbnum','uint32'),('timestampsec','uint32'),('avg','float32'),('avgraw','float32'),('bx','float32',(3564,)),('bxraw','float32',(3564,))] ) 
     
-    #beam_result_dtype = np.dtype( [('lsnum','uint32'),('timestampsec','uint32'),('status','bool8')] )
-    #beam_result = None   
-    [f.close() for f in filehandles]
+    for co in rangeIter.next():
+        filehandle = co[0]
+        all_coordinates = co[1].values()
+        #preselection
+        if None in all_coordinates:
+            print 'not all tables passed preselection, skip file ',filehandle.filename        
+            continue
+
+        #tcds selection
+
+        tcds_coordinates = co[1]['tcds']
+        tcds_table_handle = filehandle.get_node('/tcds')
+        tcds_result = dataFilter(tcds_table_handle,tcds_coordinates,field_dtypes=tcds_result_dtype,runlsRangeSelectSeries=runlsselect,runlsnbPointFilterSeries=None)
+        if not tcds_result.size:
+            print 'tcds failed data selection, continue ',filehandle.filename 
+            continue
+
+        selected_time = np.column_stack((tcds_result['runnum'],tcds_result['lsnum'],tcds_result['nbnum']))       
+        runlsnbSeries = _make_runlsnb_Series( selected_time )
+
+        #beam selection
+
+        beam_coordinates = co[1]['beam']
+        beam_table_handle = filehandle.get_node('/beam')
+        beam_result = dataFilter(beam_table_handle,beam_coordinates,field_dtypes=beam_result_dtype,runlsRangeSelectSeries=None,runlsnbPointFilterSeries=runlsnbSeries)
+        beamconditions = [ beam_result['status']=='SQUEEZE',beam_result['targetegev']==6103 ]        
+        beam_masks = andFilter(beam_result.size,beamconditions)        
+        beam_result = beam_result[beam_masks]
+        if not beam_result.size:
+            print 'beam failed data selection, continue ',filehandle.filename 
+            continue
+
+        beam_time = np.column_stack((beam_result['runnum'],beam_result['lsnum'],beam_result['nbnum']))  
+        if not np.array_equal(beam_time,selected_time):
+            print 'beam time differs from tcds time, make narrower selection '
+            runlsnbSeries = _make_runlsnb_Series( beam_time)
+
+        #data selection
+
+        data_coordinates = co[1]['hfetlumi']
+        data_table_handle = filehandle.get_node('/hfetlumi')
+        data_result = dataFilter(data_table_handle,data_coordinates,field_dtypes=data_result_dtype,runlsRangeSelectSeries=None,runlsnbPointFilterSeries=runlsnbSeries)      
+        
+        print filehandle.filename , data_result.shape 
+
+        for record in data_result:
+            runnum = record['runnum']
+            lsnum = record['lsnum']
+            nbnum = record['nbnum']
+            avg = record['avg']           
+            tcds_masks = andFilter(tcds_result.size,[tcds_result['lsnum']==lsnum , tcds_result['nbnum']==nbnum])
+            tcds_data = tcds_result[tcds_masks]
+
+            print runnum,lsnum,nbnum
+            print 'deadfrac ',tcds_data['deadfrac'][0]
+            beam_data = beam_result[ np.logical_and(beam_result['lsnum']==lsnum , beam_result['nbnum']==nbnum) ]
+            print 'beamstatus ',beam_data['status'][0]
+            print 'avg ',avg
+    [f.close() for f in filehandles]    
+
