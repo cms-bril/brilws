@@ -4,6 +4,7 @@ import numpy as np
 import pandas as pd
 import os,sys
 import logging
+import params
 
 from time import time
 
@@ -165,24 +166,28 @@ def andFilter(irecordsSize,conditions):
         masks = np.logical_and(masks,co)
     return masks
 
-#def build_dataquery_conditions(runmin=None,runmax=None,fillmin=None,tssecmin=None,tssecmax=None,fillmax=None,beamstatusid=None,runlsselect=None,datatagnameid=None):
     
-def online_file_resultIter(filehandles,runmin=None,runmax=None,fillmin=None,tssecmin=None,tssecmax=None,fillmax=None,beamstatusid=None,amodetagid=None,targetegev=None,runlsselect=None):
+def online_file_resultIter(filehandles,runmin=None,runmax=None,fillmin=None,tssecmin=None,tssecmax=None,fillmax=None,beamstatusid=None,amodetagid=None,targetegev=None,runlsselect=None,withBX=False):
     '''
     get online bestlumi
     field choices: [runnum,lsnum,fillnum,timestampsec,cmson,beamstatus,delivered,recorded,bx,avgpu,datasource,normtag,normtagid,amodetagid,targetegev,numbxbeamactive,norb,nbperls]
+    
     '''
+  
     datatablename = 'bestlumi'
-    datafieldtypelist = [('fillnum','uint32'),('delivered','float32'),('recorded','float32'),('avgpu','float32')]
+    
     preconditionStr = _build_preselectcondition(runmin=runmin,runmax=runmax,fillmin=fillmin,tssecmin=tssecmin,tssecmax=tssecmax,fillmax=fillmax)
     rangeIter = dataRangeIterator(filehandles,['tcds','beam',datatablename],preconditionStr)
 
     basetypelist = [('runnum','uint32'),('lsnum','uint32'),('nbnum','uint32'),('timestampsec','uint32')]
     tcds_typelist = basetypelist + [('cmson','bool8'),('deadfrac','float32'),('ncollidingbx','uint32')]
-    beam_typelist = basetypelist + [('status','U28'),('targetegev','uint32')]
+    beam_typelist = basetypelist + [('status','U28'),('machinemode','U20'),('targetegev','uint32')]
     tcds_result_dtype = np.dtype( tcds_typelist )
     beam_result_dtype = np.dtype( beam_typelist )
 
+    datafieldtypelist = [('fillnum','uint32'),('delivered','float32'),('recorded','float32'),('avgpu','float32'),('provider','U8')]
+    if withBX:
+        datafieldtypelist.append(('bxdelivered','float32',(3564,)))
     data_typelist = basetypelist + datafieldtypelist
     data_result_dtype = np.dtype( data_typelist )
         
@@ -198,31 +203,40 @@ def online_file_resultIter(filehandles,runmin=None,runmax=None,fillmin=None,tsse
         tcds_coordinates = co[1]['tcds']
         tcds_table_handle = filehandle.get_node('/tcds')
         tcds_result = dataFilter(tcds_table_handle,tcds_coordinates,field_dtypes=tcds_result_dtype,runlsRangeSelectSeries=runlsselect,runlsnbPointFilterSeries=None)
-        print 'tcds_result ',tcds_result
+        print 'tcds_result ',tcds_result.size
         if not tcds_result.size:
             print 'tcds failed data selection, continue ',filehandle.filename 
             continue
      
         selected_time = np.column_stack((tcds_result['runnum'],tcds_result['lsnum'],tcds_result['nbnum']))       
         runlsnbSeries = _make_runlsnb_Series( selected_time )
-        print 'selected_time ',selected_time
+
         #beam selection
 
         beam_coordinates = co[1]['beam']
         beam_table_handle = filehandle.get_node('/beam')
         beam_result = dataFilter(beam_table_handle,beam_coordinates,field_dtypes=beam_result_dtype,runlsRangeSelectSeries=None,runlsnbPointFilterSeries=runlsnbSeries)
-        #beamconditions = [ beam_result['status']=='SQUEEZE',beam_result['targetegev']==6103 ]        
         beamconditions = []
+        if beamstatusid is not None:
+            req_beamstatus = params._idtobeamstatus[beamstatusid]
+            beamconditions.append( beam_result['status']==req_beamstatus )
+        if amodetagid is not None:
+            req_amodetag = params._idtoamodetag[amodetagid]
+            if params._amodetagtofull.has_key(req_amodetag):
+                req_amodetag = params._amodetagtofull[req_amodetag]
+            beamconditions.append( beam_result['machinemode']==req_amodetag )
+        if targetegev is not None:
+            beamconditions.append( beam_result['targetegev']==targetegev )
         beam_masks = andFilter(beam_result.size,beamconditions)        
         beam_result = beam_result[beam_masks]
-        print 'beam_result ',beam_result
+
         if not beam_result.size:
             print 'beam failed data selection, continue ',filehandle.filename 
             continue
 
         beam_time = np.column_stack((beam_result['runnum'],beam_result['lsnum'],beam_result['nbnum']))  
         if not np.array_equal(beam_time,selected_time):
-            print 'beam time differs from tcds time, make narrower selection '
+            print 'beam time differs from tcds time, remake a narrower selection '
             runlsnbSeries = _make_runlsnb_Series( beam_time)
 
         #data selection
@@ -230,6 +244,10 @@ def online_file_resultIter(filehandles,runmin=None,runmax=None,fillmin=None,tsse
         data_coordinates = co[1][datatablename]
         data_table_handle = filehandle.get_node('/'+datatablename)
         data_result = dataFilter(data_table_handle,data_coordinates,field_dtypes=data_result_dtype,runlsRangeSelectSeries=None,runlsnbPointFilterSeries=runlsnbSeries)      
+        print data_result.size
+        output_dtype = [('fillnum','uint32'),('runnum','uint32'),('lsnum','uint32'),('timestampsec','uint32'),('beamstatus','U28'),('amodetag','U20'),('cmson','bool'),('datasource','U8'),('delivered','float32'),('recorded','float32'),('avgpu','float'),('nbx','uint32')]
+        if withBX:
+            output_dtype.append(('bxdelivered','float32',(3564,)))
 
         for record in data_result:
             fillnum = record['fillnum']
@@ -239,16 +257,24 @@ def online_file_resultIter(filehandles,runmin=None,runmax=None,fillmin=None,tsse
             delivered = record['delivered']
             recorded = record['recorded']
             avgpu = record['avgpu']
+            datasource = record['provider']
             timestampsec = record['timestampsec']
             tcds_masks = andFilter(tcds_result.size,[tcds_result['lsnum']==lsnum , tcds_result['nbnum']==nbnum])
             tcds_data = tcds_result[tcds_masks]
             deadfrac = tcds_data['deadfrac'][0]
+            cmson = tcds_data['cmson'][0]
             nbx = tcds_data['ncollidingbx'][0]
             beam_data = beam_result[ np.logical_and(beam_result['lsnum']==lsnum , beam_result['nbnum']==nbnum) ]            
             beamstatus = beam_data['status'][0]
-            #print fillnum,runnum,lsnum,nbnum,timestampsec
-            #print 'delivered ',delivered,'recorded ',recorded,'avgpu ',avgpu,'ncollidingbx ',nbx
-            yield (fillnum,runnum,lsnum,nbnum,timestampsec,delivered,recorded,avgpu,nbx)
+            machinemode = beam_data['machinemode'][0]
+            amodetag = params._fulltoamodetag[machinemode]
+            if withBX:
+                bxdelivered = record['bxdelivered']
+                r = np.array((fillnum,runnum,lsnum,timestampsec,beamstatus,amodetag,cmson,datasource,delivered,recorded,avgpu,nbx,bxdelivered), dtype=output_dtype)
+                yield r
+            else:
+                r = np.array((fillnum,runnum,lsnum,timestampsec,beamstatus,amodetag,cmson,datasource,delivered,recorded,avgpu,nbx), dtype=output_dtype)
+                yield r
 
 def _make_runlsnb_Series(runlsnbarray):
     '''
@@ -269,73 +295,9 @@ if __name__=='__main__':
     #filenames = ['/home/zhen/data/7491/7491_327554_1812020507_1812020558.hd5','/home/zhen/data/7491/7491_327559_1812020558_1812020731.hd5','/home/zhen/data/7491/7491_327560_1812020731_1812021237.hd5']
     filenames =  ['/home/zhen/data/7491/7491_327560_1812020731_1812021237.hd5']
     filehandles = open_validfiles(filenames,tables)    
-    for result in online_file_resultIter(filehandles,fillmin=7491,fillmax=7491,runlsselect=runlsselect):
-        print result
+    for result in online_file_resultIter(filehandles,fillmin=7491,fillmax=7491,runlsselect=runlsselect,beamstatusid=11,withBX=True):
+        print result['fillnum'],result['runnum'],result['lsnum'],result['timestampsec'],result['cmson'],result['delivered'],result['recorded'],result['bxdelivered']
 
-    '''
-    rangeIter = dataRangeIterator(filehandles,['tcds','beam','hfetlumi'],conditionStr)
-    tcds_result_dtype = np.dtype( [('runnum','uint32'),('lsnum','uint32'),('nbnum','uint32'),('timestampsec','uint32'),('cmson','bool8'),('deadfrac','float32'),('ncollidingbx','uint32')] )
-    beam_result_dtype = np.dtype( [('runnum','uint32'),('lsnum','uint32'),('nbnum','uint32'),('timestampsec','uint32'),('status','U28'),('targetegev','uint32')] )
-    data_result_dtype = np.dtype( [('runnum','uint32'),('lsnum','uint32'),('nbnum','uint32'),('timestampsec','uint32'),('avg','float32'),('avgraw','float32'),('bx','float32',(3564,)),('bxraw','float32',(3564,))] ) 
+    [f.close() for f in filehandles] 
     
-    for co in rangeIter.next():
-        filehandle = co[0]
-        all_coordinates = co[1].values()
-        #preselection
-        if None in all_coordinates:
-            print 'not all tables passed preselection, skip file ',filehandle.filename        
-            continue
-
-        #tcds selection
-
-        tcds_coordinates = co[1]['tcds']
-        tcds_table_handle = filehandle.get_node('/tcds')
-        tcds_result = dataFilter(tcds_table_handle,tcds_coordinates,field_dtypes=tcds_result_dtype,runlsRangeSelectSeries=runlsselect,runlsnbPointFilterSeries=None)
-        if not tcds_result.size:
-            print 'tcds failed data selection, continue ',filehandle.filename 
-            continue
-
-        selected_time = np.column_stack((tcds_result['runnum'],tcds_result['lsnum'],tcds_result['nbnum']))       
-        runlsnbSeries = _make_runlsnb_Series( selected_time )
-
-        #beam selection
-
-        beam_coordinates = co[1]['beam']
-        beam_table_handle = filehandle.get_node('/beam')
-        beam_result = dataFilter(beam_table_handle,beam_coordinates,field_dtypes=beam_result_dtype,runlsRangeSelectSeries=None,runlsnbPointFilterSeries=runlsnbSeries)
-        beamconditions = [ beam_result['status']=='SQUEEZE',beam_result['targetegev']==6103 ]        
-        beam_masks = andFilter(beam_result.size,beamconditions)        
-        beam_result = beam_result[beam_masks]
-        if not beam_result.size:
-            print 'beam failed data selection, continue ',filehandle.filename 
-            continue
-
-        beam_time = np.column_stack((beam_result['runnum'],beam_result['lsnum'],beam_result['nbnum']))  
-        if not np.array_equal(beam_time,selected_time):
-            print 'beam time differs from tcds time, make narrower selection '
-            runlsnbSeries = _make_runlsnb_Series( beam_time)
-
-        #data selection
-
-        data_coordinates = co[1]['hfetlumi']
-        data_table_handle = filehandle.get_node('/hfetlumi')
-        data_result = dataFilter(data_table_handle,data_coordinates,field_dtypes=data_result_dtype,runlsRangeSelectSeries=None,runlsnbPointFilterSeries=runlsnbSeries)      
-        
-        print filehandle.filename , data_result.shape 
-
-        for record in data_result:
-            runnum = record['runnum']
-            lsnum = record['lsnum']
-            nbnum = record['nbnum']
-            avg = record['avg']           
-            tcds_masks = andFilter(tcds_result.size,[tcds_result['lsnum']==lsnum , tcds_result['nbnum']==nbnum])
-            tcds_data = tcds_result[tcds_masks]
-
-            print runnum,lsnum,nbnum
-            print 'deadfrac ',tcds_data['deadfrac'][0]
-            beam_data = beam_result[ np.logical_and(beam_result['lsnum']==lsnum , beam_result['nbnum']==nbnum) ]
-            print 'beamstatus ',beam_data['status'][0]
-            print 'avg ',avg
-    '''
-    [f.close() for f in filehandles]    
 
