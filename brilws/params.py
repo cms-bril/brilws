@@ -19,4 +19,5 @@ _idtobeamstatus = dict( (v,k) for k,v in _beamstatustoid.items() )
 _amodetagtoid = {'UNKNOWN':0,'PROTPHYS':1,'IONPHYS':2,'PAPHYS':3,'APPHYS':4,'TOTEMPHYS':5}
 _idtoamodetag = dict( (v,k) for k,v in _amodetagtoid.items() )
 
-
+_amodetagtofull = {'PROTPHYS':'PROTON PHYSICS', 'IONPHYS':'ION PHYSICS', 'TOTEMPHYS':'TOTEM PHYSICS'}
+_fulltoamodetag = dict( (v,k) for k,v in _amodetagtofull.items() )
