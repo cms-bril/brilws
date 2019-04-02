@@ -113,40 +113,49 @@ def totalprescale(hltprescval,l1seedlogic,l1prescvals):
         totpresc = hltprescval*np.max(l1prescvals)    
     return totpresc
 
-def lumi_per_normtag(shards,lumiquerytype,dbengine,dbschema,runtot,formatter,datasource=None,normtag=None,withBX=False,byls=None,fh=None,csvwriter=None,ptable=None,scalefactor=1,totz=utctmzone,fillmin=None,fillmax=None,runmin=None,runmax=None,amodetagid=None,egev=None,beamstatusid=None,tssecmin=None,tssecmax=None,runlsSeries=None,hltl1map={},ignorel1mask=False,xingMin=0.,xingTr=0.,xingId=[],checkjson=False,datatagnameid=None):
+def lumi_per_normtag(shards,lumiquerytype,dbengine,dbschema,runtot,formatter,datasource=None,normtag=None,withBX=False,byls=None,fh=None,csvwriter=None,ptable=None,scalefactor=1,totz=utctmzone,fillmin=None,fillmax=None,runmin=None,runmax=None,amodetagid=None,egev=None,beamstatusid=None,tssecmin=None,tssecmax=None,runlsSeries=None,hltl1map={},ignorel1mask=False,xingMin=0.,xingTr=0.,xingId=[],checkjson=False,datatagnameid=None,withfileinput = False):
+   
+    if withfileinput:
+        from brilws import fileapi
+
     validitychecker = None
     lastvalidity = None
     if normtag and normtag is not 'withoutcorrection':
         normdata = api.iov_gettagdata(dbengine, normtag,schemaname=dbschema)
         if not normdata: raise ValueError('normtag %s does not exist'%normtag)
         validitychecker = ValidityChecker(normdata)
-        
+
     for shard in shards:              
         lumiiter = None
         if lumiquerytype == 'bestresultonline':
-            tablename = 'online_result_'+str(shard)
-            shardexists = api.table_exists(dbengine,tablename,schemaname=dbschema)
-            if not shardexists: continue
-            rfields = ['fillnum','runnum','lsnum','timestampsec','cmson','beamstatusid','targetegev','delivered','recorded','avgpu','datasource','numbxbeamactive']
-            if withBX: rfields = rfields+['bxdeliveredblob']                    
-            lumiiter = api.online_resultIter(dbengine,tablename,schemaname=dbschema,fields=rfields,fillmin=fillmin,fillmax=fillmax,runmin=runmin,runmax=runmax,amodetagid=amodetagid,targetegev=egev,beamstatusid=beamstatusid,tssecmin=tssecmin,tssecmax=tssecmax,runlsselect=runlsSeries,sorted=True)
+            if withfileinput:
+               lumiiter = fileapi.resultIter(shards,datasource,fillmin=fillmin,fillmax=fillmax,runmin=runmin,runmax=runmax,amodetagid=amodetagid,targetegev=egev,beamstatusid=beamstatusid,tssecmin=tssecmin,tssecmax=tssecmax,runlsselect=runlsSeries,withBX=withBX)
+            else:
+                tablename = 'online_result_'+str(shard)
+                shardexists = api.table_exists(dbengine,tablename,schemaname=dbschema)
+                if not shardexists: continue
+                rfields = ['fillnum','runnum','lsnum','timestampsec','cmson','beamstatusid','targetegev','delivered','recorded','avgpu','datasource','numbxbeamactive']
+                if withBX: rfields = rfields+['bxdeliveredblob']                    
+                lumiiter = api.online_resultIter(dbengine,tablename,schemaname=dbschema,fields=rfields,fillmin=fillmin,fillmax=fillmax,runmin=runmin,runmax=runmax,amodetagid=amodetagid,targetegev=egev,beamstatusid=beamstatusid,tssecmin=tssecmin,tssecmax=tssecmax,runlsselect=runlsSeries,sorted=True)
             
         elif lumiquerytype in ['detresultonline','detraw']:
             datatype = 'raw'
             if lumiquerytype=='detresultonline':
                 datatype = 'result'
-                
-            tablename = datasource.lower()+'_'+datatype+'_'+str(shard)
-            shardexists = api.table_exists(dbengine,tablename,schemaname=dbschema)
-            if not shardexists: continue
-            rfields = ['avglumi']
-            idfields = ['fillnum','runnum','lsnum','timestampsec','beamstatusid','cmson','deadtimefrac','targetegev','numbxbeamactive']
-            if withBX: rfields = rfields+['bxlumiblob']
-            lumiiter = api.dataIter(dbengine,datasource,datatype,shard,datafields=rfields,idfields=idfields,schemaname=dbschema,fillmin=fillmin,fillmax=fillmax,runmin=runmin,runmax=runmax,amodetagid=amodetagid,targetegev=egev,beamstatusid=beamstatusid,tssecmin=tssecmin,tssecmax=tssecmax,runlsselect=runlsSeries,sorted=True,datatagnameid=datatagnameid)                    
+            if withfileinput:
+                lumiiter = fileapi.resultIter(shards,datasource,fillmin=fillmin,fillmax=fillmax,runmin=runmin,runmax=runmax,amodetagid=amodetagid,targetegev=egev,beamstatusid=beamstatusid,tssecmin=tssecmin,tssecmax=tssecmax,runlsselect=runlsSeries,withBX=withBX)   
+            else:
+                tablename = datasource.lower()+'_'+datatype+'_'+str(shard)
+                shardexists = api.table_exists(dbengine,tablename,schemaname=dbschema)
+                if not shardexists: continue
+                rfields = ['avglumi']
+                idfields = ['fillnum','runnum','lsnum','timestampsec','beamstatusid','cmson','deadtimefrac','targetegev','numbxbeamactive']
+                if withBX: rfields = rfields+['bxlumiblob']
+                lumiiter = api.dataIter(dbengine,datasource,datatype,shard,datafields=rfields,idfields=idfields,schemaname=dbschema,fillmin=fillmin,fillmax=fillmax,runmin=runmin,runmax=runmax,amodetagid=amodetagid,targetegev=egev,beamstatusid=beamstatusid,tssecmin=tssecmin,tssecmax=tssecmax,runlsselect=runlsSeries,sorted=True,datatagnameid=datatagnameid)                    
                   
         if lumiiter is None:
             continue
-
+        
         g_run_old = 0
         g_ls_trglastscaled_old = 0
         prescale_map = {} # for global scope
@@ -158,6 +167,7 @@ def lumi_per_normtag(shards,lumiquerytype,dbengine,dbschema,runtot,formatter,dat
             cmslsnum = lsnum
             timestampsec = row['timestampsec']
             cmson = row['cmson']
+            
             if not cmson:
                 cmslsnum = 0
             if hltl1map:
@@ -278,6 +288,8 @@ def lumi_per_normtag(shards,lumiquerytype,dbengine,dbschema,runtot,formatter,dat
                 uncorrectedbxlumi = None
                 if row.has_key('bxlumiblob'):
                     uncorrectedbxlumi = np.array(api.unpackBlobtoArray(row['bxlumiblob'],'f'))
+                elif row.has_key('bx') and withfileinput:
+                    uncorrectedbxlumi = row['bx']
                 bxlumi = uncorrectedbxlumi
                 if validitychecker is not None:
                     if not lastvalidity or not validitychecker.isvalid(runnum,lastvalidity):
@@ -592,17 +604,31 @@ def brilcalc_main(progname=sys.argv[0]):
                   if rs is None: continue
                   for r,l in rs.iteritems():
                       if not r in rselectrange:
-                          rselectrange.append(r)              
-          shards = api.locate_shards(dbengine,runmin=runmin,runmax=runmax,fillmin=fillmin,fillmax=fillmax,tssecmin=tssecmin,tssecmax=tssecmax,orrunlist=rselectrange,schemaname=dbschema)
-          if not shards:
-              print 'Failed to find data table for the requested time range.'
-              sys.exit(1)
-          log.debug('shards: '+str(shards))
+                          rselectrange.append(r)   
+          withfileinput = False
+          if pargs.filedata is not None:
+              withfileinput = True
+              from brilws import fileapi
+              if os.path.isfile(pargs.filedata):
+                  filenames = [ os.path.abspath(pargs.filedata) ]
+              else:
+                  filenames = [ os.path.join(os.path.abspath(pargs.filedata),f) for f in os.listdir(pargs.filedata) ]
+              shards = fileapi.open_validfiles(filenames,pargs.lumitype or 'best')              
+              if not shards:
+                  print 'Failed to find data file for the requested time range.'
+                  [f.close() for f in shards] 
+                  sys.exit(1)
+          else:          
+              shards = api.locate_shards(dbengine,runmin=runmin,runmax=runmax,fillmin=fillmin,fillmax=fillmax,tssecmin=tssecmin,tssecmax=tssecmax,orrunlist=rselectrange,schemaname=dbschema)
+              if not shards:
+                  print 'Failed to find data table for the requested time range.'
+                  sys.exit(1)
+              log.debug('shards: '+str(shards))
           
-          rselect = []
           for [qtype,ntag,dsource,rselect] in datasources:
-              lumi_per_normtag(shards,qtype,dbengine,dbschema,runtot,myformatter,datasource=dsource,normtag=ntag,withBX=pargs.withBX,byls=pargs.byls,fh=fh,csvwriter=csvwriter,ptable=ptable,scalefactor=scalefactor,totz=totz,fillmin=fillmin,fillmax=fillmax,runmin=runmin,runmax=runmax,amodetagid=amodetagid,egev=egev,beamstatusid=beamstatusid,tssecmin=tssecmin,tssecmax=tssecmax,runlsSeries=rselect,hltl1map=hltl1map,ignorel1mask=parseresult['--ignore-mask'],xingMin=pargs.xingMin,xingTr=pargs.xingTr,xingId=pargs.xingId,checkjson=checkjson,datatagnameid=datatagnameid)  
-          
+              lumi_per_normtag(shards,qtype,dbengine,dbschema,runtot,myformatter,datasource=dsource,normtag=ntag,withBX=pargs.withBX,byls=pargs.byls,fh=fh,csvwriter=csvwriter,ptable=ptable,scalefactor=scalefactor,totz=totz,fillmin=fillmin,fillmax=fillmax,runmin=runmin,runmax=runmax,amodetagid=amodetagid,egev=egev,beamstatusid=beamstatusid,tssecmin=tssecmin,tssecmax=tssecmax,runlsSeries=rselect,hltl1map=hltl1map,ignorel1mask=parseresult['--ignore-mask'],xingMin=pargs.xingMin,xingTr=pargs.xingTr,xingId=pargs.xingId,checkjson=checkjson,datatagnameid=datatagnameid,withfileinput=withfileinput)  
+          if pargs.filedata:
+              [f.close() for f in shards] 
           if pargs.hltpath is None:
               nruns = len(runtot.keys())
               nfills = len( set([v['fill'] for v in runtot.values()] ) )
@@ -709,6 +735,7 @@ def brilcalc_main(progname=sys.argv[0]):
                       print >> fh, '#%d %s'%(rr,str(lss))
                       
           if fh and fh is not sys.stdout: fh.close()
+          
           sys.exit(0)
 
       elif args['<command>'] == 'beam':

@@ -65,6 +65,7 @@ class parser(object):
         self._withoutcorrection = False
         self._yamlobj = None
         self._precision = None #is int
+        self._filedata = None
         self._servicemap = {}
         self._parse()
         
@@ -132,6 +133,8 @@ class parser(object):
             result = re.search(params._precision_pattern,self._argdict['--precision']) #should guarantee to have the right format here since it passed validator           
             self._format = result.group(2).lower()
             self._precision = int(result.group(1)) #is int
+        if self._argdict.has_key('--filedata'):
+            self._filedata = self._argdict['--filedata']
         if self._argdict.has_key('--cerntime'):
             self._cerntime = self._argdict['--cerntime']
         if self._argdict.has_key('--tssec'):
@@ -357,6 +360,10 @@ class parser(object):
     def precision(self):
         return self._precision
 
+    @property
+    def filedata(self):
+        return self._filedata
+
 argvalidators = {
     '--amodetag': Or(None,And(str,lambda s: s.upper() in params._amodetagChoices), error='--amodetag must be in '+str(params._amodetagChoices) ),
     '--beamenergy': Or(None,And(Use(int), lambda n: n>0), error='--beamenergy should be a positive number'),
@@ -384,5 +391,6 @@ argvalidators = {
     '-n': And(Use(float), lambda f: f>0, error='-n SCALEFACTOR should be float >0'), 
     '--precision': And(str, Use(RegexValidator.RegexValidator(params._precision_pattern)) , error='--precision wrong format'),
     '-r': Or(None, And(Use(RegexValidator.RegexValidator(params._runnum_pattern)),Use(int)), error='-r wrong format'),
+    '--filedata': Or(None, And(str, Or(os.path.isfile,os.path.isdir)),error='--filedata must be a file or a directory'), 
     str:object # catch all
 }
