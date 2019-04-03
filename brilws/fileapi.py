@@ -1,6 +1,5 @@
 import tables as tb
 import numpy as np
-#import multiprocessing as mp
 import pandas as pd
 import os,sys
 import logging
@@ -34,7 +33,7 @@ def _open_validfile(filename, tables):
     try:
         f = tb.open_file(filename)
     except tb.exceptions.HDF5ExtError:
-        print 'failed to open ',filename
+        log.debug('failed to open %s, skip'%filename)
         return None
     nodes = f.root._v_children.keys()
     if not len(nodes):
@@ -105,7 +104,6 @@ class dataRangeIterator:
         for tablename in self._tablenames:
             n = filehandle.get_node('/'+tablename)
             coordinates = n.get_where_list(self._conditionStr,sort=False)
-            #print type(coordinates)
             if coordinates.size == 0: 
                 result[tablename] = None
             else:
@@ -120,11 +118,10 @@ class dataRangeIterator:
             log.debug('Processing file '+f.filename)
             alltables = f.root._v_children.keys()
             if not _is_subset(self._tablenames,alltables):
-                print 'file %s does not contain all the tables, skip '%f.filename
+                log.debug('file %s does not contain all the tables, skip '%f.filename)
                 continue
             results = self._get_range_in_file(f)
             if not results:
-                print 'nothing selected'
                 continue
             yield (f,results) 
 
@@ -182,7 +179,7 @@ def andFilter(irecordsSize,conditions):
 
 
 class typebuilder:   
-    def __init__(self,datatablename,withBX): 
+    def __init__(self,datatablename,datatype,withBX): 
         '''
         Build np.dtype for input tables and output data
         Input: 
@@ -194,6 +191,13 @@ class typebuilder:
         self._beam_typelist = self._basetypelist + [('status','U28'),('machinemode','U20'),('targetegev','uint32')] 
         self._withBX = withBX  
         self._datatablename = datatablename
+        self._datatype = datatype
+
+    def datatablename(self):
+        return self._datatablename
+
+    def datatype(self):
+        return self._datatype 
 
     def tcds_typelist(self):
         '''
@@ -209,27 +213,31 @@ class typebuilder:
 
     def lumidata_typelist(self):
         '''
-            lumi data table input fields
+            lumi data table input fields            
         '''
         if self._datatablename == 'bestlumi':
             datafieldtypelist = self._basetypelist + [('fillnum','uint32'),('delivered','float32'),('recorded','float32'),('avgpu','float32'),('provider','U8')]
             if self._withBX:
                 datafieldtypelist.append(('bxdelivered','float32',(3564,)))
         else:
-            datafieldtypelist = self._basetypelist + [('fillnum','uint32'),('avg','float32'),('avgraw','float32')]
-            if self._withBX:
-                datafieldtypelist.append(('bx','float32',(3564,)))
-                datafieldtypelist.append(('bxraw','float32',(3564,)))
+            if self._datatype == 'raw':
+                datafieldtypelist = self._basetypelist + [('fillnum','uint32'),('avgraw','float32')]
+                if self._withBX:
+                    datafieldtypelist.append(('bxraw','float32',(3564,)))
+            else:
+                datafieldtypelist = self._basetypelist + [('fillnum','uint32'),('avg','float32')]
+                if self._withBX:
+                    datafieldtypelist.append(('bx','float32',(3564,)))
         return np.dtype(datafieldtypelist)
     
-def resultIter(filehandles,lumitype,runmin=None,runmax=None,fillmin=None,tssecmin=None,tssecmax=None,fillmax=None,beamstatusid=None,amodetagid=None,targetegev=None,runlsselect=None,withBX=False):
+def resultIter(filehandles,lumitype,datatype='best',runmin=None,runmax=None,fillmin=None,tssecmin=None,tssecmax=None,fillmax=None,beamstatusid=None,amodetagid=None,targetegev=None,runlsselect=None,withBX=False):
     '''
     get online bestlumi
     field choices: [runnum,lsnum,fillnum,timestampsec,cmson,beamstatus,delivered,recorded,bx,avgpu,datasource,normtag,normtagid,amodetagid,targetegev,numbxbeamactive,norb,nbperls]
     
     '''
     datatablename = params._lumitypeToh5tablename[lumitype.upper()]
-    tbuilder = typebuilder(datatablename,withBX)
+    tbuilder = typebuilder(datatablename,datatype,withBX)
     preconditionStr = _build_preselectcondition(runmin=runmin,runmax=runmax,fillmin=fillmin,tssecmin=tssecmin,tssecmax=tssecmax,fillmax=fillmax,runlsselect=runlsselect)
     rangeIter = dataRangeIterator(filehandles,['tcds','beam',datatablename],preconditionStr)
         
@@ -237,7 +245,7 @@ def resultIter(filehandles,lumitype,runmin=None,runmax=None,fillmin=None,tssecmi
         filehandle = co[0]
         all_coordinates = co[1].values()
         if None in all_coordinates:
-            print 'not all tables passed preselection, skip file ',filehandle.filename        
+            log.debug('not all tables passed preselection, skip file ',filehandle.filename)
             continue
 
         #tcds selection
@@ -247,7 +255,7 @@ def resultIter(filehandles,lumitype,runmin=None,runmax=None,fillmin=None,tssecmi
         tcds_result = dataFilter(tcds_table_handle,tcds_coordinates,field_dtypes=tbuilder.tcds_typelist(),runlsRangeSelectSeries=runlsselect,runlsnbPointFilterSeries=None)
 
         if not tcds_result.size:
-            print 'tcds failed data selection, continue ',filehandle.filename 
+            log.debug('tcds failed data selection, continue ',filehandle.filename)
             continue
      
         selected_time = np.column_stack((tcds_result['runnum'],tcds_result['lsnum'],tcds_result['nbnum']))       
@@ -272,12 +280,12 @@ def resultIter(filehandles,lumitype,runmin=None,runmax=None,fillmin=None,tssecmi
         beam_result = beam_result[beam_masks]
 
         if not beam_result.size:
-            print 'beam failed data selection, continue ',filehandle.filename 
+            log.debug('beam failed data selection, continue ',filehandle.filename)
             continue
 
         beam_time = np.column_stack((beam_result['runnum'],beam_result['lsnum'],beam_result['nbnum']))  
         if not np.array_equal(beam_time,selected_time):
-            print 'beam time differs from tcds time, remake a narrower selection '
+            log.debug('beam time differs from tcds time, remake a narrower selection')
             runlsnbSeries = _make_runlsnb_Series( beam_time)
 
         #data selection
@@ -305,19 +313,21 @@ def resultIter(filehandles,lumitype,runmin=None,runmax=None,fillmin=None,tssecmi
             r['amodetag'] = params._fulltoamodetag[machinemode]
             r['targetegev'] = beam_data['targetegev']
 
-            if datatablename == 'bestlumi':
+            if datatype == 'best':
                 r['delivered'] = record['delivered']
                 r['recorded'] = record['recorded']
                 r['avgpu'] = record['avgpu']
                 r['datasource'] = record['provider']
                 if withBX:
-                    r['bxdelivered'] = record['bxdelivered']
-            else:
-                r['avglumi'] = record['avg']            
-                r['avgraw'] = record['avgraw']             
+                    r['bxdeliveredblob'] = record['bxdelivered']
+            elif datatype == 'raw':        
+                r['avglumi'] = record['avgraw']             
                 if withBX:
-                    r['bx'] = record['bx']
-                    r['bxraw'] = record['bxraw']                    
+                    r['bxlumiblob'] = record['bxraw']
+            else:
+                r['avglumi'] = record['avg']
+                if withBX:
+                    r['bxlumiblob'] = record['bx']            
             yield r 
 def _make_runlsnb_Series(runlsnbarray):
     '''
@@ -340,10 +350,10 @@ if __name__=='__main__':
     filenames =  ['/home/zhen/data/7491/7491_327560_1812020731_1812021237.hd5']
     lumitype = 'BEST'
     filehandles = open_validfiles(filenames,lumitype)    
-    for result in resultIter(filehandles,lumitype,fillmin=7491,fillmax=7491,runlsselect=runlsselect,beamstatusid=11,withBX=True):
+    for result in resultIter(filehandles,lumitype,'best',fillmin=7491,fillmax=7491,runlsselect=runlsselect,beamstatusid=11,withBX=True):
         print result['fillnum'],result['runnum'],result['lsnum'],result['timestampsec'],result['beamstatusid'],result['cmson'],result['delivered'],result['recorded']
     lumitype = 'HFOC'
-    for result in resultIter(filehandles,lumitype,fillmin=7491,fillmax=7491,runlsselect=runlsselect,beamstatusid=11,withBX=False):
+    for result in resultIter(filehandles,lumitype,'raw',fillmin=7491,fillmax=7491,runlsselect=runlsselect,beamstatusid=11,withBX=False):
         print result['fillnum'],result['runnum'],result['lsnum'],result['timestampsec'],result['beamstatusid'],result['cmson'],result['avglumi']
 
     [f.close() for f in filehandles] 

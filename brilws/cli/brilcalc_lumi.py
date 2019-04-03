@@ -53,9 +53,11 @@ def validate(optdict):
     result = schema.validate(optdict)
     if not result['-i'] and not result['-f'] and not result['-r'] and not result['--begin']:
         print 'Error: at least one time selection option in %s is required'%(','.join(['-i','-f','-r','--begin']))
+        sys.exit(0)
+    if result['--filedata'] and not result['--byls']:
+        print 'Error: --filedata can only be used with --byls'
         sys.exit(0)            
-    return result
-
+    return result    
 if __name__ == '__main__':
     args = docopt(__doc__,options_first=True)
     print args

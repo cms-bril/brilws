@@ -138,13 +138,13 @@ def lumi_per_normtag(shards,lumiquerytype,dbengine,dbschema,runtot,formatter,dat
                 if withBX: rfields = rfields+['bxdeliveredblob']                    
                 lumiiter = api.online_resultIter(dbengine,tablename,schemaname=dbschema,fields=rfields,fillmin=fillmin,fillmax=fillmax,runmin=runmin,runmax=runmax,amodetagid=amodetagid,targetegev=egev,beamstatusid=beamstatusid,tssecmin=tssecmin,tssecmax=tssecmax,runlsselect=runlsSeries,sorted=True)
             
-        elif lumiquerytype in ['detresultonline','detraw']:
+        elif lumiquerytype in ['detresultonline','detraw']:   
             datatype = 'raw'
             if lumiquerytype=='detresultonline':
                 datatype = 'result'
             if withfileinput:
-                lumiiter = fileapi.resultIter(shards,datasource,fillmin=fillmin,fillmax=fillmax,runmin=runmin,runmax=runmax,amodetagid=amodetagid,targetegev=egev,beamstatusid=beamstatusid,tssecmin=tssecmin,tssecmax=tssecmax,runlsselect=runlsSeries,withBX=withBX)   
-            else:
+                lumiiter = fileapi.resultIter(shards,datasource,datatype=datatype,fillmin=fillmin,fillmax=fillmax,runmin=runmin,runmax=runmax,amodetagid=amodetagid,targetegev=egev,beamstatusid=beamstatusid,tssecmin=tssecmin,tssecmax=tssecmax,runlsselect=runlsSeries,withBX=withBX)   
+            else:                
                 tablename = datasource.lower()+'_'+datatype+'_'+str(shard)
                 shardexists = api.table_exists(dbengine,tablename,schemaname=dbschema)
                 if not shardexists: continue
@@ -232,7 +232,7 @@ def lumi_per_normtag(shards,lumiquerytype,dbengine,dbschema,runtot,formatter,dat
                 g_returnedls.append((runnum,lsnum))
             if lumiquerytype == 'bestresultonline': ##bestlumi                                
                 if row.has_key('delivered') and row['delivered']:                    
-                    delivered = np.true_divide(row['delivered']*lslengthsec,scalefactor)
+                    delivered = np.true_divide(row['delivered']*lslengthsec,scalefactor)             
                 if delivered>0 and row.has_key('recorded') and row['recorded']:
                     recorded = np.true_divide(row['recorded']*lslengthsec,scalefactor)
                 if delivered>0 and row.has_key('avgpu') and row['avgpu']:
@@ -245,7 +245,10 @@ def lumi_per_normtag(shards,lumiquerytype,dbengine,dbschema,runtot,formatter,dat
                     bxlumi = None
                     bxlumistr = '[]'
                     if row.has_key('bxdeliveredblob'):
-                        bxdeliveredarray = np.array(api.unpackBlobtoArray(row['bxdeliveredblob'],'f'))                        
+                        if withfileinput:
+                            bxdeliveredarray = row['bxdeliveredblob']
+                        else:
+                            bxdeliveredarray = np.array(api.unpackBlobtoArray(row['bxdeliveredblob'],'f'))                        
                         totfactor = np.true_divide(lslengthsec,scalefactor)
                         bxidx = xing_indexfilter(bxdeliveredarray,constfactor=totfactor,xingMin=xingMin,xingTr=xingTr,xingId=xingId)
                         if bxidx is not None and bxidx.size>0:
@@ -287,9 +290,10 @@ def lumi_per_normtag(shards,lumiquerytype,dbengine,dbschema,runtot,formatter,dat
                 ncollidingbx = row['numbxbeamactive']
                 uncorrectedbxlumi = None
                 if row.has_key('bxlumiblob'):
-                    uncorrectedbxlumi = np.array(api.unpackBlobtoArray(row['bxlumiblob'],'f'))
-                elif row.has_key('bx') and withfileinput:
-                    uncorrectedbxlumi = row['bx']
+                    if withfileinput:
+                        uncorrectedbxlumi = row['bxlumiblob']
+                    else:
+                        uncorrectedbxlumi = np.array(api.unpackBlobtoArray(row['bxlumiblob'],'f'))                
                 bxlumi = uncorrectedbxlumi
                 if validitychecker is not None:
                     if not lastvalidity or not validitychecker.isvalid(runnum,lastvalidity):
@@ -308,7 +312,7 @@ def lumi_per_normtag(shards,lumiquerytype,dbengine,dbschema,runtot,formatter,dat
                 if withBX:      #--xing
                     bxlumistr = '[]'
                     if bxlumi is not None:
-                        bxidx = xing_indexfilter(bxlumi,constfactor=totfactor,xingMin=xingMin,xingTr=xingTr,xingId=xingId)                        
+                        bxidx = xing_indexfilter(bxlumi,constfactor=totfactor,xingMin=xingMin,xingTr=xingTr,xingId=xingId)          
                         if bxidx is not None and bxidx.size>0:                                      
                             bxdelivered =  bxlumi[bxidx]*totfactor
                             bxlumi = np.transpose( np.array([bxidx+1,bxdelivered,bxdelivered*livefrac]) )
@@ -439,21 +443,24 @@ def brilcalc_main(progname=sys.argv[0]):
       if args['<command>'] == 'lumi':
           import brilcalc_lumi          
           parseresult = docopt.docopt(brilcalc_lumi.__doc__,argv=cmmdargv)
-          parseresult = brilcalc_lumi.validate(parseresult)          
+          parseresult = brilcalc_lumi.validate(parseresult)
+          if parseresult['--filedata'] is not None:
+              if parseresult.has_key('-u') and parseresult['-u']!= 'hz/ub':
+                  print '[WARN] output unit is hz/ub with option --filedata'
+              parseresult['-u'] = 'hz/ub'
           ##parse selection params
           pargs = clicommonargs.parser(parseresult)
-
           dbschema = ''
           if not pargs.dbconnect.find('oracle')!=-1: dbschema = 'cms_lumi_prod'
           log.debug('connecturl: %s'%pargs.connecturl)
           dbengine = create_engine(pargs.connecturl)
-
+          
           totz=utctmzone
           if pargs.cerntime:
               totz=cerntmzone
           elif pargs.tssec:
               totz=None          
-
+        
           fillmin = pargs.fillmin
           fillmax = pargs.fillmax
           runmin = pargs.runmin
@@ -640,8 +647,8 @@ def brilcalc_main(progname=sys.argv[0]):
                   for hn,rn in sorted(runtot.keys()):
                       v = runtot[ (hn,rn) ]                      
                       display.add_row( ['%d:%d'%(rn,v['fill']),v['dtime'],v['nls'],v['ncms'],myformatter.lumi(v['delivered']),myformatter.lumi(v['recorded']) ] , fh=fh, csvwriter=csvwriter, ptable=ptable)
-              
-              display.add_row( [ '%d'%nfills, '%d'%nruns, '%d'%nls,'%d'%ncmsls,myformatter.lumi(totdelivered),myformatter.lumi(totrecorded)], fh=fh, csvwriter=None, ptable=ftable)
+              if pargs.filedata is None:
+                  display.add_row( [ '%d'%nfills, '%d'%nruns, '%d'%nls,'%d'%ncmsls,myformatter.lumi(totdelivered),myformatter.lumi(totrecorded)], fh=fh, csvwriter=None, ptable=ftable)
               
           else:
               hltpathSummary = []
@@ -655,8 +662,9 @@ def brilcalc_main(progname=sys.argv[0]):
                   ncmsls =  int(g['ncms'].sum())
                   totdelivered = g['delivered'].sum()
                   totrecorded = g['recorded'].sum()
-                  display.add_row( [ hn, '%d'%nfills, '%d'%nruns, '%d'%ncmsls,myformatter.lumi(totdelivered),myformatter.lumi(totrecorded)], fh=fh, csvwriter=None, ptable=ftable)                                 
-                  if not pargs.byls and not pargs.withBX: #hltpath, run table                      
+                  if pargs.filedata is None:
+                      display.add_row( [ hn, '%d'%nfills, '%d'%nruns, '%d'%ncmsls,myformatter.lumi(totdelivered),myformatter.lumi(totrecorded)], fh=fh, csvwriter=None, ptable=ftable)                                 
+                  if not pargs.byls and not pargs.withBX: #hltpath, run table 
                       for i,v in g.iterrows():
                           pname = i[0]
                           trun = i[1]
@@ -675,8 +683,9 @@ def brilcalc_main(progname=sys.argv[0]):
           if pargs.totable:  #to screen              
               print '#Data tag : %s , Norm tag: %s'%(datatagname,normtagname)
               display.show_table(ptable,pargs.outputstyle)
-              print "#Summary: "
-              display.show_table(ftable,pargs.outputstyle)
+              if pargs.filedata is None:
+                  print "#Summary: "
+                  display.show_table(ftable,pargs.outputstyle)
               del ptable
               del ftable
               if pargs.hltpath:
