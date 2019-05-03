@@ -244,7 +244,8 @@ def lumi_per_normtag(shards,lumiquerytype,dbengine,dbschema,runtot,formatter,dat
                 if withBX:    #--xing
                     bxlumi = None
                     bxlumistr = '[]'
-                    if row.has_key('bxdeliveredblob'):
+                    
+                    if row.has_key('bxdeliveredblob') and row['bxdeliveredblob'] is not None:
                         if withfileinput:
                             bxdeliveredarray = row['bxdeliveredblob']
                         else:
@@ -289,7 +290,7 @@ def lumi_per_normtag(shards,lumiquerytype,dbengine,dbschema,runtot,formatter,dat
                 avglumi = uncorrectedavglumi
                 ncollidingbx = row['numbxbeamactive']
                 uncorrectedbxlumi = None
-                if row.has_key('bxlumiblob'):
+                if row.has_key('bxlumiblob') and row['bxlumiblob'] is not None:                    
                     if withfileinput:
                         uncorrectedbxlumi = row['bxlumiblob']
                     else:
