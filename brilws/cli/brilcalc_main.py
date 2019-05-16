@@ -790,14 +790,30 @@ def brilcalc_main(progname=sys.argv[0]):
           if pargs.runlsSeries is not None:
               for r,l in pargs.runlsSeries.iteritems():
                   if not r in rselectrange:
-                      rselectrange.append(r)          
-          shards = api.locate_shards(dbengine,runmin=pargs.runmin,runmax=pargs.runmax,fillmin=pargs.fillmin,fillmax=pargs.fillmax,tssecmin=pargs.tssecmin,tssecmax=pargs.tssecmax,orrunlist=rselectrange,schemaname=dbschema)
+                      rselectrange.append(r)  
+          if pargs.filedata is not None:
+              withfileinput = True
+              from brilws import fileapi
+              if os.path.isfile(pargs.filedata):
+                  filenames = [ os.path.abspath(pargs.filedata) ]
+              else:
+                  filenames = [ os.path.join(os.path.abspath(pargs.filedata),f) for f in os.listdir(pargs.filedata) ]
+              shards = fileapi.open_validfiles(filenames,None)
+              if not shards:
+                  print 'Failed to find data file for the requested time range.'
+                  [f.close() for f in shards] 
+                  sys.exit(1)
+          else: 
+              shards = api.locate_shards(dbengine,runmin=pargs.runmin,runmax=pargs.runmax,fillmin=pargs.fillmin,fillmax=pargs.fillmax,tssecmin=pargs.tssecmin,tssecmax=pargs.tssecmax,orrunlist=rselectrange,schemaname=dbschema)
           if not shards:
               print 'Failed to find data table for the requested time range.'
               sys.exit(1)
           log.debug('shards: '+str(shards))
           for shard in shards:
-              beamIt = api.dataIter(dbengine,'beam','',shard,datafields=fields,idfields=idfields,schemaname=dbschema,fillmin=pargs.fillmin,fillmax=pargs.fillmax,runmin=pargs.runmin,runmax=pargs.runmax,amodetagid=pargs.amodetagid,targetegev=pargs.egev,beamstatusid=pargs.beamstatusid,tssecmin=pargs.tssecmin,tssecmax=pargs.tssecmax,runlsselect=pargs.runlsSeries,sorted=True,datatagnameid=datatagnameid)
+              if not withfileinput:
+                  beamIt = api.dataIter(dbengine,'beam','',shard,datafields=fields,idfields=idfields,schemaname=dbschema,fillmin=pargs.fillmin,fillmax=pargs.fillmax,runmin=pargs.runmin,runmax=pargs.runmax,amodetagid=pargs.amodetagid,targetegev=pargs.egev,beamstatusid=pargs.beamstatusid,tssecmin=pargs.tssecmin,tssecmax=pargs.tssecmax,runlsselect=pargs.runlsSeries,sorted=True,datatagnameid=datatagnameid)
+              else:
+                  beamIt = fileapi.beamIter([shard],fillmin=pargs.fillmin,fillmax=pargs.fillmax,runmin=pargs.runmin,runmax=pargs.runmax,amodetagid=pargs.amodetagid,targetegev=pargs.egev,beamstatusid=pargs.beamstatusid,tssecmin=pargs.tssecmin,tssecmax=pargs.tssecmax,runlsselect=pargs.runlsSeries,withBX=False)
               if not beamIt:
                   continue
               for row in beamIt:
@@ -813,7 +829,7 @@ def brilcalc_main(progname=sys.argv[0]):
                   if pargs.withBX:
                       bxintensity = None
                       bxintensitystr = '[]'
-                      if row.has_key('bxidxblob') and row['bxidxblob'] is not None:
+                      if row.has_key('bxidxblob') and row['bxidxblob'] is not None:                 
                           bxidxarray = np.array(api.unpackBlobtoArray(row['bxidxblob'],'H'))                            
                           bxidxarray = bxidxarray[bxidxarray!=np.array(None)]
                           if bxidxarray is not None and bxidxarray.size>0:
@@ -825,6 +841,15 @@ def brilcalc_main(progname=sys.argv[0]):
                               del bxintensity1array
                               del bxintensity2array
                           del bxidxarray
+                          display.add_row( ['%d'%fillnum,'%d'%runnum,'%d'%lsnum,dtime,'%s'%bxintensitystr], fh=fh, csvwriter=csvwriter, ptable=ptable )
+                      elif parseresult['--filedata'] is not None and row.has_key('bxintensity1blob') and row.has_key('bxintensity2blob'):
+                          bxintensity1array = row['bxintensity1blob']
+                          bxintensity2array = row['bxintensity2blob']
+                          bxintensity = np.transpose( np.array([bxidxarray+1,bxintensity1array,bxintensity2array]) )
+                          a = map(fm.bxintensity,bxintensity)                          
+                          bxintensitystr = '['+' '.join(a)+']'
+                          del bxintensity1array
+                          del bxintensity2array
                           display.add_row( ['%d'%fillnum,'%d'%runnum,'%d'%lsnum,dtime,'%s'%bxintensitystr], fh=fh, csvwriter=csvwriter, ptable=ptable )
                   else:
                       egev = row['egev']

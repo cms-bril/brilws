@@ -10,6 +10,7 @@ options:
   -i INPUTFILE                 Input selection file
   -o OUTPUTFILE                Output csv file. Special file '-' for stdout.
   -b BEAMSTATUS                Beam mode. FLAT TOP,SQUEEZE,ADJUST,STABLE BEAMS
+  --filedata FILEDATA          Lumi data hdf5 file or directory 
   --amodetag AMODETAG          Accelerator mode 
   --beamenergy BEAMENERGY      Target single beam energy in GeV  
   --datatag DATATAG            Data tag name
@@ -31,7 +32,7 @@ def validate(optdict):
     result={}
     argdict = clicommonargs.argvalidators
     #extract sub argdict here
-    myvalidables = ['-c','-n','-f','-r','-i','-o','--amodetag','-b','--beamenergy','--datatag','--begin','--end','--output-style',str]
+    myvalidables = ['-c','-n','-f','-r','-i','-o','--amodetag','-b','--beamenergy','--datatag','--begin','--end','--output-style','--filedata',str]
     argdict = dict((k,v) for k,v in clicommonargs.argvalidators.iteritems() if k in myvalidables)
     schema = Schema(argdict)
     result = schema.validate(optdict)
