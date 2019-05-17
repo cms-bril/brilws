@@ -297,8 +297,14 @@ def beamIter(filehandles,runmin=None,runmax=None,fillmin=None,tssecmin=None,tsse
             r['intensity1'] = record['intensity1']
             r['intensity2'] = record['intensity2']
             if withBX: 
-                r['bxintensity1blob'] = record['bxintensity1']
-                r['bxintensity2blob'] = record['bxintensity2']
+                bx1 = record['bxintensity1']
+                bx2 = record['bxintensity2']
+                bx1idx = np.nonzero(bx1)
+                bx2idx = np.nonzero(bx2)
+                bxidx = np.intersect1d(bx1idx,bx2idx)
+                r['bxidxblob'] = bxidx
+                r['bxintensity1blob'] = bx1[bxidx]
+                r['bxintensity2blob'] = bx2[bxidx]
             yield r
 
 def resultIter(filehandles,lumitype,datatype='best',runmin=None,runmax=None,fillmin=None,tssecmin=None,tssecmax=None,fillmax=None,beamstatusid=None,amodetagid=None,targetegev=None,runlsselect=None,withBX=False):

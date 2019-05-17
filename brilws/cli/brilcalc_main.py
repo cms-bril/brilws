@@ -790,7 +790,8 @@ def brilcalc_main(progname=sys.argv[0]):
           if pargs.runlsSeries is not None:
               for r,l in pargs.runlsSeries.iteritems():
                   if not r in rselectrange:
-                      rselectrange.append(r)  
+                      rselectrange.append(r) 
+          withfileinput = False 
           if pargs.filedata is not None:
               withfileinput = True
               from brilws import fileapi
@@ -813,7 +814,7 @@ def brilcalc_main(progname=sys.argv[0]):
               if not withfileinput:
                   beamIt = api.dataIter(dbengine,'beam','',shard,datafields=fields,idfields=idfields,schemaname=dbschema,fillmin=pargs.fillmin,fillmax=pargs.fillmax,runmin=pargs.runmin,runmax=pargs.runmax,amodetagid=pargs.amodetagid,targetegev=pargs.egev,beamstatusid=pargs.beamstatusid,tssecmin=pargs.tssecmin,tssecmax=pargs.tssecmax,runlsselect=pargs.runlsSeries,sorted=True,datatagnameid=datatagnameid)
               else:
-                  beamIt = fileapi.beamIter([shard],fillmin=pargs.fillmin,fillmax=pargs.fillmax,runmin=pargs.runmin,runmax=pargs.runmax,amodetagid=pargs.amodetagid,targetegev=pargs.egev,beamstatusid=pargs.beamstatusid,tssecmin=pargs.tssecmin,tssecmax=pargs.tssecmax,runlsselect=pargs.runlsSeries,withBX=False)
+                  beamIt = fileapi.beamIter([shard],fillmin=pargs.fillmin,fillmax=pargs.fillmax,runmin=pargs.runmin,runmax=pargs.runmax,amodetagid=pargs.amodetagid,targetegev=pargs.egev,beamstatusid=pargs.beamstatusid,tssecmin=pargs.tssecmin,tssecmax=pargs.tssecmax,runlsselect=pargs.runlsSeries,withBX=pargs.withBX)
               if not beamIt:
                   continue
               for row in beamIt:
@@ -828,28 +829,24 @@ def brilcalc_main(progname=sys.argv[0]):
                       dtime = d.astimezone(totz).strftime(params._datetimefm) 
                   if pargs.withBX:
                       bxintensity = None
-                      bxintensitystr = '[]'
-                      if row.has_key('bxidxblob') and row['bxidxblob'] is not None:                 
-                          bxidxarray = np.array(api.unpackBlobtoArray(row['bxidxblob'],'H'))                            
-                          bxidxarray = bxidxarray[bxidxarray!=np.array(None)]
-                          if bxidxarray is not None and bxidxarray.size>0:
-                              bxintensity1array =  np.array(api.unpackBlobtoArray(row['bxintensity1blob'],'f'))
-                              bxintensity2array =  np.array(api.unpackBlobtoArray(row['bxintensity2blob'],'f'))
-                              bxintensity = np.transpose( np.array([bxidxarray+1,bxintensity1array,bxintensity2array]) )
-                              a = map(fm.bxintensity,bxintensity)                          
-                              bxintensitystr = '['+' '.join(a)+']'
-                              del bxintensity1array
-                              del bxintensity2array
-                          del bxidxarray
-                          display.add_row( ['%d'%fillnum,'%d'%runnum,'%d'%lsnum,dtime,'%s'%bxintensitystr], fh=fh, csvwriter=csvwriter, ptable=ptable )
-                      elif parseresult['--filedata'] is not None and row.has_key('bxintensity1blob') and row.has_key('bxintensity2blob'):
-                          bxintensity1array = row['bxintensity1blob']
-                          bxintensity2array = row['bxintensity2blob']
+                      bxintensitystr = '[]'                     
+                      if row.has_key('bxidxblob') and row['bxidxblob'] is not None:   
+                          if not parseresult['--filedata']:          
+                              bxidxarray = np.array(api.unpackBlobtoArray(row['bxidxblob'],'H'))                            
+                              bxidxarray = bxidxarray[bxidxarray!=np.array(None)]
+                              if bxidxarray is not None and bxidxarray.size>0:
+                                  bxintensity1array =  np.array(api.unpackBlobtoArray(row['bxintensity1blob'],'f'))
+                                  bxintensity2array =  np.array(api.unpackBlobtoArray(row['bxintensity2blob'],'f'))
+                          else:  
+                              bxidxarray = row['bxidxblob']
+                              bxintensity1array = row['bxintensity1blob']
+                              bxintensity2array = row['bxintensity2blob']   
                           bxintensity = np.transpose( np.array([bxidxarray+1,bxintensity1array,bxintensity2array]) )
                           a = map(fm.bxintensity,bxintensity)                          
                           bxintensitystr = '['+' '.join(a)+']'
                           del bxintensity1array
                           del bxintensity2array
+                          del bxidxarray
                           display.add_row( ['%d'%fillnum,'%d'%runnum,'%d'%lsnum,dtime,'%s'%bxintensitystr], fh=fh, csvwriter=csvwriter, ptable=ptable )
                   else:
                       egev = row['egev']
