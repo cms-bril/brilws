@@ -72,7 +72,7 @@ def briltag_main(progname=sys.argv[0]):
          display.show_table(ptable,'tab')
 
       elif args['<command>'] == 'listiov':
-         import briltag_listiov
+         from . import briltag_listiov
          parseresult = docopt.docopt(briltag_listiov.__doc__,argv=cmmdargv)
          parseresult = briltag_listiov.validate(parseresult)
          pargs = clicommonargs.parser(parseresult)
@@ -80,7 +80,7 @@ def briltag_main(progname=sys.argv[0]):
          if not pargs.dbconnect.find('oracle')!=-1: dbschema = 'cms_lumi_prod'
          dbengine = create_engine(pargs.connecturl)
          istypedefault = False
-         if parseresult.has_key('--isdefault'):
+         if '--isdefault' in parseresult:
              istypedefault = True
          if not pargs.name:            
              iovtaglist = api.iov_gettags(dbengine,datasource=pargs.lumitype,applyto=pargs.applyto,isdefault=istypedefault,schemaname=dbschema)
@@ -103,7 +103,7 @@ def briltag_main(progname=sys.argv[0]):
              display.show_table(ptable,'tab')
              
       elif args['<command>'] == 'insertiov':
-         import briltag_insertiov
+         from . import briltag_insertiov
          parseresult = docopt.docopt(briltag_insertiov.__doc__,argv=cmmdargv)
          parseresult = briltag_insertiov.validate(parseresult)
          pargs = clicommonargs.parser(parseresult)
@@ -111,29 +111,29 @@ def briltag_main(progname=sys.argv[0]):
          if not pargs.dbconnect.find('oracle')!=-1: dbschema = 'cms_lumi_prod'         
          dbengine = create_engine(pargs.connecturl)
          istypedefault=False
-         if pargs.yamlobj.has_key('istypedefault'):
+         if 'istypedefault' in pargs.yamlobj:
              istypedefault =  pargs.yamlobj['istypedefault']
          iovtagname = ''
-         if pargs.yamlobj.has_key('name'):
+         if 'name' in pargs.yamlobj:
              iovtagname = pargs.yamlobj['name']
          else:
              ValueError('name cannot be empty')
          applyto = 'lumi'
-         if pargs.yamlobj.has_key('applyto'):
+         if 'applyto' in pargs.yamlobj:
              applyto = pargs.yamlobj['applyto']
          datasource = None
-         if pargs.yamlobj.has_key('datasource'):
+         if 'datasource' in pargs.yamlobj:
              datasource = pargs.yamlobj['datasource']
          else:
              raise ValueError('datasource cannot be empty')
          comments = ''
-         if pargs.yamlobj.has_key('comments'):
+         if 'comments' in pargs.yamlobj:
              comments = pargs.yamlobj['comments']
          istypedefault = False
-         if pargs.yamlobj.has_key('istypedefault'):
+         if 'istypedefault' in pargs.yamlobj:
              istypedefault = True
          iovdata = None
-         if pargs.yamlobj.has_key('since'):
+         if 'since' in pargs.yamlobj:
              iovdata = pargs.yamlobj['since']
          else:
              raise ValueError('since cannot be empty')
@@ -141,7 +141,7 @@ def briltag_main(progname=sys.argv[0]):
          iovtagid = api.iov_insertdata(dbengine,iovtagname,datasource,iovdata,applyto=applyto,isdefault=istypedefault,comments=comments,schemaname=dbschema)
                   
       elif args['<command>'] == 'insertdata':
-          import briltag_insertdata
+          from . import briltag_insertdata
           parseresult = docopt.docopt(briltag_insertdata.__doc__,argv=cmmdargv)
           parseresult = briltag_insertdata.validate(parseresult)
           pargs = clicommonargs.parser(parseresult)
@@ -151,7 +151,7 @@ def briltag_main(progname=sys.argv[0]):
           name = pargs.name
           if not name: raise NameError('--name cannot be empty')
           datatagnameid = api.data_createtag(dbengine,datatagname=name,comments=pargs.comments,schemaname=dbschema)
-          print 'created datatag %s , datatagnameid %ul , comments %s'%(name,datatagnameid,pargs.comments)     
+          print ('created datatag %s , datatagnameid %ul , comments %s'%(name,datatagnameid,pargs.comments)     )
       else:
           exit("%r is not a briltag command. See 'briltag --help'."%args['<command>']) 
     except docopt.DocoptExit:

@@ -43,26 +43,27 @@ def create_table(columns,**kwargs):
     https://code.google.com/p/prettytable/wiki/Tutorial
     '''
     ptable = prettytable.PrettyTable(columns)
-    if kwargs.has_key('border'): ptable.border = kwargs['border']
-    if kwargs.has_key('header'): ptable.header = kwargs['header']
-    if kwargs.has_key('header_style'): ptable.header_style = kwargs['header_style']
-    if kwargs.has_key('hrules'): ptable.hrules = kwargs['hrules']
-    if kwargs.has_key('vrules'): ptable.hrules = kwargs['vrules']
-    if kwargs.has_key('align'): ptable.align = kwargs['align']
-    if kwargs.has_key('valign'): ptable.valign = kwargs['valign']
-    if kwargs.has_key('int_format'): ptable.int_format = kwargs['int_format']
-    if kwargs.has_key('float_format'): ptable.float_format = kwargs['float_format']
-    if kwargs.has_key('padding_width'): ptable.padding_width = kwargs['padding_width']
-    if kwargs.has_key('left_padding_width'): ptable.left_padding_width = kwargs['left_padding_width']
-    if kwargs.has_key('right_padding_width'): ptable.right_padding_width = kwargs['right_padding_width']
-    if kwargs.has_key('vertical_char'): ptable.vertical_char = kwargs['vertical_char']
-    if kwargs.has_key('horizontal_char'): ptable.horizontal_char = kwargs['horizontal_char']
-    if kwargs.has_key('junction_char'): ptable.junction_char = kwargs['junction_char']
-    if kwargs.has_key('maxwidth'): ptable.max_width = kwargs['maxwidth'] 
+    if 'border' in kwargs: ptable.border = kwargs['border']
+    if 'header' in kwargs: ptable.header = kwargs['header']
+    if 'header_style' in kwargs: ptable.header_style = kwargs['header_style']
+    if 'hrules' in kwargs: ptable.hrules = kwargs['hrules']
+    if 'vrules' in kwargs: ptable.hrules = kwargs['vrules']
+    if 'align' in kwargs: ptable.align = kwargs['align']
+    if 'valign' in kwargs: ptable.valign = kwargs['valign']
+    if 'int_format' in kwargs: ptable.int_format = kwargs['int_format']
+    if 'float_format' in kwargs: ptable.float_format = kwargs['float_format']
+    if 'padding_width' in kwargs: ptable.padding_width = kwargs['padding_width']
+    if 'left_padding_width' in kwargs: ptable.left_padding_width = kwargs['left_padding_width']
+    if 'right_padding_width' in kwargs: ptable.right_padding_width = kwargs['right_padding_width']
+    if 'vertical_char' in kwargs: ptable.vertical_char = kwargs['vertical_char']
+    if 'horizontal_char' in kwargs: ptable.horizontal_char = kwargs['horizontal_char']
+    if 'junction_char' in kwargs: ptable.junction_char = kwargs['junction_char']
+    if 'maxwidth' in kwargs: ptable.max_width = kwargs['maxwidth'] 
     return ptable
 
 
-def formatter_tuple((x,y)):
+def formatter_tuple( x_y ):
+    x,y = x_y
     if isinstance(x,float):
         x = _floatformatter(x)
     if isinstance(y,float):
@@ -78,7 +79,7 @@ def listdf(df,npp=100, columns=None, formatters=None, index=False, justify='left
         index:      display row id (default=False)
     '''
     if not pagination:
-        print df.to_string(columns=columns,formatters=formatters,index=index, justify=justify)
+        print (df.to_string(columns=columns,formatters=formatters,index=index, justify=justify))
     return
     nrows, ncols = df.shape
     total_pages = nrows/npp + 1 
@@ -91,7 +92,7 @@ def listdf(df,npp=100, columns=None, formatters=None, index=False, justify='left
         else:
            torow = fromrow + npp -1
         ptr = torow +1
-        print df.ix[fromrow:torow,:].to_string(columns=columns,formatters=formatters,index=index, justify=justify)
+        print (df.ix[fromrow:torow,:].to_string(columns=columns,formatters=formatters,index=index, justify=justify))
         if i!=(total_pages-1):
             try: 
                 raw_input("Press a key to continue or '^C' to break...")

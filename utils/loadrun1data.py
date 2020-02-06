@@ -1,4 +1,4 @@
-import sys,logging
+import sys,logging,base64
 from sqlalchemy import *
 from sqlalchemy import exc
 
@@ -462,7 +462,8 @@ if __name__=='__main__':
     runinfoconnectstr = 'oracle://cms_runinfo_r@cms_orcon_adg'
     runinfopasswd = parser.get(runinfoconnectstr,'pwd')
     idx = runinfoconnectstr.find('@')
-    runinfoconnecturl = runinfoconnectstr[:idx]+':'+runinfopasswd.decode('base64')+runinfoconnectstr[idx:]
+    pcode = base64.b64decode(runinfopasswd).decode('UTF-8')
+    runinfoconnecturl = runinfoconnectstr[:idx]+':'+pcode+runinfoconnectstr[idx:]
     runinfoengine = create_engine(runinfoconnecturl)
     runinfoconnection = runinfoengine.connect().execution_options(stream_results=True)
 
@@ -470,7 +471,8 @@ if __name__=='__main__':
     trgconnectstr = 'oracle://cms_trg_r@cms_orcon_adg'
     trgpasswd = parser.get(trgconnectstr,'pwd')
     idx = trgconnectstr.find('@')
-    trgconnecturl = trgconnectstr[:idx]+':'+trgpasswd.decode('base64')+trgconnectstr[idx:]
+    trgcode = base64.b64decode(trgpasswd).decode('UTF-8')
+    trgconnecturl = trgconnectstr[:idx]+':'+trgcode+trgconnectstr[idx:]
     trgengine = create_engine(trgconnecturl)
     trgconnection = trgengine.connect().execution_options(stream_results=True)
     

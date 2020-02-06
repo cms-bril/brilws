@@ -5,9 +5,10 @@ from datetime import datetime
 import calendar
 from schema import And, Or, Use
 from dateutil import tz
-from ConfigParser import SafeConfigParser
+from configparser import SafeConfigParser
 import yaml
 import numpy as np
+import base64
 def parseservicemap(authfile):
     '''
     parse service config ini file
@@ -72,37 +73,37 @@ class parser(object):
     def _parse(self):
 
         self._dbconnect = self._argdict['-c']
-        if self._argdict.has_key('-p'):
+        if '-p' in self._argdict:
             self._authpath = self._argdict['-p']
             if not self._authpath:
                 self._authpath = os.path.dirname(os.path.abspath(__file__))
                 self._authpath = os.path.join(os.path.sep,self._authpath,'../data/readdb3.ini')
             self._servicemap = parseservicemap(self._authpath)
-        if self._argdict.has_key('-b') and self._argdict['-b']:
+        if '-b' in self._argdict and self._argdict['-b']:
             self._beamstatus = self._argdict['-b'].upper()            
-        if self._argdict.has_key('--beamenergy'):
+        if '--beamenergy' in self._argdict:
             self._egev = self._argdict['--beamenergy']
-        if self._argdict.has_key('--minBiasXsec'):
+        if '--minBiasXsec' in self._argdict:
             self._minbias = self._argdict['--minBiasXsec']    
-        if self._argdict.has_key('--datatag'):
+        if '--datatag' in self._argdict:
             self._datatagname = self._argdict['--datatag']
-        if self._argdict.has_key('--amodetag'):
+        if '--amodetag' in self._argdict:
             self._amodetag = self._argdict['--amodetag']
-        if self._argdict.has_key('--chunk-size'):
+        if '--chunk-size' in self._argdict:
             self._chunksize = self._argdict['--chunk-size']
-        if self._argdict.has_key('--output-style'):
+        if '--output-style' in self._argdict:
             self._outputstyle = self._argdict['--output-style']
-        if self._argdict.has_key('--name'):
+        if '--name' in self._argdict:
             self._name = self._argdict['--name']
-        if self._argdict.has_key('--comments'):
+        if '--comments' in self._argdict:
             self._comments = self._argdict['--comments']
-        if self._argdict.has_key('--xing'):
+        if '--xing' in self._argdict:
             self._withBX = self._argdict['--xing']
-        if self._argdict.has_key('--xingMin'):
+        if '--xingMin' in self._argdict:
             self._xingMin = self._argdict['--xingMin']
-        if self._argdict.has_key('--xingTr'):
+        if '--xingTr' in self._argdict:
             self._xingTr = self._argdict['--xingTr']
-        if self._argdict.has_key('--xingId') and self._argdict['--xingId']:
+        if '--xingId' in self._argdict and self._argdict['--xingId']:
             d = self._argdict['--xingId']
             if isinstance(d,file):
                 d = d.read()
@@ -110,54 +111,54 @@ class parser(object):
             if not (dd>=1).all() and (dd<=3564).all():
                 raise ValueError('--xingId should be in range [1,3564]')
             self._xingId = dd.tolist()
-        if self._argdict.has_key('--byls'):
+        if '--byls' in self._argdict:
             self._byls = self._argdict['--byls']        
-        if self._argdict.has_key('--type'):
+        if '--type' in self._argdict:
             self._lumitype = self._argdict['--type']
-        if self._argdict.has_key('--hltpath'):
+        if '--hltpath' in self._argdict:
             self._hltpath = self._argdict['--hltpath']
-        if self._argdict.has_key('--hltconfig'):
+        if '--hltconfig' in self._argdict:
             hltconfig = self._argdict['--hltconfig']
             if hltconfig:
                 if hltconfig.isdigit():
                     self._hltconfigid = int(hltconfig)
                 else:
                     self._hltkey = hltconfig
-        if self._argdict.has_key('--applyto'):
+        if '--applyto' in self._argdict:
             self._applyto = self._argdict['--applyto']
-        if self._argdict.has_key('-y'):
+        if '-y' in self._argdict:
             self._yamlfile = self._argdict['-y']            
-        if self._argdict.has_key('-n'):
+        if '-n' in self._argdict:
             self._scalefactor = self._argdict['-n']
-        if self._argdict.has_key('--precision') and self._argdict['--precision']:
+        if '--precision' in self._argdict and self._argdict['--precision']:
             result = re.search(params._precision_pattern,self._argdict['--precision']) #should guarantee to have the right format here since it passed validator           
             self._format = result.group(2).lower()
             self._precision = int(result.group(1)) #is int
-        if self._argdict.has_key('--filedata'):
+        if '--filedata' in self._argdict:
             self._filedata = self._argdict['--filedata']
-        if self._argdict.has_key('--cerntime'):
+        if '--cerntime' in self._argdict:
             self._cerntime = self._argdict['--cerntime']
-        if self._argdict.has_key('--tssec'):
+        if '--tssec' in self._argdict:
             self._tssec = self._argdict['--tssec']
-        if self._argdict.has_key('--without-correction'):
+        if '--without-correction' in self._argdict:
             self._withoutcorrection = self._argdict['--without-correction']
-        if self._argdict.has_key('-f') and self._argdict['-f'] :
+        if '-f' in self._argdict and self._argdict['-f'] :
             self._fillmin = self._argdict['-f']
             self._fillmax = self._argdict['-f']
-        if self._argdict.has_key('--normtag') and self._argdict['--normtag']:
+        if '--normtag' in self._argdict and self._argdict['--normtag']:
             normtagfileorpath = self._argdict['--normtag']
             self._iovtagSelect = api.parseiovtagselectionJSON(normtagfileorpath)
-        if self._argdict.has_key('-i') and self._argdict['-i']: # -i has precedance over -r
+        if '-i' in self._argdict and self._argdict['-i']: # -i has precedance over -r
             fileorpath = self._argdict['-i']
             self._runlsSeries = api.parsecmsselectJSON(fileorpath)
-        if self._argdict.has_key('-r') and self._argdict['-r'] :
+        if '-r' in self._argdict and self._argdict['-r'] :
             self._runmin = self._argdict['-r']
             self._runmax = self._argdict['-r']
         s_beg = None
         s_end = None
-        #if self._argdict.has_key('-f') and not self._argdict['-f'] and self._argdict.has_key('-r') and not self._argdict['-r']:
-        if self._argdict.has_key('-f') or self._argdict.has_key('-r') :
-            if self._argdict.has_key('--begin') and self._argdict['--begin']:
+
+        if '-f' in self._argdict or '-r' in self._argdict :
+            if '--begin' in self._argdict and self._argdict['--begin']:
                 s_beg = self._argdict['--begin']
                 for style,pattern in {'fill':params._fillnum_pattern,'run':params._runnum_pattern, 'time':params._time_pattern}.items():
                     if re.match(pattern,s_beg):
@@ -178,7 +179,7 @@ class parser(object):
                         elif style=='time':
                             dt_obj = datetime.strptime(s_beg,params._datetimefm)                            
                             self._tssecmin = calendar.timegm(dt_obj.timetuple())
-            if self._argdict.has_key('--end') and self._argdict['--end']:
+            if '--end' in self._argdict and self._argdict['--end']:
                 s_end = self._argdict['--end']
                 for style,pattern in {'fill':params._fillnum_pattern,'run':params._runnum_pattern, 'time':params._time_pattern}.items():
                       if re.match(pattern,s_end):
@@ -200,7 +201,7 @@ class parser(object):
                             dt_obj = datetime.strptime(s_end,params._datetimefm)
                             self._tssecmax = calendar.timegm(dt_obj.timetuple())
         
-        if self._argdict.has_key('-o') and self._argdict['-o'] or self._outputstyle == 'csv':
+        if '-o' in self._argdict and self._argdict['-o'] or self._outputstyle == 'csv':
             if self._argdict['-o']:
                 self._outputstyle = 'csv'                
                 self._ofilename = self._argdict['-o']
@@ -327,14 +328,15 @@ class parser(object):
     @property
     def connecturl(self):
         if not os.path.isfile(self._dbconnect):
-            if not self._servicemap.has_key(self._dbconnect):
+            if self._dbconnect not in self._servicemap:
                 raise ValueError('service %s is not defined'%self._dbconnect)
             protocol = self._servicemap[self._dbconnect][0]
             if protocol not in ['oracle','frontier'] : raise ValueError('protocol %s is not supported'%protocol)       
             descriptor = self._servicemap[self._dbconnect][3]
             if protocol == 'oracle':
                 user = self._servicemap[self._dbconnect][1]
-                passwd = self._servicemap[self._dbconnect][2].decode('base64')
+                passwdcode = self._servicemap[self._dbconnect][2]
+                passwd = base64.b64decode(passwdcode).decode('UTF-8')
                 connecturl = 'oracle+cx_oracle://%s:%s@%s'%(user,passwd,descriptor)
             else:                
                 connecturl = 'oracle+frontier://%s'%(descriptor)

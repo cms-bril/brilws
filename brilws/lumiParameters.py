@@ -68,7 +68,7 @@ class ParametersObject (object):
 #=======================================================
 if __name__ == "__main__":
     p=ParametersObject()
-    print p.lslengthsec
-    print p.minBiasXsec
-    print p.NBX
-    print p.numorbit
+    print (p.lslengthsec)
+    print (p.minBiasXsec)
+    print (p.NBX)
+    print (p.numorbit)

@@ -15,7 +15,8 @@ if __name__=='__main__':
     parser.read('readdb2.ini')
     passwd = parser.get(connectstr,'pwd')
     idx = connectstr.find('@')
-    connecturl = connectstr[:idx]+':'+passwd.decode('base64')+connectstr[idx:]
+    pcode = base64.b64decode(passwd).decode('UTF-8')
+    connecturl = connectstr[:idx]+':'+pcode+connectstr[idx:]
     engine = create_engine(connecturl)
     q = """select tag.TAGID as tagid,r.RUNNUM,tag.lumidataid as lumidataid ,tag.trgdataid as trgdataid,tag.hltdataid as hltdataid from CMS_LUMI_PROD.CMSRUNSUMMARY r, CMS_LUMI_PROD.TAGRUNS tag where r.RUNNUM=tag.RUNNUM and tag.TAGID<=13 and lumidataid!=0 and trgdataid!=0 and hltdataid!=0"""
     result = pd.read_sql_query(q,engine)

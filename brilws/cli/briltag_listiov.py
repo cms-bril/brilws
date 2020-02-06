@@ -20,12 +20,12 @@ from brilws.cli import clicommonargs
 
 def validate(optdict):
     myvalidables = ['-c','-p','--name','--applyto','--type',str]
-    argdict = dict((k,v) for k,v in clicommonargs.argvalidators.iteritems() if k in myvalidables)
+    argdict = dict((k,v) for k,v in clicommonargs.argvalidators.items() if k in myvalidables)
     s = Schema(argdict)
     result = s.validate(optdict)
     return result
 
 if __name__ == '__main__':
-    print docopt(__doc__,options_first=True)
+    print (docopt(__doc__,options_first=True))
 
 

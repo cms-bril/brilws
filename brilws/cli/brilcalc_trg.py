@@ -25,7 +25,7 @@ def validate(optdict):
     argdict = clicommonargs.argvalidators
     #extract sub argdict here
     myvalidables = ['-c','-r','--hltpath','--hltconfig',str]
-    argdict = dict((k,v) for k,v in clicommonargs.argvalidators.iteritems() if k in myvalidables)
+    argdict = dict((k,v) for k,v in clicommonargs.argvalidators.items() if k in myvalidables)
     schema = Schema(argdict)
     result = schema.validate(optdict)
     return result

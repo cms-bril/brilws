@@ -7,8 +7,10 @@ import docopt
 import schema
 import brilws
 import yaml
+import base64
 from sqlalchemy import *
-from ConfigParser import SafeConfigParser
+#from ConfigParser import SafeConfigParser
+from configparser import SafeConfigParser
 from brilws import api
 import pandas as pd
 
@@ -50,7 +52,7 @@ def brilschema_main(progname=sys.argv[0]):
     if '--debug' in sys.argv:
        log.setLevel(logging.DEBUG)
        ch.setLevel(logging.DEBUG)
-    if args['--version'] : print brilws.__version__
+    if args['--version'] : print .brilws.__version__
     log.debug('global arguments: %s',args)
     cmmdargv = [args['<command>']] + args['<args>']
 
@@ -75,11 +77,11 @@ def brilschema_main(progname=sys.argv[0]):
          else:
               columntypemap = api.sqlitetypemap
          schemadatadef = yaml.load(parseresult['-i'])
-         print 'Creating drop sql file for: %s'%infilenamebase
+         print ('Creating drop sql file for: %s'%infilenamebase)
          api.drop_tables_sql(infilenamebase,schemadatadef,suffix=suffix,dbflavor=parseresult['-f'])
-         print 'Creating create sql file for: %s'%infilenamebase
+         print ('Creating create sql file for: %s'%infilenamebase)
          api.create_tables_sql(infilenamebase,schemadatadef,suffix=suffix,dbflavor=parseresult['-f'],writeraccount=writeraccount)
-         print 'Done'
+         print ('Done')
 
       elif args['<command>'] == 'loadmap':
          import brilschema_loadmap         
@@ -116,10 +118,11 @@ def brilschema_main(progname=sys.argv[0]):
                  sourcepasswd = parser.get(outengine,'pwd')
                  sourceschema = parser.get(outengine,'schema')
                  idx = sourceengine.find('@')
-                 sourceurl = sourceengine[:idx]+':'+sourcepasswd.decode('base64')+sourceengine[idx:]
+                 code = base64.b64decode(sourcepasswd).decode('UTF-8')
+                 sourceurl = sourceengine[:idx]+':'+code+sourceengine[idx:]
              inengine = create_engine(soureceurl)
          result = d.from_sourcedb(inengine)
-         print result
+         print (result)
          if os.path.isfile(outengine):
              d.to_csv(outengine,result)
          else:
@@ -128,7 +131,8 @@ def brilschema_main(progname=sys.argv[0]):
                  iniparser.read(os.path.join(parseresult['-p'],'authentication.ini'))
                  destpasswd = parser.get(outengine,'pwd')
                  idx = outengine.find('@')
-                 desturl = outengine[:idx]+':'+destpasswd.decode('base64')+outengine[idx:]             
+                 destcode =  base64.b64decode(destpasswd).decode('UTF-8')
+                 desturl = outengine[:idx]+':'+destcode+outengine[idx:]             
              outengine = create_engine(desturl)
              d.to_brildb(outengine,result)
       elif args['<command>'] == 'loaddata':
@@ -147,7 +151,7 @@ def brilschema_main(progname=sys.argv[0]):
              d = api.FillInfo()
              if parseresult['--lumidb']:
                  d.from_lumidb(lumidbengine,fillnum)
-                 print d
+                 print (d)
       elif args['<command>'] == 'loadresult':
          import brilschema_loadresult
          iniparser = SafeConfigParser()
@@ -157,19 +161,20 @@ def brilschema_main(progname=sys.argv[0]):
          runlsselect = api.parsecmsselectJSON(runlsselect)
          lumidb  = api.get_filepath_or_buffer(parseresult['--lumidb'])
          if os.path.isfile(lumidb):
-             print lumidb
+             print (lumidb)
          else:
              lumidburl = lumidb
              if lumidburl.find('oracle') != -1:
                  iniparser.read(os.path.join(parseresult['-p'],'authentication.ini'))
                  lumidbpasswd = parser.get(lumidburl,'pwd')
                  idx = lumidburl.find('@')
-                 lumidburl = lumidburl[:idx]+':'+lumidbpasswd.decode('base64')+lumidburl[idx:]             
+                 lumicode = base64.b64decode(lumidbpasswd).decode('UTF-8')
+                 lumidburl = lumidburl[:idx]+':'+lumicode+lumidburl[idx:]             
              lumidbengine = create_engine(lumidburl)
          datasourcename = parseresult['--name'].lower()
          d = api.LumiResult(datasourcename)
          for run,lss in runlsselect:
-             print run,lss
+             print (run,lss)
          #d.from_lumidb(lumidbengine,)
          
       else:

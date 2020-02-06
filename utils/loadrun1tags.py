@@ -1,4 +1,4 @@
-import sys,logging
+import sys,logging,base64
 import pandas as pd
 import numpy as np
 from sqlalchemy import *
@@ -186,7 +186,8 @@ if __name__=='__main__':
     parser.read('readdb2.ini')
     passwd = parser.get(connectstr,'pwd')
     idx = connectstr.find('@')
-    connecturl = connectstr[:idx]+':'+passwd.decode('base64')+connectstr[idx:]
+    pcode = base64.b64decode(passwd).decode('UTF-8')
+    connecturl = connectstr[:idx]+':'+pcode+connectstr[idx:]
     engine = create_engine(connecturl)
     
     for index,row in fromfile.iterrows():

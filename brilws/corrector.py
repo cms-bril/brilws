@@ -184,7 +184,7 @@ def FunctionCaller(func,functionroot):
     try:
         myfunc = getattr(fac,func.fname,None)
     except AttributeError:
-        print '[ERROR] unknown correction function '+ func.fname
+        print ('[ERROR] unknown correction function '+ func.fname)
         raise
     if callable(myfunc):
         return myfunc(functionroot, func.fparams)
@@ -194,37 +194,37 @@ def FunctionCaller(func,functionroot):
 if __name__=='__main__':
     # test CorrectionFunction class
     f = CorrectionFunction('poly1d',{'coefs':'2.,1.,0.'})
-    print f.name(), f.params()
+    print (f.name(), f.params())
     nbx = 3
     ivalue =  np.array([2.,2.,2.])
     funcroot = FunctionRoot( ivalue, None, nbx)
     
     funcs = [ CorrectionFunction('poly1d',{'coefs':'2.,1.,0.'}) ]
     result = applyCorrection(funcs,funcroot)
-    print result
+    print (result)
 
     ivalue = 6
     fr = FunctionRoot( ivalue,ivalue,nbx)
     funcs = [ CorrectionFunction('poly1d',{'coefs':'2.,1.,0.'}) ]
     result =  applyCorrection(funcs,fr)
-    print 'result  total ',result
+    print ('result  total ',result)
 
     funcs =  [ CorrectionFunction('afterglow',{'afterglowthresholds':'(1,2),'}) ]
     result = applyCorrection(funcs,fr)
-    print 'afterglow result ',result
+    print ('afterglow result ',result)
 
     fr =  FunctionRoot([1,2,3],2,nbx)
     funcs =  [ CorrectionFunction('poly2dlL',{'coefs':'[[3,2,1],[-10,4,0],[2,0,0]]'}) ]
     result = applyCorrection(funcs,fr)
-    print 'poly2dlL result ',result
+    print ('poly2dlL result ',result)
 
     fr = FunctionRoot(3,3,nbx)
     funcs =  [ CorrectionFunction('poly2dlL',{'coefs':'[[3,2,1],[-10,4,0],[2,0,0]]'}) ]
     result = applyCorrection(funcs,fr)
-    print 'poly2dlL result ',result
+    print ('poly2dlL result ',result)
     
     result = applyCorrectionStr('poly2dlL' , "{'coefs':'[[3,2,1],[-10,4,0],[2,0,0]]'}", fr)
-    print 'poly2dlL result from string ',result
+    print ('poly2dlL result from string ',result)
 
     result = applyCorrectionStr("['poly2dlL','afterglow']" , "[{'coefs':'[[3,2,1],[-10,4,0],[2,0,0]]'},{'afterglowthresholds':'(1,2),'}]", fr)
-    print 'poly2dlL result from string ',result
+    print ('poly2dlL result from string ',result)

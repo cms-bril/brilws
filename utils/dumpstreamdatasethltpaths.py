@@ -1,4 +1,4 @@
-import sys,csv
+import sys,csv,base64
 from sqlalchemy import *
 from sqlalchemy import exc
 from ConfigParser import SafeConfigParser
@@ -11,7 +11,8 @@ if __name__=='__main__':
     parser.read('readdb2.ini')
     passwd = parser.get(connectstr,'pwd')
     idx = connectstr.find('@')
-    connecturl = connectstr[:idx]+':'+passwd.decode('base64')+connectstr[idx:]
+    pcode = base64.b64decode(passwd).decode('UTF-8')
+    connecturl = connectstr[:idx]+':'+pcode+connectstr[idx:]
     engine = create_engine(connecturl)
     
     hltpathq = """select PATHID as HLTPATHID,NAME as HLTPATHNAME from CMS_HLT.PATHS where ISENDPATH=0 and NAME like 'HLT_%'"""

@@ -786,7 +786,7 @@ def _insert_iovdata(connection,tablename,iovtagid,since,payloadstr,func,comments
         log.debug( str( t.insert() ) )
         log.debug( 'tagid=%ul, since=%d, payload=%s, func=%s, comments=%s'%(iovtagid,since,payloadstr,func,comments) )
         connection.execute( t.insert(), tagid=int(iovtagid), since=since, payload=payloadstr, func=func, comments=comments)
-    except exc.IntegrityError, e:
+    except exc.IntegrityError as e:
         if str(e).find('unique constraint')!=-1:
             log.debug( 'Duplicated key iovtagid %ul, since %d, skip insertion, return 0'%(iovtagid,since) )
             return 0
@@ -830,7 +830,7 @@ def iov_insertdata(engine,iovtagname,datasource,iovdata,applyto='lumi',isdefault
             payloadstr = str(sincedict[sincerunnum]['payload'])
             log.debug( 'append to tag %s since %d'%(iovtagname,sincerunnum) )
             inserted = _insert_iovdata(connection,datatablename,iovtagid,sincerunnum,payloadstr,func,sincecomments,schemaname=schemaname)
-            print 'inserted ',inserted
+            print ('inserted ',inserted)
 
 def packlistoblob(typecode,data):
     dataarray = array.array(typecode,list(data))
