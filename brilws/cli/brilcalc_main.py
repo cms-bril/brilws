@@ -17,9 +17,13 @@ import re,time, csv
 from datetime import datetime
 from sqlalchemy import *
 import math
-from itertools import zip_longest
 from dateutil import tz
 import pytz
+try:
+    from itertools import zip_longest
+except ImportError:
+    from itertools import izip_longest as zip_longest
+
 log = logging.getLogger('brilws')
 logformatter = logging.Formatter('%(levelname)s %(name)s %(message)s')
 log.setLevel(logging.ERROR)
