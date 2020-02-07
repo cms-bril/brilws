@@ -355,7 +355,6 @@ def parsecmsselectJSON(filepath_or_buffer,numpy=False):
         pd.Series , index=runnum, value=[[lsmin,lsmax]]
     """
     d = get_filepath_or_buffer(filepath_or_buffer)
-
     try:
         result = pd.Series([int(d)])
         return result
@@ -873,6 +872,10 @@ def get_shards_run_or(engine,runlist,schemaname=''):
     qPieces = []
     binddict = {}
     for i,runnum in enumerate(runlist):
+        try:
+            runnum = runnum.item()
+        except AttributeError:
+            pass
         qPieces.append("(minrun<=:runnum_%d and maxrun>=:runnum_%d)"%(i,i))
         binddict["runnum_%d"%i] = runnum
     qCondition = ' or '.join(qPieces)
@@ -1114,7 +1117,256 @@ def buildselect_runls(inputSeries,alias=''):
         return None
     for run,lsrange in inputSeries.iteritems():
         runvar='r_%d'%(bind_runindex)
-        var_runs[runvar] = run
+        try:
+            rn = run.item()
+        except AttributeError:
+            pass
+        qPieces.append("(minrun<=:runnum_%d and maxrun>=:runnum_%d)"%(i,i))
+        binddict["runnum_%d"%i] = runnum
+    qCondition = ' or '.join(qPieces)
+    q = q+qCondition
+    log.debug('get_shards_run_or: '+q)
+    log.debug(str(binddict))
+    connection = engine.connect()
+    r = connection.execute(q,binddict)
+    for row in r:
+        result.append(row['id'])
+    return result
+
+def get_shard_and(engine,runnum=None,fillnum=None,tssec=None,schemaname=''):
+    '''
+    result: shardid    
+    select id from tableshards where minrun>=:runnum and maxrun<=:runnum and minfill>=:fillnum and maxfill<=:fillnum and mintimestampsec<=:tssec and maxtimestampsec>=tssec ; 
+    '''
+    if not runnum and not fillnum and not tssec:
+        return None
+    basetablename = tablename = 'tableshards'
+    if schemaname:
+        tablename = '.'.join([schemaname,basetablename])
+    q = "select id from %s where "%(tablename)
+    qCondition = ''
+    binddict = {}
+    qPieces = []
+    if runnum:
+        qPieces.append("minrun<=:runnum and maxrun>=:runnum")
+        binddict['runnum'] = runnum
+    if fillnum:
+        qPieces.append("minfill<=:fillnum and maxfill>=:fillnum")
+        binddict['fillnum'] = fillnum
+    if tssec:
+        qPieces.append("mintimestampsec<=:tssec and maxtimestampsec>=:tssec")
+        binddict['tssec'] = tssec
+    qCondition = ' and '.join(qPieces)
+    q = q+qCondition
+    log.debug('get_shard_and: '+q)
+    log.debug(str(binddict))
+    connection = engine.connect()
+    row = connection.execute(q,binddict).fetchone()
+    if not row:
+        return None
+    return row['id']
+        
+def iov_gettags(engine,isdefault=False,datasource='',applyto='',schemaname=''):
+    '''
+    output: iovtags 
+    result: [[tagid,tagname,creationutc,applyto,datasource,isdefault,comments]]
+    '''
+    basetablename = tablename = 'iovtags'
+    if schemaname:
+        tablename = '.'.join([schemaname,basetablename])
+    q = '''select tagid, tagname, creationutc, applyto, datasource, isdefault, comments from %s'''%(tablename)
+    qconditions = []
+    qparams = {}    
+    if datasource:        
+        qconditions.append('datasource=:datasource')
+        qparams['datasource'] = datasource.upper()
+    if applyto:
+        qconditions.append('applyto=:applyto')
+        qparams['applyto'] = applyto.upper()
+    if isdefault:
+        qconditions.append('isdefault=1')
+    if qconditions:
+        q = q+' where '+' AND '.join(qconditions)
+    log.debug(q)
+    connection = engine.connect()
+    qresult = connection.execute(q,qparams)
+    result = {}
+    for row in qresult:
+        result[row['tagname']] = [ row['tagid'],row['creationutc'],row['applyto'],row['datasource'],row['isdefault'],row['comments'] ] 
+    return result
+
+def iov_gettagdata(engine,iovtagname,schemaname=''):
+    '''
+    result: [[since,func,payload,comments]]
+    '''
+    basetagstable = tagstable = 'iovtags'
+    basetagdatatable = tagdatatable = 'iovtagdata'
+    if schemaname:
+        tagstable = '.'.join([schemaname,basetagstable])
+        tagdatatable = '.'.join([schemaname,basetagdatatable])
+        
+    q='''select d.since as since, d.payload as payload, d.func as func, d.comments as comments from %s d, %s t where t.tagid=d.tagid and t.tagname=:tagname order by d.since'''%(tagdatatable,tagstable)
+    log.debug(q)
+    connection = engine.connect()
+    qresult = connection.execute(q,{'tagname':iovtagname})
+    result = []
+    for row in qresult:
+        payload = row['payload']        
+        result.append( [ row['since'],row['func'],row['payload'],row['comments'] ] )
+    return result
+    
+def iov_updatedefault(connection,tagname,defaultval=1):
+    """
+    inputs:
+        connection: dbhandle
+        tagname:    tagname
+        defaultval: value(0 or 1) of isdefault column
+    sql:
+        update IOVTAGS set ISDEFAULT=:defaultval
+    """
+    if not defaultval in [0,1]:
+        raise ValueError('ISDEFAULT value must be 0 or 1')
+    log.debug('api.iov_updatedefault %s isdefault %d'%(tagname,defaultval))
+    ui = """update IOVTAGS set ISDEFAULT=:isdefault where TAGNAME=:tagname"""
+    with connection.begin() as trans:
+        log.debug('api.iov_updatedefault query %s %d'%(tagname,defaultval))
+        connection.execute(ui, {'isdefault': defaultval,'tagname':tagname})
+
+def get_filepath_or_buffer(filepath_or_buffer):
+    """
+    Input: 
+    filepath_or_buffer: filepath or buffer
+    Output:
+    a filepath_or_buffer
+    """
+    if isinstance(filepath_or_buffer, str):
+        return os.path.expanduser(filepath_or_buffer)
+    return filepath_or_buffer    
+
+import struct,array
+#def packArraytoBlob(iarray,typecode):
+#    '''
+#    Inputs:
+#    inputarray: a python array
+#    '''
+#    t = typecode*len(iarray)
+#    buffer = struct.pack(t,*iarray)
+#    return result
+
+def unpackBlobtoArray(iblob,itemtypecode):
+    '''
+    Inputs:
+    iblob: blob
+    itemtypecode: python array type code 
+    '''
+    if not isinstance(iblob,buffer) and not isinstance(iblob,str):
+        return None
+    if itemtypecode not in ['c','b','B','u','h','H','i','I','l','L','f','d']:
+        raise RuntimeError('unsupported typecode '+itemtypecode)
+    result=array.array(itemtypecode)
+    
+    #blobstr=iblob.readline()????
+    if not iblob :
+        return None
+    result.fromstring(iblob)
+    return result
+
+def packListstrtoCLOB(iListstr,separator=','):
+    '''
+    pack list of string of comma separated large string CLOB
+    '''
+    return separator.join(iListstr)
+
+def unpackCLOBtoListstr(iStr,separator=','):
+    '''
+    unpack a large string to list of string
+    '''
+    return [i.strip() for i in iStr.strip().split(separator)]
+
+##### Data tag ######    
+def data_createtag(engine,datatagname,comments='',schemaname=''):
+    '''
+    create a new data tag, return the datatag name id
+    input:
+        insert into schemaname.DATATAGS(datatagname,datatagnameid,creationutc,comments) values(datatagname,datatagnameid,creationutc,comments)
+    output:
+        datatagnameid  
+    '''
+    datatagnameid = None
+    if datatagname == 'online':
+        datatagnameid = 1
+    else:
+        datatagnameid = next(nonsequential_key(1))
+    tablename = 'datatags'    
+    utcstr = datetime.utcnow().strftime(params._datetimefm)
+    t = Table(tablename, MetaData(), Column('datatagnameid',types.BigInteger), Column('datatagname',types.String),  Column('creationutc',types.String), Column('comments',types.String), schema=schemaname )
+    q = str( t.insert() )
+    log.debug(q)
+    log.debug(utcstr)
+    connection = engine.connect()
+    connection.execute( t.insert(),datatagnameid=datatagnameid,datatagname=datatagname,creationutc=utcstr,comments=comments)
+    return datatagnameid
+
+def getDatatagNameid(engine,datatagname,schemaname=''):
+    '''
+    select datatagnameid from DATATAGS where datatagname=%datatagname    
+    '''
+    datatagnameid = 0
+    if datatagname=='online': return datatagnameid
+    return datatagnameid
+
+def getDatatagName(engine,schemaname='',datatagname=''):
+    '''
+    output: datatags dataframe
+    '''
+    basetablename = tablename = 'DATATAGS'
+    if schemaname:
+        tablename = '.'.join([schemaname,basetablename])
+    q = '''select DATATAGNAMEID as id, DATATAGNAME as name, CREATIONUTC as creationutc, COMMENTS as comments from %s'''%(tablename)
+    if datatagname:
+        q = q+' where datatagname=:datatagname'        
+        return pd.read_sql_query(q,engine,index_col='id',params={'datatagname':datatagname})
+    return pd.read_sql_query(q,engine,index_col='id',params={})
+
+def insertDataTagEntry(engine,idtablename,datatagnameid,runnum,lsnum,fillnum=0,schemaname=None):
+    '''
+    insert into IDS_DATATAG_&suffix (datatagnameid,datatagid,fillnum,runnum,lsnum) values(datatagnameid,datatagid,fillnum,runnum,lsnum);
+    output:
+       datatagid
+    '''
+    datatagid = 0
+    if datatagnameid!=0:
+        # generate new id
+        pass
+    return datatagid
+
+####################
+##    Query API
+####################
+
+def buildselect_runls(inputSeries,alias=''):
+    '''
+    output: [conditionstring, var_runs, var_lmins, var_lmaxs]
+    '''
+    prefix = ''
+    if alias:
+        prefix = alias+'.'
+    result = []
+    bind_runindex = 0
+    bind_lsindex = 0
+    var_runs={}
+    var_lmins={}
+    var_lmaxs={}
+    qstrs = []
+    if inputSeries.empty:
+        return None
+    for run,lsrange in inputSeries.iteritems():
+        runvar='r_%d'%(bind_runindex)
+        try:
+            rn = run.item()
+        except AttributeError:
+            rn = run
+        var_runs[runvar] = rn
         s = '%srunnum=:%s and '%(prefix,runvar)
         orss = []
         for lsmin,lsmax in lsrange:
@@ -1239,10 +1491,10 @@ def build_idquery_condition(alias,runmin=None,runmax=None,fillmin=None,tssecmin=
         if s_runls:
             s_runls_str = s_runls[0]
             var_runs = s_runls[1]
-            var_lmins = s_runls[2]
+            var_lmins = s_runls[2]            
             var_lmaxs = s_runls[3]
             qPieces.append(s_runls_str)
-            for runvarname,runvalue in var_runs.items():                
+            for runvarname,runvalue in var_runs.items():
                 binddict[runvarname] = runvalue
             for lminname,lmin in var_lmins.items():                
                 binddict[lminname] = lmin
@@ -1280,8 +1532,12 @@ def build_or_collection(varname,varnamealias,mycollection):
     for i,h in enumerate(mycollection):
         thisalias = '%s%d'%(varnamealias,i)
         f.append( '%s=:%s'%(varname,thisalias) )
-        binddict[ thisalias ] = h
-    if not f: return ['',{}]
+        try:
+            binddict[ thisalias ] = h.item()
+        except AttributeError:
+            binddict[ thisalias ] = h
+    if not f: 
+        return ['',{}]
     return ['('+' or '.join(f)+')', binddict]
 
 def online_resultIter(engine,tablename,schemaname='',runmin=None,runmax=None,fillmin=None,tssecmin=None,tssecmax=None,fillmax=None,beamstatusid=None,amodetagid=None,targetegev=None,runlsselect=None,fields=[],sorted=False):
@@ -1351,7 +1607,7 @@ def online_resultIter(engine,tablename,schemaname='',runmin=None,runmax=None,fil
         for runlsselect_i in runls_array:
             if runlsselect_i.empty:
                 continue
-            (qCondition,binddict) = build_idquery_condition('i',runmin=runmin,runmax=runmax,fillmin=fillmin,fillmax=fillmax,tssecmin=tssecmin,tssecmax=tssecmax,beamstatusid=beamstatusid,runlsselect=runlsselect_i)
+            (qCondition,binddict) = build_idquery_condition('i',runmin=runmin,runmax=runmax,fillmin=fillmin,fillmax=fillmax,tssecmin=tssecmin,tssecmax=tssecmax,beamstatusid=beamstatusid,runlsselect=runlsselect_i)            
             if not qCondition:
                 raise StopIteration
                 #return None #main table must be filtered
@@ -1418,7 +1674,7 @@ def get_hlttrgl1seedmap(engine,hltpath=None,hltconfigids=None,schemaname=''):
         if hltconfigids:
             qfields.append("hltconfigid=:hltconfigid")
             binddict['hltconfigid'] = hltconfigids
-    elif isinstance(hltconfigids,collections.Iterable):        
+    elif isinstance(hltconfigids,collections.Iterable):    
         (qf,s) = build_or_collection('hltconfigid','hltconfigid',hltconfigids)
         if qf:
             qfields.append(qf)
@@ -1655,7 +1911,7 @@ def parseL1Seed(l1seed):
             exptype='AND'
             continue
         #cleanresult.append(string.strip(r).replace('\"',''))
-        cleanresult.append(string.strip(r))    
+        cleanresult.append(r.strip())    
     return [exptype,cleanresult]
 
 def build_joinwithdatatagid_query(datatablename,suffix,datafields,idfields,idcondition,datatagnameid=datatagnameid,ffields=[],fcondition='',schemaname='',sorted=False):
