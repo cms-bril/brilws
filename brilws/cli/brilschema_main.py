@@ -52,7 +52,8 @@ def brilschema_main(progname=sys.argv[0]):
     if '--debug' in sys.argv:
        log.setLevel(logging.DEBUG)
        ch.setLevel(logging.DEBUG)
-    if args['--version'] : print .brilws.__version__
+    if args['--version'] : 
+        print(brilws.__version__)
     log.debug('global arguments: %s',args)
     cmmdargv = [args['<command>']] + args['<args>']
 
