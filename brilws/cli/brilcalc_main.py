@@ -1,3 +1,4 @@
+from __future__ import print_function
 import sys
 import os
 sys.path.insert(0,os.path.dirname(sys.executable)+'/../lib/python2.7/site-packages/') #ignore other PYTHONPATH
@@ -19,6 +20,7 @@ from sqlalchemy import *
 import math
 from dateutil import tz
 import pytz
+
 try:
     from itertools import zip_longest
 except ImportError:
@@ -545,8 +547,8 @@ def brilcalc_main(progname=sys.argv[0]):
           (datatagname,datatagnameid) = findtagname(dbengine,pargs.datatagname,dbschema)
           if not pargs.totable:
               fh = pargs.ofilehandle
-              print >> fh, '#Data tag : %s , Norm tag: %s'%(datatagname,normtag)
-              print >> fh, '#'+','.join(header)
+              print('#Data tag : %s , Norm tag: %s'%(datatagname,normtag), file=fh)
+              print('#'+','.join(header),file = fh)
               csvwriter = csv.writer(fh)
           else:
               ptable = display.create_table(header,header=True,align='l')
@@ -700,21 +702,20 @@ def brilcalc_main(progname=sys.argv[0]):
                   print ('#Sum delivered : %s'%myformatter.lumi(totalpathdelivered))
                   print ('#Sum recorded : %s'%myformatter.lumi(totalpathrecorded))
           else:              #to file
-              print >> fh, '#Summary:'                  
-              print >> fh, '#'+','.join(footer)
+              print('#Summary:',file = fh)
+              print('#'+','.join(footer),file = fh)
               if not pargs.hltpath:
-                  print >> fh, '#'+','.join( [ '%d'%nfills,'%d'%nruns,'%d'%nls,'%d'%ncmsls,myformatter.lumi(totdelivered),myformatter.lumi(totrecorded)] )
+                  print('#'+','.join( [ '%d'%nfills,'%d'%nruns,'%d'%nls,'%d'%ncmsls,myformatter.lumi(totdelivered),myformatter.lumi(totrecorded)] ),file=fh)
               else:
                   totalpathdelivered = 0
                   totalpathrecorded = 0
                   for pentry in hltpathSummary:
-                      #print >> fh, '#'+','.join( [ '%s'%pentry[0],'%d'%pentry[1],'%d'%pentry[2],'%d'%pentry[3],'%.6f'%pentry[4],'%.6f'%pentry[5] ] )
-                      print >> fh, '#'+','.join( [ '%s'%pentry[0],'%d'%pentry[1],'%d'%pentry[2],'%d'%pentry[3], myformatter.lumi(pentry[4]),myformatter.lumi(pentry[5]) ] )
+                      print('#'+','.join( [ '%s'%pentry[0],'%d'%pentry[1],'%d'%pentry[2],'%d'%pentry[3], myformatter.lumi(pentry[4]),myformatter.lumi(pentry[5]) ] ), file=fh)
                       totalpathdelivered =  totalpathdelivered+pentry[4]
                       totalpathrecorded = totalpathrecorded+pentry[5]
-                  print >> fh,'#'
-                  print >> fh,'#Sum delivered  : %s'%myformatter.lumi(totalpathdelivered)
-                  print >> fh,'#Sum recorded : %s'%myformatter.lumi(totalpathrecorded)
+                  print('#',file=fh)
+                  print('#Sum delivered  : %s'%myformatter.lumi(totalpathdelivered),file=fh)
+                  print('#Sum recorded : %s'%myformatter.lumi(totalpathrecorded),file=fh)
           if parsediffruns or parsediffls:
               print ('\nWarning: problems found in merging -i and --normtag selections:')
               if parsediffruns:
@@ -738,8 +739,8 @@ def brilcalc_main(progname=sys.argv[0]):
                   print ('#Check JSON:')
                   print ('#(run,ls) in json but not in results: %s'%(str(clist)) )
               else:
-                  print >> fh, '#Check JSON:'
-                  print >> fh, '#(run,ls) in json but not in results: %s'%(str(clist))
+                  print('#Check JSON:',file=fh)
+                  print('#(run,ls) in json but not in results: %s'%(str(clist)),file=fh)
 
           if g_nulldeadtime:
               if pargs.totable:
@@ -747,11 +748,12 @@ def brilcalc_main(progname=sys.argv[0]):
                   for rr,lss in g_nulldeadtime.items():
                       print ( '#%d %s'%(rr,str(lss)) )
               else:
-                  print >> fh, '#WARN: unknown deadtime while CMS is on'
+                  print('#WARN: unknown deadtime while CMS is on',file=fh)
                   for rr,lss in g_nulldeadtime.items():
-                      print >> fh, '#%d %s'%(rr,str(lss))
+                      print('#%d %s'%(rr,str(lss)),file=fh)
                       
-          if fh and fh is not sys.stdout: fh.close()
+          if fh and fh is not sys.stdout: 
+              fh.close()
           
           sys.exit(0)
 
@@ -782,8 +784,8 @@ def brilcalc_main(progname=sys.argv[0]):
               header = ['fill','run','ls','time','[bxidx intensity1 intensity2]']
           if not pargs.totable:
               fh = pargs.ofilehandle
-              print >> fh, '#Data tag : %s'%(datatagname)
-              print >> fh, '#'+','.join(header)
+              print('#Data tag : %s'%(datatagname), file = fn)
+              print('#'+','.join(header), file=fh)
               csvwriter = csv.writer(fh)
           else:
               ptable = display.create_table(header,header=True,maxwidth=80,align='l')                        
@@ -887,7 +889,7 @@ def brilcalc_main(progname=sys.argv[0]):
 
               if not pargs.totable:
                   fh = pargs.ofilehandle
-                  print >> fh, '# '+','.join(header)
+                  print('# '+','.join(header),file=fh)
                   csvwriter = csv.writer(fh)
               else:
                   ptable = display.create_table(header,header=True,maxwidth=60,align='l')
@@ -916,7 +918,7 @@ def brilcalc_main(progname=sys.argv[0]):
                            
               if not pargs.totable:
                   fh = pargs.ofilehandle
-                  print >> fh, '# '+','.join(header)
+                  print('# '+','.join(header),file=fh)
                   csvwriter = csv.writer(fh)
               else:
                   ptable = display.create_table(header,header=True,maxwidth=60,align='l')
@@ -980,7 +982,7 @@ def brilcalc_main(progname=sys.argv[0]):
               header = ['hltconfigid','hltkey','run']    
               if not pargs.totable:
                   fh = pargs.ofilehandle
-                  print >> fh, '# '+','.join(header)
+                  print('# '+','.join(header),file=fh)
                   csvwriter = csv.writer(fh)
               else:
                   ptable = display.create_table(header,header=True,maxwidth=80,align='l')
