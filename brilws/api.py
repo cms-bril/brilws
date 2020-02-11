@@ -135,6 +135,7 @@ def checksuperset(iovseries,cmsseries):
     
     diffls = {}
     #check for each run, normtag ls must be the superset
+    
     for runnum in sorted(iovdict.keys()):
         lsrange = iovdict[runnum]
         if runnum in cmsseries.index:
@@ -472,9 +473,8 @@ def build_sqlfilename(outfilenamebase,operationtype='create',suffix=None,dbflavo
 
 def drop_tables_sql(outfilebase,schema_def,suffix=None,dbflavor='sqlite'):
     results=[]
-    tables=schema_def.keys()
     outfilename=build_sqlfilename(outfilebase,operationtype='drop',suffix=suffix,dbflavor=dbflavor)
-    for tname in tables:
+    for tname in schema_def.keys():
         results.append(drop_table_stmt(tname,dbflavor=dbflavor))
     resultStr='\n'.join(results)
     if suffix:
@@ -482,7 +482,7 @@ def drop_tables_sql(outfilebase,schema_def,suffix=None,dbflavor='sqlite'):
     resultStr=resultStr.upper()
 
     with open(outfilename,'w') as sqlfile:
-        sqlfile.write('/* tablelist: %s */\n'%(','.join([t.upper() for t in tables])))
+        sqlfile.write('/* tablelist: %s */\n'%(','.join([t.upper() for t in schema_def.keys()])))
         sqlfile.write(resultStr)
     
 def create_tables_sql(outfilebase,schema_def,suffix=None,dbflavor='sqlite',writeraccount=''):
@@ -495,7 +495,7 @@ def create_tables_sql(outfilebase,schema_def,suffix=None,dbflavor='sqlite',write
     resultStr=''
     fkresults=[]
     ixresults=[]
-    tables=schema_def.keys()
+    #tables=list(schema_def.keys())
     outfilename=build_sqlfilename(outfilebase,operationtype='create',suffix=suffix,dbflavor=dbflavor)
     columntypemap={}  
     if dbflavor=='oracle':
@@ -635,10 +635,10 @@ def string_folding_wrapper(results):
     """
     # Get the list of keys so that we build tuples with all
     # the values in key order.
-    keys = results.keys()
+    #keys = results.keys()
     folder = StringFolder()
     for row in results:
-        yield tuple( folder.fold_string(row[key]) for key in keys )    
+        yield tuple( folder.fold_string(row[key]) for key in results.keys() )   
 
 def iov_getpayload(connection,payloadid,payloaddatadict,maxnitems=1):
     """
@@ -822,8 +822,8 @@ def iov_insertdata(engine,iovtagname,datasource,iovdata,applyto='lumi',isdefault
             _insert_iovtag(connection,basetablename,iovtagid,iovtagname,utcstr,datasource.upper(),applyto.upper(),isdefault,comments,schemaname=schemaname)
 
         for sincedict in iovdata:
-            sincerunnum = sincedict.keys()[0]
-            payloaddata = sincedict.values()[0]
+            sincerunnum = list(sincedict.keys())[0]
+            payloaddata = list(sincedict.values())[0]
             func = str(sincedict[sincerunnum]['func'])
             sincecomments =  sincedict[sincerunnum]['comments']
             payloadstr = str(sincedict[sincerunnum]['payload'])

@@ -35,15 +35,15 @@ def _open_validfile(filename, tables):
     except tb.exceptions.HDF5ExtError:
         log.debug('failed to open %s, skip'%filename)
         return None
-    nodes = f.root._v_children.keys()
+    nodes = list(f.root._v_children.keys())
     if not len(nodes):
         f.close()
-        return None
+        return None    
     if not _is_subset(tables,nodes):
         f.close()
         return None
-    tablelist = map(lambda x: f.get_node('/'+x),tables) #get selected tables by name
-    filledtables = filter(lambda x: x.nrows>0, tablelist)  #filledtables
+    tablelist = [f.get_node('/'+x) for x in tables]
+    filledtables = [x for x in tablelist if x.nrows>0]
     if len(tablelist) != len(filledtables):
         return None
     return f
@@ -57,8 +57,8 @@ def open_validfiles(filenames,lumitype):
     requiredtables = ['tcds','beam']
     if mytype in params._lumitypeToh5tablename.keys():
         requiredtables.append(params._lumitypeToh5tablename[mytype])
-
-    return filter(lambda x: x is not None,[_open_validfile(f,requiredtables) for f in filenames])
+    fhs = [_open_validfile(f,requiredtables) for f in filenames]
+    return [x for x in fhs if x is not None]
 
 def _build_preselectcondition( runmin=None,runmax=None,fillmin=None,tssecmin=None,tssecmax=None,fillmax=None, runlsselect=None ):
         if runlsselect is not None:        
@@ -116,7 +116,7 @@ class dataRangeIterator:
         '''
         for f in self._filehandles: #loop over files
             log.debug('Processing file '+f.filename)
-            alltables = f.root._v_children.keys()
+            alltables = list(f.root._v_children.keys())
             if not _is_subset(self._tablenames,alltables):
                 log.debug('file %s does not contain all the tables, skip '%f.filename)
                 continue
@@ -240,7 +240,7 @@ def resultIter(filehandles,lumitype,datatype='best',runmin=None,runmax=None,fill
     tbuilder = typebuilder(datatablename,datatype,withBX)
     preconditionStr = _build_preselectcondition(runmin=runmin,runmax=runmax,fillmin=fillmin,tssecmin=tssecmin,tssecmax=tssecmax,fillmax=fillmax,runlsselect=runlsselect)
     rangeIter = dataRangeIterator(filehandles,['tcds','beam',datatablename],preconditionStr)
-        
+         
     for co in rangeIter.next():
         filehandle = co[0]
         all_coordinates = co[1].values()
@@ -349,12 +349,13 @@ if __name__=='__main__':
     
     filenames =  ['/home/zhen/data/7491/7491_327560_1812020731_1812021237.hd5']
     lumitype = 'BEST'
-    filehandles = open_validfiles(filenames,lumitype)    
+    filehandles = open_validfiles(filenames,lumitype)
+    print(filehandles)
     for result in resultIter(filehandles,lumitype,'best',fillmin=7491,fillmax=7491,runlsselect=runlsselect,beamstatusid=11,withBX=True):
-        print result['fillnum'],result['runnum'],result['lsnum'],result['timestampsec'],result['beamstatusid'],result['cmson'],result['delivered'],result['recorded']
+        print(result['fillnum'],result['runnum'],result['lsnum'],result['timestampsec'],result['beamstatusid'],result['cmson'],result['delivered'],result['recorded'])
     lumitype = 'HFOC'
     for result in resultIter(filehandles,lumitype,'raw',fillmin=7491,fillmax=7491,runlsselect=runlsselect,beamstatusid=11,withBX=False):
-        print result['fillnum'],result['runnum'],result['lsnum'],result['timestampsec'],result['beamstatusid'],result['cmson'],result['avglumi']
+        print(result['fillnum'],result['runnum'],result['lsnum'],result['timestampsec'],result['beamstatusid'],result['cmson'],result['avglumi'])
 
     [f.close() for f in filehandles] 
     
