@@ -33,13 +33,13 @@ def WeekOfYear(dt):
     
 if __name__ == '__main__':
     tsec = DatetimeToSec(datetime.utcnow())
-    print tsec
+    print(tsec)
     t = SecToDatetime(tsec)
-    print t
-    print WeekOfYear(t)
+    print(t)
+    print(WeekOfYear(t))
     tp = t.timetuple()
-    print tp.tm_year,tp.tm_mon,tp.tm_wday,tp.tm_yday
-    print SecToDatetimeStr(tsec)
-    print LSDuration()
-    print LSDuration().seconds, LSDuration().microseconds
+    print(tp.tm_year,tp.tm_mon,tp.tm_wday,tp.tm_yday)
+    print(SecToDatetimeStr(tsec))
+    print(LSDuration())
+    print(LSDuration().seconds, LSDuration().microseconds)
     

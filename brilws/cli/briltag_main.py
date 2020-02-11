@@ -77,7 +77,8 @@ def briltag_main(progname=sys.argv[0]):
          parseresult = briltag_listiov.validate(parseresult)
          pargs = clicommonargs.parser(parseresult)
          dbschema = ''
-         if not pargs.dbconnect.find('oracle')!=-1: dbschema = 'cms_lumi_prod'
+         if not pargs.dbconnect.find('oracle')!=-1: 
+             dbschema = 'cms_lumi_prod'
          dbengine = create_engine(pargs.connecturl)
          istypedefault = False
          if '--isdefault' in parseresult:
@@ -91,7 +92,6 @@ def briltag_main(progname=sys.argv[0]):
              display.show_table(ptable,'tab')
          else:
              iovtagdata = api.iov_gettagdata(dbengine,pargs.name,schemaname=dbschema)
-             #print iovtagdata
              header = ['since','func','payload','comments']
              ptable = display.create_table(header,header=True)
              for sincedata in iovtagdata:
@@ -137,7 +137,6 @@ def briltag_main(progname=sys.argv[0]):
              iovdata = pargs.yamlobj['since']
          else:
              raise ValueError('since cannot be empty')
-         #print iovtagname,applyto,datasource,comments,istypedefault
          iovtagid = api.iov_insertdata(dbengine,iovtagname,datasource,iovdata,applyto=applyto,isdefault=istypedefault,comments=comments,schemaname=dbschema)
                   
       elif args['<command>'] == 'insertdata':

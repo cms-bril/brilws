@@ -34,4 +34,4 @@ def validate(optdict):
     return result
 
 if __name__ == '__main__':
-    print docopt(__doc__,options_first=True)
+    print (docopt(__doc__,options_first=True))
