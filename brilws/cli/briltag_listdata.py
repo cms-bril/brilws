@@ -16,7 +16,7 @@ from brilws.cli import clicommonargs
 
 def validate(optdict):
     myvalidables = ['-c',str]
-    argdict = dict((k,v) for k,v in clicommonargs.argvalidators.iteritems() if k in myvalidables)
+    argdict = dict((k,v) for k,v in clicommonargs.argvalidators.items() if k in myvalidables)
     s = Schema(argdict)
     result = s.validate(optdict)
     return result

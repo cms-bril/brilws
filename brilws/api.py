@@ -422,7 +422,7 @@ def build_column_stmt(columns,typemap,notnull=[]):
     results=[]
     for cdict in columns:
         result=''
-        cname,ctype = next(cdict.iteritems())
+        cname,ctype = next(cdict.items())
         ctype=typemap[ctype]
         result=result+'%s %s '%(cname,ctype)
         if notnull and cname in notnull:

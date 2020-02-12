@@ -55,7 +55,7 @@ def briltag_main(progname=sys.argv[0]):
 
     try:      
       if args['<command>'] == 'listdata':
-         import briltag_listdata
+         from . import briltag_listdata
          parseresult = docopt.docopt(briltag_listdata.__doc__,argv=cmmdargv)
          parseresult = briltag_listdata.validate(parseresult)
 

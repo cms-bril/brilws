@@ -619,7 +619,7 @@ def brilcalc_main(progname=sys.argv[0]):
           if datasources :
               for [qt,nt,ds,rs] in datasources:
                   if rs is None: continue
-                  for r,l in rs.iteritems():
+                  for r,l in rs.items():
                       if not r in rselectrange:
                           rselectrange.append(r)   
           withfileinput = False
@@ -727,7 +727,7 @@ def brilcalc_main(progname=sys.argv[0]):
 
           if checkjson:
               selectlist = []
-              for k,v in rselect.iteritems():
+              for k,v in rselect.items():
                   for vv in v:
                       rlist = api.expandrange(vv)
                       for r in rlist:
