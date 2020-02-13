@@ -200,7 +200,7 @@ def lumi_per_normtag(shards,lumiquerytype,dbengine,dbschema,runtot,formatter,dat
                         ls_trglastscaled = 1
                         this_prescidx = None                        
                     else:
-                        ls_trglastscaled = np.max( b )
+                        ls_trglastscaled = np.max( b ).item()
                         this_prescidx = [t[1] for t in presc if t[0]==ls_trglastscaled][0]
                 if (g_ls_trglastscaled_old != ls_trglastscaled) or (g_run_old != runnum): #on prescale change lumi section or new run
                     prescale_map = {} #clear prescaleindex change map on new prescale index value
@@ -375,7 +375,8 @@ class ValidityChecker(object):
         self.allsince = np.array([x[0] for x in normdata])
         
     def getvalidity(self,runnum):
-        if self.allsince.size == 0 : return None
+        if self.allsince.size == 0 : 
+            return None
         since = 1
         if self.allsince[self.allsince<=runnum].size>0:
             since = self.allsince[self.allsince<=runnum].max()
@@ -618,8 +619,9 @@ def brilcalc_main(progname=sys.argv[0]):
           rselectrange = [] 
           if datasources :
               for [qt,nt,ds,rs] in datasources:
-                  if rs is None: continue
-                  for r,l in rs.items():
+                  if rs is None: 
+                      continue
+                  for r,l in rs.iteritems():
                       if not r in rselectrange:
                           rselectrange.append(r)   
           withfileinput = False
@@ -727,7 +729,7 @@ def brilcalc_main(progname=sys.argv[0]):
 
           if checkjson:
               selectlist = []
-              for k,v in rselect.items():
+              for k,v in rselect.iteritems():
                   for vv in v:
                       rlist = api.expandrange(vv)
                       for r in rlist:
