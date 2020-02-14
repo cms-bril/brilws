@@ -3,9 +3,8 @@ import numpy as np
 import pandas as pd
 import os,sys
 import logging
-import params
-
 from time import time
+from . import params
 
 log = logging.getLogger('brilws')
 
