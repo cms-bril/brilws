@@ -327,11 +327,14 @@ def parseiovtagselectionJSON(filepath_or_buffer):
         d = word.sub(r'"\1",',d) #add quotes to iovtag field
         result = pd.Series( ast.literal_eval(d) ) #Series returns unicode
     final = []
-    for r in result:
-        if r[0] and isinstance(r[0],unicode):
-            iovtag = str(r[0])
-        else:
+    for r in result:   
+        if sys.version_info > (3,):
             iovtag = r[0]
+        else:            
+            if r[0] and isinstance(r[0],unicode):
+                iovtag = str(r[0])
+            else:
+                iovtag = r[0]
         payload = r[1:]
         for piece in payload :
             if isinstance(piece,dict):
@@ -1175,7 +1178,7 @@ def datatagnameid(dbengine,datatagname,schemaname=''):
     log.debug(q)
     qresult = pd.read_sql_query(q,dbengine,params={'datatagname':datatagname})
     for idx,row in qresult.iterrows():
-        result = row['datatagnameid']
+        result = row['datatagnameid'].item()
     return result
 
 def max_datatagOfRun(engine,runlist,schemaname=''):
@@ -1221,7 +1224,6 @@ def build_idquery_condition(alias,runmin=None,runmax=None,fillmin=None,tssecmin=
     a = ''
     if alias:
         a = alias+'.'
-        
     if fillmin and fillmax:
         if fillmin==fillmax:
             qPieces.append('%sfillnum=:fillnum'%a)
@@ -1796,7 +1798,7 @@ def dataIter(engine,datasource,datatype,suffix,datafields=[],idfields=[],scheman
             for fbk, fbv in fbinddict.items(): #merge binddict
                 binddict[fbk] = fbv
         if datatagnameid:
-            binddict['datatagnameid'] = datatagnameid        
+            binddict['datatagnameid'] = datatagnameid
         q = build_joinwithdatatagid_query(basetablename,suffix,datafields,idf,qCondition,datatagnameid=datatagnameid,ffields=ffields,fcondition=fCondition,schemaname=schemaname,sorted=sorted)
     
         log.debug('dataIter %s %s: '%(datasource,datatype)+q)
