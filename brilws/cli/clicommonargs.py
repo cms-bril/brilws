@@ -9,6 +9,7 @@ from configparser import SafeConfigParser
 import yaml
 import numpy as np
 import base64
+
 def parseservicemap(authfile):
     '''
     parse service config ini file
@@ -105,7 +106,7 @@ class parser(object):
             self._xingTr = self._argdict['--xingTr']
         if '--xingId' in self._argdict and self._argdict['--xingId']:
             d = self._argdict['--xingId']
-            if isinstance(d,file):
+            if hasattr(d,'read'):
                 d = d.read()
             dd = np.array([int(i) for i in d.replace(' ','').split(',')])
             if not (dd>=1).all() and (dd<=3564).all():
