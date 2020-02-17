@@ -1014,8 +1014,12 @@ def unpackBlobtoArray(iblob,itemtypecode):
     iblob: blob
     itemtypecode: python array type code 
     '''
-    if not isinstance(iblob,buffer) and not isinstance(iblob,str):
-        return None
+    if sys.version_info > (3,):
+        if not isinstance(iblob,bytes) and not isinstance(iblob,memoryview):
+            return None 
+    else:    
+        if not isinstance(iblob,buffer) and not isinstance(iblob,str):
+            return None
     if itemtypecode not in ['c','b','B','u','h','H','i','I','l','L','f','d']:
         raise RuntimeError('unsupported typecode '+itemtypecode)
     result=array.array(itemtypecode)
