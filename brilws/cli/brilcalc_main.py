@@ -161,7 +161,8 @@ def lumi_per_normtag(shards,lumiquerytype,dbengine,dbschema,runtot,formatter,dat
                 if not shardexists: continue
                 rfields = ['avglumi']
                 idfields = ['fillnum','runnum','lsnum','timestampsec','beamstatusid','cmson','deadtimefrac','targetegev','numbxbeamactive']
-                if withBX: rfields = rfields+['bxlumiblob']
+                if withBX: 
+                    rfields = rfields+['bxlumiblob']
                 lumiiter = api.dataIter(dbengine,datasource,datatype,shard,datafields=rfields,idfields=idfields,schemaname=dbschema,fillmin=fillmin,fillmax=fillmax,runmin=runmin,runmax=runmax,amodetagid=amodetagid,targetegev=egev,beamstatusid=beamstatusid,tssecmin=tssecmin,tssecmax=tssecmax,runlsselect=runlsSeries,sorted=True,datatagnameid=datatagnameid)                    
                   
         if lumiiter is None:
