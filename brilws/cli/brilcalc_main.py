@@ -54,10 +54,12 @@ sys.stdout = Unbuffered(sys.stdout)
 np.seterr(divide='ignore', invalid='ignore')
 
 def xing_indexfilter(arr,constfactor=1.,xingMin=0.,xingTr=0.,xingId=[]):
-    vidx = None    
-    if xingTr:
+    vidx = None
+    if(xingMin is None):
+        xingMin = 0
+    if xingTr:        
         vidx = np.argwhere( np.logical_and( (arr*constfactor)>xingMin, arr>xingTr*np.max(arr) ) ).ravel()
-    else:
+    else:        
         vidx = np.argwhere( (arr*constfactor)>xingMin ).ravel()
     if xingId :
         posidx = np.array(xingId)-1 #array position index is bunch index - 1
@@ -323,7 +325,7 @@ def lumi_per_normtag(shards,lumiquerytype,dbengine,dbschema,runtot,formatter,dat
                     bxlumistr = '[]'
                     if bxlumi is not None:
                         bxidx = xing_indexfilter(bxlumi,constfactor=totfactor,xingMin=xingMin,xingTr=xingTr,xingId=xingId)          
-                        if bxidx is not None and bxidx.size>0:                                      
+                        if bxidx is not None and bxidx.size>0:           
                             bxdelivered =  bxlumi[bxidx]*totfactor
                             bxlumi = np.transpose( np.array([bxidx+1,bxdelivered,bxdelivered*livefrac]) )
                         else:
@@ -332,10 +334,10 @@ def lumi_per_normtag(shards,lumiquerytype,dbengine,dbschema,runtot,formatter,dat
                         del bxidx
                     if hltl1map:#--hltpath xing display
                         for pth in prescale_map.keys():
-                            thispresc = prescale_map[pth]                            
+                            thispresc = prescale_map[pth]             
                             if bxlumi is not None:
                                 a = map(formatter.bxlumi,bxlumi/thispresc)  
-                                bxlumistr = '['+' '.join(a)+']'                            
+                                bxlumistr = '['+' '.join(a)+']'               
                             display.add_row( ['%d:%d'%(runnum,fillnum),'%d:%d'%(lsnum,cmslsnum),dtime,pth,formatter.lumi(np.true_divide(delivered,thispresc)),formatter.lumi(np.true_divide(recorded,thispresc)),datasource.upper(),'%s'%bxlumistr] , fh=fh, csvwriter=csvwriter, ptable=ptable)                            
                     else:       #normal xing display
                         if bxlumi is not None:
