@@ -1018,7 +1018,7 @@ def unpackBlobtoArray(iblob,itemtypecode):
     itemtypecode: python array type code 
     '''
     if sys.version_info > (3,):
-        if not isinstance(iblob,bytes) and not isinstance(iblob,memoryview):
+        if not isinstance(iblob,bytes) and not isinstance(iblob,bytearray):
             return None 
     else:    
         if not isinstance(iblob,buffer) and not isinstance(iblob,str):
