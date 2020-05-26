@@ -9,8 +9,10 @@ import brilws
 import yaml
 import base64
 from sqlalchemy import *
-#from ConfigParser import SafeConfigParser
-from configparser import SafeConfigParser
+if sys.version_info[0] == 2:
+    from ConfigParser import SafeConfigParser
+else:
+    from configparser import SafeConfigParser
 from brilws import api
 import pandas as pd
 
