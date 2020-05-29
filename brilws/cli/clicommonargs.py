@@ -5,7 +5,10 @@ from datetime import datetime
 import calendar
 from schema import And, Or, Use
 from dateutil import tz
-from configparser import SafeConfigParser
+if sys.version_info[0] == 2:
+    from ConfigParser import SafeConfigParser
+else:
+    from configparser import SafeConfigParser
 import yaml
 import numpy as np
 import base64
