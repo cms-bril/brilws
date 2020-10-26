@@ -789,7 +789,7 @@ def brilcalc_main(progname=sys.argv[0]):
               header = ['fill','run','ls','time','[bxidx intensity1 intensity2]']
           if not pargs.totable:
               fh = pargs.ofilehandle
-              print('#Data tag : %s'%(datatagname), file = fn)
+              print('#Data tag : %s'%(datatagname), file = fh)
               print('#'+','.join(header), file=fh)
               csvwriter = csv.writer(fh)
           else:
