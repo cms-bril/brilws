@@ -122,14 +122,14 @@ def checksuperset(iovseries,cmsseries):
         v = pd.Series(data[runnum]).apply(expandrange)
         v = v.apply(np.unique)
         vi = np.hstack(v.values)
-        if not iovdict.has_key(runnum):            
+        if runnum not in iovdict:            
             iovdict[runnum] = []            
         iovdict[runnum] = iovdict[runnum]+vi.tolist()
 
     #check all requested runs must be covered in normtag
     diffruns = []
     for runnum in cmsseries.index.tolist():
-        if not runnum in iovdict.keys():
+        if runnum not in iovdict.keys():
             diffruns.append(runnum)
     #raise UnNormedRunError('UnNormedRunError',diffruns)
     
@@ -144,7 +144,7 @@ def checksuperset(iovseries,cmsseries):
             if not set(lsrange).issuperset(cmslsvals_flat):
                 supersetlist = [[min(x),max(x)] for x in consecutive(np.array(lsrange))]
                 subsetlist = cmsseries[runnum]
-                if not diffls.has_key(runnum):
+                if runnum not in diffls:
                     diffls[runnum] = []
                 diffls[runnum] = (supersetlist,subsetlist) 
                 #raise NotSupersetError('NotSupersetError',runnum,supersetlist,subsetlist)
@@ -175,7 +175,7 @@ def merge_twodicts_onkeys(x,y):
     ds = [x,y]
     z = {}
     for k in x.keys():
-        samekeylists = [d[k] for d in ds if d.has_key(k)]
+        samekeylists = [d[k] for d in ds if k in d]
         if samekeylists:
             z[k] = list(itertools.chain.from_iterable(samekeylists))
     return z
@@ -317,7 +317,11 @@ def parseiovtagselectionJSON(filepath_or_buffer):
     result = None
     d = get_filepath_or_buffer(filepath_or_buffer)    
     if os.path.isfile(filepath_or_buffer):
-        result = pd.read_json(d,orient='index',convert_axes=False,typ='Series')
+        import json
+        with open(d) as json_file:
+            data = json.load(json_file)
+        result = pd.Series(data=data)
+        #result = pd.read_json(data,orient='index',convert_axes=False,typ='Series')
     elif filepath_or_buffer.find('[') == -1:
         return filepath_or_buffer
     else:
@@ -366,7 +370,11 @@ def parsecmsselectJSON(filepath_or_buffer,numpy=False):
         pass
 
     if os.path.isfile(d):
-        result = pd.read_json(d,orient='index',convert_axes=False,typ='Series',numpy=numpy)
+        import json
+        with open(d) as json_file:
+            data = json.load(json_file)
+        result = pd.Series(data)
+        #result = pd.read_json(data,orient='index',convert_axes=False,typ='Series',numpy=numpy)
     else:
         d = ast.literal_eval(d)
         result = pd.Series(d)
@@ -498,7 +506,7 @@ def create_tables_sql(outfilebase,schema_def,suffix=None,dbflavor='sqlite',write
     resultStr=''
     fkresults=[]
     ixresults=[]
-    #tables=list(schema_def.keys())
+    tables=list(schema_def.keys())
     outfilename=build_sqlfilename(outfilebase,operationtype='create',suffix=suffix,dbflavor=dbflavor)
     columntypemap={}  
     if dbflavor=='oracle':
@@ -513,9 +521,9 @@ def create_tables_sql(outfilebase,schema_def,suffix=None,dbflavor='sqlite',write
         result=create_table_stmt(tname,dbflavor=dbflavor)
         cs=schema_def[tname]['columns']
         nnus=[]
-        if schema_def[tname].has_key('notnull'):
+        if 'notnull' in schema_def[tname]:
            nnus=schema_def[tname]['notnull']
-        if schema_def[tname].has_key('index'):
+        if 'index' in schema_def[tname]:
            idxes=schema_def[tname]['index']
            dictidxes={}
            if idxes: 
@@ -529,7 +537,7 @@ def create_tables_sql(outfilebase,schema_def,suffix=None,dbflavor='sqlite',write
                 fks[k]=schema_def[tname][k]
         result=result+','+build_pk_stmt(tname,pks)
         unqs=None
-        if schema_def[tname].has_key('unique'):
+        if 'unique' in schema_def[tname]:
            unqs=schema_def[tname]['unique']
            result=result+','+build_unique_stmt(tname,unqs)
         
@@ -683,7 +691,7 @@ def iov_getpayload(connection,payloadid,payloaddatadict,maxnitems=1):
                     payload[iitem] = [None]*nfields
                 if payload[iitem][field_idx] is None:
                     payload[iitem][field_idx] = [None]*maxnpos
-                if not r.has_key('key'):
+                if 'key' not in r:
                     payload[iitem][field_idx][ipos] = val
                 else:
                     key = r['key']
@@ -1134,8 +1142,8 @@ def buildselect_runls(inputSeries,alias=''):
         for lsmin,lsmax in lsrange:
             lminvar = 'lmin_%d'%(bind_lsindex)
             lmaxvar = 'lmax_%d'%(bind_lsindex)
-            var_lmins[lminvar] = lsmin
-            var_lmaxs[lmaxvar] = lsmax
+            var_lmins[lminvar] = int(lsmin)
+            var_lmaxs[lmaxvar] = int(lsmax)
             orss.append( '(%slsnum>=:%s and %slsnum<=:%s)'%(prefix,lminvar,prefix,lmaxvar) )
             bind_lsindex = bind_lsindex + 1
         ss = '('+' or '.join(orss)+')'
@@ -1252,8 +1260,9 @@ def build_idquery_condition(alias,runmin=None,runmax=None,fillmin=None,tssecmin=
         if s_runls:
             s_runls_str = s_runls[0]
             var_runs = s_runls[1]
-            var_lmins = s_runls[2]            
+            var_lmins = s_runls[2]
             var_lmaxs = s_runls[3]
+           
             qPieces.append(s_runls_str)
             for runvarname,runvalue in var_runs.items():
                 binddict[runvarname] = runvalue
