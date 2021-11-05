@@ -63,7 +63,10 @@ def briltag_main(progname=sys.argv[0]):
          pargs = clicommonargs.parser(parseresult)
          dbschema = ''
          if not pargs.dbconnect.find('oracle')!=-1: dbschema = 'cms_lumi_prod'
-         dbengine = create_engine(pargs.connecturl)          
+         if sys.version_info > (3,):
+             dbengine = create_engine(pargs.connecturl,max_identifier_length=128)
+         else:
+             dbengine = create_engine(pargs.connecturl)     
          tags = api.data_gettags(dbengine,schemaname=dbschema)
          header = ['datatagnameid','datatagname','creationutc','comments']
          ptable = display.create_table(header,header=True)
@@ -79,7 +82,10 @@ def briltag_main(progname=sys.argv[0]):
          dbschema = ''
          if not pargs.dbconnect.find('oracle')!=-1: 
              dbschema = 'cms_lumi_prod'
-         dbengine = create_engine(pargs.connecturl)
+         if sys.version_info > (3,):
+             dbengine = create_engine(pargs.connecturl,max_identifier_length=128)
+         else:
+             dbengine = create_engine(pargs.connecturl)
          istypedefault = False
          if '--isdefault' in parseresult:
              istypedefault = True
@@ -109,7 +115,10 @@ def briltag_main(progname=sys.argv[0]):
          pargs = clicommonargs.parser(parseresult)
          dbschema = ''
          if not pargs.dbconnect.find('oracle')!=-1: dbschema = 'cms_lumi_prod'         
-         dbengine = create_engine(pargs.connecturl)
+         if sys.version_info > (3,):
+             dbengine = create_engine(pargs.connecturl,max_identifier_length=128)
+         else:
+             dbengine = create_engine(pargs.connecturl)
          istypedefault=False
          if 'istypedefault' in pargs.yamlobj:
              istypedefault =  pargs.yamlobj['istypedefault']
@@ -146,7 +155,10 @@ def briltag_main(progname=sys.argv[0]):
           pargs = clicommonargs.parser(parseresult)
           dbschema = ''
           if not pargs.dbconnect.find('oracle')!=-1: dbschema = 'cms_lumi_prod'
-          dbengine = create_engine(pargs.connecturl)
+          if sys.version_info > (3,):
+             dbengine = create_engine(pargs.connecturl,max_identifier_length=128)
+         else:
+             dbengine = create_engine(pargs.connecturl)
           name = pargs.name
           if not name: raise NameError('--name cannot be empty')
           datatagnameid = api.data_createtag(dbengine,datatagname=name,comments=pargs.comments,schemaname=dbschema)

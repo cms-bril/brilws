@@ -467,8 +467,10 @@ def brilcalc_main(progname=sys.argv[0]):
           dbschema = ''
           if not pargs.dbconnect.find('oracle')!=-1: dbschema = 'cms_lumi_prod'
           log.debug('connecturl: %s'%pargs.connecturl)
-          dbengine = create_engine(pargs.connecturl)
-          
+          if sys.version_info > (3,):
+              dbengine = create_engine(pargs.connecturl,max_identifier_length=128)
+          else:
+              dbengine = create_engine(pargs.connecturl)
           totz=utctmzone
           if pargs.cerntime:
               totz=cerntmzone
@@ -773,7 +775,10 @@ def brilcalc_main(progname=sys.argv[0]):
           ##db params
           dbschema = ''
           if not pargs.dbconnect.find('oracle')!=-1: dbschema = 'cms_lumi_prod'
-          dbengine = create_engine(pargs.connecturl)
+          if sys.version_info > (3,):
+              dbengine = create_engine(pargs.connecturl,max_identifier_length=128)
+          else:
+              dbengine = create_engine(pargs.connecturl)
           totz=utctmzone
           if pargs.cerntime: totz=cerntmzone
           if pargs.tssec: totz=None
@@ -865,8 +870,10 @@ def brilcalc_main(progname=sys.argv[0]):
           ##db params
           dbschema = ''
           if not pargs.dbconnect.find('oracle')!=-1: dbschema = 'cms_lumi_prod'
-          dbengine = create_engine(pargs.connecturl)
-                  
+          if sys.version_info > (3,):
+              dbengine = create_engine(pargs.connecturl,max_identifier_length=128)
+          else:
+              dbengine = create_engine(pargs.connecturl)
           ##display params          
           fh = None
           ptable = None

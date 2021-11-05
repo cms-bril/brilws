@@ -123,7 +123,11 @@ def brilschema_main(progname=sys.argv[0]):
                  idx = sourceengine.find('@')
                  code = base64.b64decode(sourcepasswd).decode('UTF-8')
                  sourceurl = sourceengine[:idx]+':'+code+sourceengine[idx:]
-             inengine = create_engine(soureceurl)
+             #inengine = create_engine(soureceurl)
+             if sys.version_info > (3,):
+                 inengine = create_engine(sourceurl,max_identifier_length=128)
+             else:
+                 inengine = create_engine(sourceurl)
          result = d.from_sourcedb(inengine)
          print (result)
          if os.path.isfile(outengine):
@@ -136,7 +140,11 @@ def brilschema_main(progname=sys.argv[0]):
                  idx = outengine.find('@')
                  destcode =  base64.b64decode(destpasswd).decode('UTF-8')
                  desturl = outengine[:idx]+':'+destcode+outengine[idx:]             
-             outengine = create_engine(desturl)
+             #outengine = create_engine(desturl)
+             if sys.version_info > (3,):
+                 outengine = create_engine(desturl,max_identifier_length=128)
+             else:
+                 outengine = create_engine(desturl)
              d.to_brildb(outengine,result)
       elif args['<command>'] == 'loaddata':
          import brilschema_loaddata         
@@ -173,7 +181,10 @@ def brilschema_main(progname=sys.argv[0]):
                  idx = lumidburl.find('@')
                  lumicode = base64.b64decode(lumidbpasswd).decode('UTF-8')
                  lumidburl = lumidburl[:idx]+':'+lumicode+lumidburl[idx:]             
-             lumidbengine = create_engine(lumidburl)
+             if sys.version_info > (3,):
+                 lumidbengine = create_engine(lumidburl,max_identifier_length=128)
+             else:
+                 lumidbengine = create_engine(lumidburl)
          datasourcename = parseresult['--name'].lower()
          d = api.LumiResult(datasourcename)
          for run,lss in runlsselect:
