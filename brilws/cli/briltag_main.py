@@ -157,7 +157,7 @@ def briltag_main(progname=sys.argv[0]):
           if not pargs.dbconnect.find('oracle')!=-1: dbschema = 'cms_lumi_prod'
           if sys.version_info > (3,):
              dbengine = create_engine(pargs.connecturl,max_identifier_length=128)
-         else:
+          else:
              dbengine = create_engine(pargs.connecturl)
           name = pargs.name
           if not name: raise NameError('--name cannot be empty')
