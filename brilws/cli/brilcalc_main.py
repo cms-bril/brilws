@@ -56,7 +56,7 @@ np.seterr(divide='ignore', invalid='ignore')
 def xing_indexfilter(arr,constfactor=1.,xingMin=0.,xingTr=0.,xingId=[]):
     vidx = None
     if(xingMin is None):
-        xingMin = 0
+        xingMin = float('-inf')
     if xingTr:        
         vidx = np.argwhere( np.logical_and( (arr*constfactor)>xingMin, arr>xingTr*np.max(arr) ) ).ravel()
     else:        

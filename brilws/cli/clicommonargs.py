@@ -373,7 +373,7 @@ class parser(object):
 argvalidators = {
     '--amodetag': Or(None,And(str,lambda s: s.upper() in params._amodetagChoices), error='--amodetag must be in '+str(params._amodetagChoices) ),
     '--beamenergy': Or(None,And(Use(int), lambda n: n>0), error='--beamenergy should be a positive number'),
-    '--xingMin': Or(None,And(Use(float), lambda n: n>0), error='--xingMin should be a positive number'),
+    '--xingMin': Or(None,Use(float)),
     '--xingTr': Or(None,And(Use(float), lambda n: (n>0 and n<=1)), error='--xingTr should be a number in (0,1]'),
     '--xingId': Or(None,Or( Use(open),Use(RegexValidator.RegexValidator(params._bxlist_pattern))), error='--xingId should be a comma separated list of numbers'),
     '--minBiasXsec': Or(None,And(Use(float), lambda f: f>0), error='--minBiasXsec should be float > 0'),
