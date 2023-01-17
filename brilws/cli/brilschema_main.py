@@ -64,7 +64,7 @@ def brilschema_main(progname=sys.argv[0]):
 
     try:
       if args['<command>'] == 'create':
-         import brilschema_create
+         from . import brilschema_create
          parseresult = docopt.docopt(brilschema_create.__doc__,argv=cmmdargv)
          parseresult = brilschema_create.validate(parseresult)
          columntypemap={}
@@ -75,7 +75,7 @@ def brilschema_main(progname=sys.argv[0]):
          writeraccount = ''
          if parseresult['-f']=='oracle':
               columntypemap = api.oracletypemap
-              if parseresult.has_key('--writer'):                  
+              if '--writer' not in parseresult:                  
                   writeraccount = parseresult['--writer']
          else:
               columntypemap = api.sqlitetypemap
@@ -87,7 +87,7 @@ def brilschema_main(progname=sys.argv[0]):
          print ('Done')
 
       elif args['<command>'] == 'loadmap':
-         import brilschema_loadmap         
+         from . import brilschema_loadmap         
          parseresult = docopt.docopt(brilschema_loadmap.__doc__,argv=cmmdargv)
          parseresult = brilschema_loadmap.validate(parseresult)
          inengine = os.path.expanduser(parseresult['-i'])
@@ -147,7 +147,7 @@ def brilschema_main(progname=sys.argv[0]):
                  outengine = create_engine(desturl)
              d.to_brildb(outengine,result)
       elif args['<command>'] == 'loaddata':
-         import brilschema_loaddata         
+         from . import brilschema_loaddata         
          parseresult = docopt.docopt(brilschema_loadmap.__doc__,argv=cmmdargv)
          parseresult = brilschema_loaddata.validate(parseresult)
          incsv = os.path.expanduser(parseresult['-i'])
@@ -164,7 +164,7 @@ def brilschema_main(progname=sys.argv[0]):
                  d.from_lumidb(lumidbengine,fillnum)
                  print (d)
       elif args['<command>'] == 'loadresult':
-         import brilschema_loadresult
+         from . import brilschema_loadresult
          iniparser = SafeConfigParser()
          parseresult = docopt.docopt(brilschema_loadresult.__doc__,argv=cmmdargv)
          parseresult = brilschema_loadresult.validate(parseresult)
@@ -198,8 +198,8 @@ def brilschema_main(progname=sys.argv[0]):
     except schema.SchemaError as e:
       exit(e)
 
-    if not parseresult.has_key('--debug'):
-       if parseresult.has_key('--nowarning'):
+    if '--debug' not in parseresult:
+       if '--nowarning' not in parseresult:
           log.setLevel(logging.ERROR)
           ch.setLevel(logging.ERROR)
     else:

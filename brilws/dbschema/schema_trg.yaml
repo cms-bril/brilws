@@ -50,16 +50,3 @@ HLTSCALER:               #per ls, per hltpath, per prescidx change
     - hltprescval: uint32
    pk: [runnum,lsnum,hltpathid]
    
-DATASETMAP:   #static map
-   columns:
-    - datasetid: uint32
-    - datasetname: string
-   pk: [datasetid]
-   
-HLTSTREAMDATASET:  #static map , hlt stream, dataset, path map           
-   columns:
-    - hltpathid: uint32
-    - streamlabel: string
-    - datasetid: uint32
-   pk: [hltpathid,streamlabel,datasetid]
-   

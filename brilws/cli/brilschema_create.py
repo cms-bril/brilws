@@ -2,12 +2,13 @@
 Usage:
   brilschema create [options] 
 
-Options:
+options:
   -h, --help       Show this screen
   -i INPUTFILE     Input schema definition file
   -f DBFLAVOR      Database flavor [default: sqlite]
   --writer WRITER  DB Account with write permission
   --suffix SUFFIX  Table suffix 
+
 """
 
 dbflavors=['oracle','sqlite']
@@ -15,6 +16,7 @@ dbflavors=['oracle','sqlite']
 import os
 from docopt import docopt
 from schema import Schema, And, Or, Use
+from brilws.cli import clicommonargs
 
 def validate(optdict):
     result={}
@@ -29,4 +31,4 @@ def validate(optdict):
     return result
 
 if __name__ == '__main__':
-    print (docopt(__doc__,options_first=True))
+    print (docopt(__doc__))
