@@ -147,7 +147,7 @@ def parseservicemap(authfile):
 if __name__ == '__main__':
 
     user_args = sys.argv
-    auth_file = '/home/ilias/brildata/db/devdb.ini'
+    auth_file = 'devdb.ini'
     query_service = 'online'
     update_service = 'dev'
     r = 362319
