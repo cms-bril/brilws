@@ -866,7 +866,7 @@ def brilcalc_main(progname=sys.argv[0]):
           parseresult = brilcalc_trg.validate(parseresult)
           ##parse selection params
           pargs = clicommonargs.parser(parseresult)
-          
+
           ##db params
           dbschema = ''
           if not pargs.dbconnect.find('oracle')!=-1: dbschema = 'cms_lumi_prod'
@@ -969,10 +969,10 @@ def brilcalc_main(progname=sys.argv[0]):
                                   l1prescvals = [ v[0] for v in l1vals ]
                                   l1bits = zip(l1bitnames,l1prescvals)
                                   l1inner = map(fm.bitprescFormatter,l1bits)
-                                  l1bitsStr = ' '.join(l1inner)                          
+                                  l1bitsStr = ' '.join(l1inner)
                                   hltpathStr = '/'.join([hltpathname,str(hltprescval)])
                                   totpresc = totalprescaleNEW(hltprescval,l1seedlogic,l1prescvals)
-                                  display.add_row( [ '%d'%runnum, '%d'%lsnum, '%d'%prescidx, '%d'%totpresc,'%s'%hltpathStr, '%s'%l1seedlogic, '%s'%l1bitsStr], fh=fh, csvwriter=csvwriter, ptable=ptable )  
+                                  display.add_row( [ '%d'%runnum, '%d'%lsnum, '%d'%prescidx, '%.2f'%totpresc,'%s'%hltpathStr, '%s'%l1seedlogic, '%s'%l1bitsStr], fh=fh, csvwriter=csvwriter, ptable=ptable )  
                   del hltl1map
               else:
                   if not presc:

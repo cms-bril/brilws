@@ -9,7 +9,7 @@ def bxintensity(x):
 def bitprescFormatter(x):
     bitname = x[0]
     prescval = x[1]
-    return '%s/%d'%(bitname,prescval)
+    return '%s/%.2f'%(bitname,prescval)
 
 class Formatter:
     def __init__(self, formatstr, prec):

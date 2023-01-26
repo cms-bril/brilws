@@ -1614,7 +1614,7 @@ def get_l1prescale(engine,runnum,lsnum,l1candidates=None,prescidxs=None,ignorel1
     output:
     { (prescidx,bitname): [trgprescval,bitmask]}
     '''
-    trgscalertable = 'trgscaler'
+    trgscalertable = 'trgscaler_new'
     trgrunconftable = 'trgrunconfig'
     result = {} # { (prescidx,bitname): [trgprescval,bitmask]}
     if schemaname:
