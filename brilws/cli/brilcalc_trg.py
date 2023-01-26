@@ -9,6 +9,7 @@ options:
   --pathinfo                   Show hltpath, l1seed expression
   --prescale                   Show trigger prescale changes
   --hltpath HLTPATH            hltpath name/pattern 
+  --dataset DATASET            dataset precise name
   --hltconfig HLTCONFIG        HLT configid or hltkey/pattern  
   --ignore-mask                Ignore trigger bit masks
   --output-style OSTYLE        Screen output style. tab, html, csv [default: tab]

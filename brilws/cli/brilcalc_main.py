@@ -892,7 +892,11 @@ def brilcalc_main(progname=sys.argv[0]):
                       print ('hltconfig not found')
                       sys.exit(0)
                   hltconfigids = np.unique( [h[1] for h in hltrunconfig] )
-                  
+              if pargs.dataset:
+                  r = False #check if hltpath and dataset are in the same menu
+                  if not r:
+                      print( 'dataset {} and hltpath{} are not in the same menu'.format(pargs.dataset,pargs.hltpath) )
+                      sys.exit(0)
               hltl1map = api.get_hlttrgl1seedmap(dbengine,hltpath=pargs.hltpath,hltconfigids=hltconfigids,schemaname=dbschema)
               # {hltconfigid: [[hltpathid,hltpathname,seedtype,[seedvalues]]]}
               if not hltl1map:
@@ -935,7 +939,13 @@ def brilcalc_main(progname=sys.argv[0]):
               else:
                   ptable = display.create_table(header,header=True,maxwidth=60,align='l')
                   
-              if pargs.hltpath:                  
+              if pargs.hltpath:
+                  if pargs.dataset:
+                    r = False #check if hltpath and dataset are in the same menu
+                    if not r:
+                      print( 'dataset {} and hltpath{} are not in the same menu'.format(pargs.dataset,pargs.hltpath) )
+                      sys.exit(0)
+                      
                   hltl1map = api.get_hlttrgl1seedmap(dbengine,hltpath=pargs.hltpath,hltconfigids=hltconfigids,schemaname=dbschema)
                   # {hltconfigid: [[hltpathid,hltpathname,seedtype,[seedvalues]]]}
                   if not hltl1map:

@@ -54,6 +54,7 @@ class parser(object):
         self._chunksize = None
         self._lumitype = None        
         self._hltpath = None
+        self._dataset = None
         self._hltkey = None
         self._hltconfigid = 0
         self._ofilename = '-'
@@ -121,6 +122,14 @@ class parser(object):
             self._lumitype = self._argdict['--type']
         if '--hltpath' in self._argdict:
             self._hltpath = self._argdict['--hltpath']
+        if '--dataset' in self._argdict:
+            if self._argdict['--dataset'] is not None:
+              if self._argdict['--hltpath'] is None:
+                  raise ValueError('--dataset must be used in pair with a --hltpath argument')
+              elif '*' in self._argdict['--hltpath'] or '?' in self._argdict['--hltpath']:
+                  raise ValueError('--dataset must be used in pair with a --hltpath argument without pattern')
+              else:
+                  self._dataset = self._argdict['--dataset']
         if '--hltconfig' in self._argdict:
             hltconfig = self._argdict['--hltconfig']
             if hltconfig:
@@ -296,6 +305,9 @@ class parser(object):
     def hltpath(self):
         return self._hltpath
     @property
+    def dataset(self):
+        return self._dataset
+    @property
     def hltconfigid(self):
         return self._hltconfigid
     @property
@@ -384,6 +396,7 @@ argvalidators = {
 #    '--chunk-size':  And(Use(int), lambda n: n>0, error='--chunk-size should be integer >0'),
     '--type': Or(None, And(str, lambda s: s.upper() in params._lumitypeChoices), error='--type must be in '+str(params._lumitypeChoices) ),
     '--hltpath': Or(None, And(str, Use(RegexValidator.RegexValidator(params._hltpath_pattern))),  error='--hltpath wrong format'),
+    '--dataset': Or(None, And(str, Use(RegexValidator.RegexValidator(params._dataset_pattern))),  error='--dataset wrong format'),
     '--hltconfig': Or(None, And(str, Use(RegexValidator.RegexValidator(params._hltconfig_pattern))),  error='--hltconfig wrong format'),
     '--applyto': Or(None, And(str, lambda s: s.upper() in params._applytoChoices), error='--applyto must be in '+str(params._applytoChoices) ),
     '--siteconfpath': Or(None, str, error='--siteconfpath should be string'),

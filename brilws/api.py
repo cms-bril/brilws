@@ -1416,6 +1416,33 @@ def translate_fntosql(pattern):
     sqlresult = sqlresult.replace('!','^')    
     return sqlresult
 
+def is_hltpath_in_dataset(engine,hltpath=None,dataset=None,hltconfigids=None,schemaname=''):
+    '''
+    Check if a hltpath and a dataset is in the same menu, no more relationship for now
+    input :
+       hltpath : hltpath name (do not accept pattern)
+       hltconfigids : list of numbers
+    output :
+       True or False
+    '''
+    datasettablename = dname = 'datasethltpathmap'
+    hlttablename = hname = 'hltpathl1seedmap'
+    if schemaname:
+        datasethltpathmap = '.'.join([schemaname,dname])
+        hltpathl1seedmap = '.'.join([schemaname,hname])
+    q = "select count(*) from {hltpathl1seedmap} l,{datasethltpathmap} d where l.hltconfigid=d.hltconfigid and d.hltconfigid=:hltconfigid and d.datasetpathname=:datasetpathname and l.hltpathname=:hltpathname".format(hltpathl1seedmap=hltpathl1seedmap,datasethltpathmap=datasethltpathmap)
+    binddict = {}
+    binddict['hltpathname'] = hltpath
+    binddict['datasetpathname'] = dataset
+    binddict['hltconfigid'] = hltconfigids[0]
+    log.debug(q+','+str(binddict))
+    connection = engine.connect()
+    resultProxy = connection.execute(q,binddict)
+    result = 0
+    for row in resultProxy:
+      result = int(row[0])
+    return result
+
 def get_hlttrgl1seedmap(engine,hltpath=None,hltconfigids=None,schemaname=''):
     '''
     input :
