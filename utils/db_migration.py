@@ -60,14 +60,11 @@ def query_batch(con, r, gte=False):
     return records_df
 
 def insert_batch(con, df):
-    """Get all available runnums greater and equal(>=) than r from cms_lumi_prod.trgscaler.
+    """Make a batch insertion to from cms_lumi_prod.trgscaler_new.
 
     :param con:
-    :param r: runnum
-    :param gte: greater than or equal
-    :returns: [(runnum,)]
-    :rtype: list
-
+    :param df: Dataframe containing the data
+    :return msg
     """
     metadata = sql.MetaData(bind=con, reflect=True)
     table = metadata.tables['trgscaler_new']
