@@ -5,18 +5,89 @@ import base64
 import csv
 import pandas as pd
 
-def update(con, r, df):
-    for index, row in df.iterrows():
+def query_runnums(con, r):
+    """Get all available runnums greater and equal(>=) than r from cms_lumi_prod.trgscaler.
+
+    :param con:
+    :param r: runnum
+    :param gte: greater than or equal
+    :returns: [(runnum,)]
+    :rtype: list
+
+    """
+    select = 'select distinct runnum from cms_lumi_prod.trgscaler where runnum>=:runnum order by runnum'
+    runnums = con.execute(select, {'runnum': r})
+    
+    result = []
+    runnums = runnums.fetchall()
+    if len(runnums) > 0:
+        result = [row[0] for row in runnums]
+    return result
+
+def query_batch(con, r, gte=False):
+    """Query multiple records from CMS_LUMI_PROD.TRGSCALER when runnum lesser (<) or greater and equal(>=) than r
+        If gte=False just copy records from CMS_LUMI_PROD.TRGSCALER. If gte=True then copy records from CMS_UGT_MON.VIEW_UGT_RUN_PRESCALE
+
+    :param con:
+    :param r: runnum
+    :param gte: greater than or equal
+    :returns: [{lsnum, prescidx, bitid, trgprescval}]
+    :rtype: list of dict
+
+    """
+    records_df = pd.DataFrame()
+    if gte:
+        runnums = query_runnums(con, r)
+
+        for runnum in runnums:
+            scaleridxs = get_prescidxchange(con, runnum)
+            record_df = get_trgscaler(con, runnum, scaleridxs)
+            record_df['runnum'] = runnum
+            records_df.runnum = records_df.runnum.astype(int)
+            frames = [records_df, record_df]
+            records_df = pd.concat(frames)
+    else:
+        select = 'select * from cms_lumi_prod.trgscaler where runnum<:runnum order by runnum'
+        records = con.execute(select, {'runnum': r})
         
-        insert = ''' insert into CMS_LUMI_PROD.TRGSCALER_NEW values ( :runnum, :lsnum, :prescidx, :bitid, :trgprescval)'''
-        binddict = {
-            'runnum': r,
+        records_df = pd.DataFrame(records, columns=['runnum', 'lsnum', 'prescidx', 'bitid', 'trgprescval'])
+        records_df.runnum = records_df.runnum.astype(int)
+        records_df.lsnum = records_df.lsnum.astype(int)
+        records_df.bitid = records_df.bitid.astype(int)
+        records_df.prescidx = records_df.prescidx.astype(int)
+        records_df.trgprescval = records_df.trgprescval.astype(float)
+
+    return records_df
+
+def insert_batch(con, df):
+    """Get all available runnums greater and equal(>=) than r from cms_lumi_prod.trgscaler.
+
+    :param con:
+    :param r: runnum
+    :param gte: greater than or equal
+    :returns: [(runnum,)]
+    :rtype: list
+
+    """
+    metadata = sql.MetaData(bind=con, reflect=True)
+    table = metadata.tables['trgscaler_new']
+    values = []
+    for index, row in df.iterrows():
+        values.append({
+            'runnum': row['runnum'],
             'lsnum': row['lsnum'],
             'prescidx': row['prescidx'],
             'bitid': row['bitid'],
             'trgprescval': row['trgprescval'],
-        }
-        con.execute(insert, binddict)
+        })
+    with con.connect() as conn:
+        result = conn.execute(
+            insert(table),
+            values,
+    )
+    conn.commit()
+
+    return result
 
 def create_engine(servicemap, servicename):
     user = servicemap[servicename][1]
@@ -26,6 +97,7 @@ def create_engine(servicemap, servicename):
 
     return sql.create_engine(connurl)
 
+# function copied from bril/utils
 def get_prescidxchange(con, runnum):
     """Get prescale index changes over lumisections
 
@@ -83,6 +155,7 @@ def get_prescidxchange(con, runnum):
 
     return result
 
+#function copied from bril/utils
 def get_trgscaler(con, runnum, scaleridxs):
     """Get prescale values
 
@@ -175,10 +248,7 @@ if __name__ == '__main__':
     servicemap = parseservicemap(auth_file)
 
     engine = create_engine(servicemap, query_service)
-    scaleridxs = get_prescidxchange(engine, r)
-    result = get_trgscaler(engine, r, scaleridxs)
+    result = query_batch(engine, r, True)
 
-    engine_dev = create_engine(servicemap, update_service)
-    df = result.reset_index()
-
-    update(engine_dev, r, df)
+    con = create_engine(servicemap, update_service)
+    insert_batch(con, result)
