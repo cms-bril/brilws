@@ -1416,7 +1416,7 @@ def translate_fntosql(pattern):
     sqlresult = sqlresult.replace('!','^')    
     return sqlresult
 
-def is_hltpath_in_dataset(engine,hltpath=None,dataset=None,hltconfigids=None,schemaname=''):
+def is_hltpath_in_dataset(engine,hltpathid=None,dataset=None,hltconfigids=None,schemaname=''):
     '''
     Check if a hltpath and a dataset is in the same menu, no more relationship for now
     input :

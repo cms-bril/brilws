@@ -891,18 +891,19 @@ def brilcalc_main(progname=sys.argv[0]):
                   if not hltrunconfig:
                       print ('hltconfig not found')
                       sys.exit(0)
-                  hltconfigids = np.unique( [h[1] for h in hltrunconfig] )
-              if pargs.dataset:
-                  r = False #check if hltpath and dataset are in the same menu
-                  if not r:
-                      print( 'dataset {} and hltpath{} are not in the same menu'.format(pargs.dataset,pargs.hltpath) )
-                      sys.exit(0)
+                  hltconfigids = np.unique( [h[1] for h in hltrunconfig] )              
               hltl1map = api.get_hlttrgl1seedmap(dbengine,hltpath=pargs.hltpath,hltconfigids=hltconfigids,schemaname=dbschema)
               # {hltconfigid: [[hltpathid,hltpathname,seedtype,[seedvalues]]]}
               if not hltl1map:
                   print ('hltl1seed mapping not found')
-                  sys.exit(0)                  
-
+                  sys.exit(0)
+                  
+              if pargs.dataset is not None:
+                  r = False #check if hltpath and dataset are in the same menu
+                  if not r:
+                      print( 'dataset {} and hltpath{} are not in the same menu'.format(pargs.dataset,pargs.hltpath) )
+                      sys.exit(0)
+                      
               if not pargs.totable:
                   fh = pargs.ofilehandle
                   print('# '+','.join(header),file=fh)
@@ -925,7 +926,13 @@ def brilcalc_main(progname=sys.argv[0]):
               header = ['run','cmsls','prescidx']
               if pargs.hltpath is not None: 
                   header = header+['totprescval','hltpath/prescval','logic','l1bit/prescval']
-
+                  if pargs.dataset is not None:
+                    r = False #check if hltpath and dataset are in the same menu
+                    if not r:
+                      print( 'dataset {} and hltpath{} are not in the same menu'.format(pargs.dataset,pargs.hltpath) )
+                      sys.exit(0)
+                    header = header+['totprescval','dataset/prescval','hltpath/prescval','logic','l1bit/prescval']
+                    
               hltrunconfig = api.get_hltrunconfig(dbengine,hltconfigid=pargs.hltconfigid,hltkey=pargs.hltkey,runnum=pargs.runmin,schemaname=dbschema)  #[['runnum','hltconfigid','hltkey'],['runnum','hltconfigid','hltkey']]
               runlist = [x[0] for x in hltrunconfig]
               hltconfigids = [x[1] for x in hltrunconfig]
@@ -940,19 +947,22 @@ def brilcalc_main(progname=sys.argv[0]):
                   ptable = display.create_table(header,header=True,maxwidth=60,align='l')
                   
               if pargs.hltpath:
-                  if pargs.dataset:
-                    r = False #check if hltpath and dataset are in the same menu
-                    if not r:
-                      print( 'dataset {} and hltpath{} are not in the same menu'.format(pargs.dataset,pargs.hltpath) )
-                      sys.exit(0)
-                      
                   hltl1map = api.get_hlttrgl1seedmap(dbengine,hltpath=pargs.hltpath,hltconfigids=hltconfigids,schemaname=dbschema)
-                  # {hltconfigid: [[hltpathid,hltpathname,seedtype,[seedvalues]]]}
+                  # {hltconfigid: [[hltpathid,hltpathname,seedtype,[seedvalues]]]}                   
                   if not hltl1map:
                       print ('No hltpathl1seed mapping found')
                       sys.exit(0)
                       
                   selected_hltconfigids = hltl1map.keys()
+                  if pargs.dataset is not None:
+                    r = False #check if hltpath and dataset are in the same menu
+                    if not r:
+                      print( 'dataset {} and hltpath{} are not in the same menu'.format(pargs.dataset,pargs.hltpath) )
+                      sys.exit(0)
+                  datasetpresc = 1
+                  if pargs.dataset is not None:
+                      datasetpresc = api.get_dataset_presc(runnum,hltconfigids,datasetname)#{(lsnum,prescidx):prescval}
+                      
                   if not selected_hltconfigids:
                       print ('No hltconfig found ')
                       sys.exit(0)
