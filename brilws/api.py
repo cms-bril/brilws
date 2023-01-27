@@ -1416,12 +1416,13 @@ def translate_fntosql(pattern):
     sqlresult = sqlresult.replace('!','^')    
     return sqlresult
 
-def is_hltpath_in_dataset(engine,hltpathid=None,dataset=None,hltconfigids=None,schemaname=''):
+def is_hltpathid_in_dataset(engine,hltpathid,datasetname,hltconfigid,schemaname=''):
     '''
-    Check if a hltpath and a dataset is in the same menu, no more relationship for now
+    Check if a hltpathid and a dataset is in the same menu, no more relationship for now
     input :
-       hltpath : hltpath name (do not accept pattern)
-       hltconfigids : list of numbers
+       hltpathid : hltpathid 
+       datasetname : dataset name
+       hltconfigid : 
     output :
        True or False
     '''
@@ -1430,11 +1431,11 @@ def is_hltpath_in_dataset(engine,hltpathid=None,dataset=None,hltconfigids=None,s
     if schemaname:
         datasethltpathmap = '.'.join([schemaname,dname])
         hltpathl1seedmap = '.'.join([schemaname,hname])
-    q = "select count(*) from {hltpathl1seedmap} l,{datasethltpathmap} d where l.hltconfigid=d.hltconfigid and d.hltconfigid=:hltconfigid and d.datasetpathname=:datasetpathname and l.hltpathname=:hltpathname".format(hltpathl1seedmap=hltpathl1seedmap,datasethltpathmap=datasethltpathmap)
+    q = "select count(*) from {datasethltpathmap} d, {hltpathl1seedmap} h where h.hltconfigid=d.hltconfigid and d.hltconfigid=:hltconfigid and d.datasetpathname=:datasetname and h.hltpathid=:hltpathid".format(datasethltpathmap=datasethltpathmap,hltpathl1seedmap=hltpathl1seedmap,)
     binddict = {}
-    binddict['hltpathname'] = hltpath
-    binddict['datasetpathname'] = dataset
-    binddict['hltconfigid'] = hltconfigids[0]
+    binddict['hltpathid'] = hltpathid
+    binddict['datasetname'] = datasetname
+    binddict['hltconfigid'] = hltconfigid
     log.debug(q+','+str(binddict))
     connection = engine.connect()
     resultProxy = connection.execute(q,binddict)
@@ -1443,6 +1444,35 @@ def is_hltpath_in_dataset(engine,hltpathid=None,dataset=None,hltconfigids=None,s
       result = int(row[0])
     return result
 
+def get_dataset_presc(engine,hltconfigid,datasetname,schemaname=''):
+    '''
+    input: 
+        hltconnfigid 
+        datasetname
+    output:
+        [[lsnum,prescidx,datasetprescval]]
+    '''
+    scalertablename = dname = 'datasetscaler'
+    datasetmaptablename = mname = 'datasethltpathmap'
+    if schemaname:
+        scalertablename = '.'.join([schemaname,dname])
+        datasetmaptablename = '.'.join([schemaname,mname])
+    q = "select d.lsnum as lsnum,d.prescidx as prescidx,d.datasetprescval as prescval from {scalertablename} d, {datasetmaptablename} m where d.hltconfigid=m.hltconfigid and d.datasetpathid=m.datasetpathid and d.hltconfigid=:hltconfigid and m.datasetpathname=:datasetpathname".format(scalertablename=scalertablename,datasetmaptablename=datasetmaptablename)
+    binddict = {}
+    binddict['hltconfigid'] = hltconfigid
+    binddict['datasetpathname'] = datasetname
+    log.debug(q+','+str(binddict))
+    connection = engine.connect()
+    resultProxy = connection.execute(q,binddict)
+    result = {}
+    for row in resultProxy:
+      lsnum = int(row['lsnum'])
+      prescidx = int(row['prescidx'])
+      prescval = int(row['prescval'])
+      result[(lsnum,prescidx)] = prescval
+    return result
+
+    
 def get_hlttrgl1seedmap(engine,hltpath=None,hltconfigids=None,schemaname=''):
     '''
     input :
