@@ -891,16 +891,19 @@ def brilcalc_main(progname=sys.argv[0]):
                   if not hltrunconfig:
                       print ('hltconfig not found')
                       sys.exit(0)
-                  hltconfigids = np.unique( [h[1] for h in hltrunconfig] )              
+                  hltconfigids = np.unique( [h[1] for h in hltrunconfig] )        
               hltl1map = api.get_hlttrgl1seedmap(dbengine,hltpath=pargs.hltpath,hltconfigids=hltconfigids,schemaname=dbschema)
               # {hltconfigid: [[hltpathid,hltpathname,seedtype,[seedvalues]]]}
               if not hltl1map:
                   print ('hltl1seed mapping not found')
-                  sys.exit(0)
-                  
+                  sys.exit(0)              
               if pargs.dataset is not None:
-                  r = False #check if hltpath and dataset are in the same menu
-                  if not r:
+                    hltconfigid = int(hltconfigids[0])
+                    hltpathid = int(hltl1map[hltconfigid][0][0])
+                    print(hltpathid)
+                    r = api.is_hltpathid_in_dataset(dbengine,hltpathid,pargs.dataset,hltconfigid,schemaname=dbschema)
+                    ##check hltpathid and dataset are in the same menu
+                    if not r:
                       print( 'dataset {} and hltpath{} are not in the same menu'.format(pargs.dataset,pargs.hltpath) )
                       sys.exit(0)
                       
@@ -922,16 +925,13 @@ def brilcalc_main(progname=sys.argv[0]):
               if ptable:
                   display.show_table(ptable,pargs.outputstyle)         
               del ptable
-          elif is_prescale:                    
+          elif is_prescale:
               header = ['run','cmsls','prescidx']
-              if pargs.hltpath is not None: 
-                  header = header+['totprescval','hltpath/prescval','logic','l1bit/prescval']
+              if pargs.hltpath is not None:
                   if pargs.dataset is not None:
-                    r = False #check if hltpath and dataset are in the same menu
-                    if not r:
-                      print( 'dataset {} and hltpath{} are not in the same menu'.format(pargs.dataset,pargs.hltpath) )
-                      sys.exit(0)
-                    header = header+['totprescval','dataset/prescval','hltpath/prescval','logic','l1bit/prescval']
+                    header = header+['totprescval','dataset prescval','hltpath/prescval','logic','l1bit/prescval']
+                  else:
+                    header = header+['totprescval','hltpath/prescval','logic','l1bit/prescval']
                     
               hltrunconfig = api.get_hltrunconfig(dbengine,hltconfigid=pargs.hltconfigid,hltkey=pargs.hltkey,runnum=pargs.runmin,schemaname=dbschema)  #[['runnum','hltconfigid','hltkey'],['runnum','hltconfigid','hltkey']]
               runlist = [x[0] for x in hltrunconfig]
@@ -954,18 +954,22 @@ def brilcalc_main(progname=sys.argv[0]):
                       sys.exit(0)
                       
                   selected_hltconfigids = hltl1map.keys()
-                  if pargs.dataset is not None:
-                    r = False #check if hltpath and dataset are in the same menu
-                    if not r:
-                      print( 'dataset {} and hltpath{} are not in the same menu'.format(pargs.dataset,pargs.hltpath) )
-                      sys.exit(0)
-                  datasetpresc = 1
-                  if pargs.dataset is not None:
-                      datasetpresc = api.get_dataset_presc(runnum,hltconfigids,datasetname)#{(lsnum,prescidx):prescval}
-                      
                   if not selected_hltconfigids:
                       print ('No hltconfig found ')
                       sys.exit(0)
+                      
+                  datasetpresc = 1
+                  if pargs.dataset is not None:
+                    hltconfigid = list(selected_hltconfigids)[0]
+                    hltpathid = hltl1map[hltconfigid][0][0]
+                    r = api.is_hltpathid_in_dataset(dbengine,hltpathid,pargs.dataset,hltconfigid,schemaname=dbschema)
+                    ##check hltpathid and dataset are in the same menu
+                    if not r:
+                      print( 'dataset {} and hltpath {} are not in the same menu'.format(pargs.dataset,pargs.hltpath) )
+                      sys.exit(0)
+
+                    datasetprescs = api.get_dataset_presc(dbengine,hltconfigid,pargs.dataset,schemaname=dbschema)#{(lsnum,prescidx):prescval}
+                    
                   for [runnum,hltconfigid,hltkey] in [r for r in hltrunconfig if r[1] in selected_hltconfigids]:
                       if hltconfigid not in hltl1map:
                           continue
@@ -992,7 +996,13 @@ def brilcalc_main(progname=sys.argv[0]):
                                   l1bitsStr = ' '.join(l1inner)                          
                                   hltpathStr = '/'.join([hltpathname,str(hltprescval)])
                                   totpresc = totalprescaleNEW(hltprescval,l1seedlogic,l1prescvals)
-                                  display.add_row( [ '%d'%runnum, '%d'%lsnum, '%d'%prescidx, '%d'%totpresc,'%s'%hltpathStr, '%s'%l1seedlogic, '%s'%l1bitsStr], fh=fh, csvwriter=csvwriter, ptable=ptable )  
+                                  if pargs.dataset is not None:
+                                      datasetpresc = datasetprescs[(lsnum,prescidx)]
+                                      #print('datasetpresc val ',lsnum,prescidx,datasetpresc)
+                                      totpresc = totpresc*datasetpresc
+                                      display.add_row( [ '%d'%runnum, '%d'%lsnum,'%d'%prescidx, '%d'%datasetpresc ,'%d'%totpresc,'%s'%hltpathStr, '%s'%l1seedlogic, '%s'%l1bitsStr], fh=fh, csvwriter=csvwriter, ptable=ptable )
+                                  else:
+                                      display.add_row( [ '%d'%runnum, '%d'%lsnum, '%d'%prescidx, '%d'%totpresc,'%s'%hltpathStr, '%s'%l1seedlogic, '%s'%l1bitsStr], fh=fh, csvwriter=csvwriter, ptable=ptable ) 
                   del hltl1map
               else:
                   if not presc:
