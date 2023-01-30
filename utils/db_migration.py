@@ -38,25 +38,22 @@ def query_batch(con, r, gte=False):
     records_df = pd.DataFrame()
     if gte:
         runnums = query_runnums(con, r)
-
         for runnum in runnums:
             scaleridxs = get_prescidxchange(con, runnum)
             record_df = get_trgscaler(con, runnum, scaleridxs)
             record_df['runnum'] = runnum
-            records_df.runnum = records_df.runnum.astype(int)
             frames = [records_df, record_df]
             records_df = pd.concat(frames)
     else:
         select = 'select * from cms_lumi_prod.trgscaler where runnum<:runnum order by runnum'
         records = con.execute(select, {'runnum': r})
-        
         records_df = pd.DataFrame(records, columns=['runnum', 'lsnum', 'prescidx', 'bitid', 'trgprescval'])
         records_df.runnum = records_df.runnum.astype(int)
         records_df.lsnum = records_df.lsnum.astype(int)
         records_df.bitid = records_df.bitid.astype(int)
         records_df.prescidx = records_df.prescidx.astype(int)
         records_df.trgprescval = records_df.trgprescval.astype(float)
-
+    
     return records_df
 
 def insert_batch(con, df):
@@ -71,18 +68,14 @@ def insert_batch(con, df):
     values = []
     for index, row in df.iterrows():
         values.append({
-            'runnum': row['runnum'],
-            'lsnum': row['lsnum'],
-            'prescidx': row['prescidx'],
-            'bitid': row['bitid'],
-            'trgprescval': row['trgprescval'],
+            'runnum': int(row['runnum']),
+            'lsnum': int(row['lsnum']),
+            'prescidx': int(row['prescidx']),
+            'bitid': int(row['bitid']),
+            'trgprescval': float(row['trgprescval']),
         })
-    with con.connect() as conn:
-        result = conn.execute(
-            insert(table),
-            values,
-    )
-    conn.commit()
+
+    result = con.execute(sql.insert(table), values)
 
     return result
 
@@ -220,7 +213,8 @@ if __name__ == '__main__':
     auth_file = 'devdb.ini'
     query_service = 'online'
     update_service = 'dev'
-    r = 362319
+    r = 362759
+    gte = False
 
     for index, user_arg in enumerate(user_args):
 
@@ -232,6 +226,8 @@ if __name__ == '__main__':
             update_service = user_args[index+1]
         if user_arg == '-r':
             update_service = user_args[index+1]
+        if user_arg == '--gte':
+            gte = True
     
     if auth_file == '':
         raise RuntimeError('Please provide a path to a valid auth file (.ini)')
@@ -245,7 +241,7 @@ if __name__ == '__main__':
     servicemap = parseservicemap(auth_file)
 
     engine = create_engine(servicemap, query_service)
-    result = query_batch(engine, r, True)
+    result = query_batch(engine, r, gte)
 
     con = create_engine(servicemap, update_service)
     insert_batch(con, result)
