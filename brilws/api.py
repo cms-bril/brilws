@@ -1665,7 +1665,35 @@ def get_hltprescale(engine,runnum,lsnum,hltconfigid,prescidx,hltpathid,schemanam
     for row in resultProxy:
         result = row['hltprescval']
     return result
-    
+
+def get_hltprescale_in_dataset(engine,runnum,lsnum,hltconfigid,prescidx,hltpathid,dataset,schemaname=''):
+    '''
+    input:
+      datasetname str
+    output:
+       prescval
+    '''
+    result = 1
+    hltresult = 1
+    datasetscalertable = dname = 'datasetscaler'
+    datasetscalermap = mname = 'datasethltpathmap'
+    if schemaname:
+        datasetscalertable = '.'.join([schemaname,dname])
+        datasetscalermap = '.'.join([schemaname,mname])
+
+    q = "select s.datasetprescval as prescval from {datasetscalertable} s, {datasetscalermap} m where s.hltconfigid=m.hltconfigid and m.datasetpathid=s.datasetpathid and s.hltconfigid=:hltconfigid and s.runnum=:runnum and s.prescidx=:prescidx and s.lsnum=:lsnum and m.datasetpathname=:dataset".format(datasetscalertable=datasetscalertable,datasetscalermap=datasetscalermap)
+    binddict = {'hltconfigid':hltconfigid,'runnum':runnum,'lsnum':lsnum,'prescidx':prescidx,'dataset':dataset}
+    log.debug( q+','+str(binddict) )
+    connection = engine.connect()
+    resultProxy = connection.execute(q,binddict)
+    for row in resultProxy:
+      result = row['prescval']
+    if result:
+      hltresult = get_hltprescale( engine,runnum,lsnum,hltconfigid,prescidx,hltpathid,schemaname=schemaname )
+      if hltresult:
+        return hltresult*result
+    return result
+
 def get_l1prescale(engine,runnum,lsnum,l1candidates=None,prescidxs=None,ignorel1mask=False,schemaname=''):
     '''
     output:
