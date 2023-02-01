@@ -50,3 +50,19 @@ HLTSCALER:               #per ls, per hltpath, per prescidx change
     - hltprescval: uint32
    pk: [runnum,lsnum,hltpathid]
    
+DATASETSCALER:
+   columns:
+    - runnum: uint32
+    - lsnum: uint32
+    - prescidx: uint16
+    - hltconfigid: uint32
+    - datasetpathid: uint32
+    - datasetprescval: uint32
+   pk: [runnum,lsnum,datasetpathid]
+
+DATASETHLTPATHMAP:
+   columns:
+    - datasetpathid: uint32
+    - hltconfigid: uint32
+    - datasetpathname: string
+   pk: [datasetpathid,hltconfigid]
