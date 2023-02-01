@@ -914,7 +914,7 @@ def brilcalc_main(progname=sys.argv[0]):
               if pargs.dataset is not None:
                     hltconfigid = int(hltconfigids[0])
                     hltpathid = int(hltl1map[hltconfigid][0][0])
-                    print(hltpathid)
+
                     r = api.is_hltpathid_in_dataset(dbengine,hltpathid,pargs.dataset,hltconfigid,schemaname=dbschema)
                     ##check hltpathid and dataset are in the same menu
                     if not r:
