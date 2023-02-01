@@ -23,7 +23,7 @@ class Formatter:
         if self.formatstr=='e':
             return self.lumiE(x)
         if abs(x)<self.dec_prec_value:
-            return '0'    
+            return '0'
         return '{:.{}f}'.format(float(x),self.prec)
 
     def bxlumi(self,x):

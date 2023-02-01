@@ -274,11 +274,11 @@ def lumi_per_normtag(shards,lumiquerytype,dbengine,dbschema,runtot,formatter,dat
                         del bxidx
                         if hltl1map: #--hltpath bx display
                             for pth in prescale_map.keys():                                
-                                thispresc = prescale_map[pth]
+                                thispresc = np.float64( prescale_map[pth] )
                                 if bxlumi is not None:
                                     a = map(formatter.bxlumi,bxlumi/thispresc)  
                                     bxlumistr = '['+' '.join(a)+']'                                
-                                display.add_row( ['%d:%d'%(runnum,fillnum),'%d:%d'%(lsnum,cmslsnum),dtime,pth,myformatter.lumi(np.true_divide(delivered,thispresc)),formatter.lumi(np.true_divide(recorded,thispresc)),ds,'%s'%bxlumistr] , fh=fh, csvwriter=csvwriter, ptable=ptable)                                
+                                display.add_row( ['%d:%d'%(runnum,fillnum),'%d:%d'%(lsnum,cmslsnum),dtime,pth,formatter.lumi(np.true_divide(delivered,thispresc)),formatter.lumi(np.true_divide(recorded,thispresc)),avgpu,ds,'%s'%bxlumistr] , fh=fh, csvwriter=csvwriter, ptable=ptable)                                
                         else:        #normal bx display                   
                             if bxlumi is not None:
                                 a = map(formatter.bxlumi,bxlumi)
@@ -289,7 +289,7 @@ def lumi_per_normtag(shards,lumiquerytype,dbengine,dbschema,runtot,formatter,dat
                 elif byls:      #--byls
                     if hltl1map:#--hltpath display
                         for pth in prescale_map.keys():
-                            thispresc = prescale_map[pth]
+                            thispresc = np.float64( prescale_map[pth] )
                             display.add_row( ['%d:%d'%(runnum,fillnum),'%d:%d'%(lsnum,cmslsnum), dtime, pth, formatter.lumi(np.true_divide(delivered,thispresc)),formatter.lumi(np.true_divide(recorded,thispresc)),'%.1f'%(avgpu),ds] , fh=fh, csvwriter=csvwriter, ptable=ptable)                            
                     else:       #normal display
                         display.add_row( ['%d:%d'%(runnum,fillnum),'%d:%d'%(lsnum,cmslsnum),dtime,beamstatus,'%d'%tegev,formatter.lumi(delivered),formatter.lumi(recorded),'%.1f'%(avgpu),ds] , fh=fh, csvwriter=csvwriter, ptable=ptable)                        
@@ -338,11 +338,11 @@ def lumi_per_normtag(shards,lumiquerytype,dbengine,dbschema,runtot,formatter,dat
                         del bxidx
                     if hltl1map:#--hltpath xing display
                         for pth in prescale_map.keys():
-                            thispresc = prescale_map[pth]             
+                            thispresc = np.float64( prescale_map[pth] ) 
                             if bxlumi is not None:
                                 a = map(formatter.bxlumi,bxlumi/thispresc)  
                                 bxlumistr = '['+' '.join(a)+']'               
-                            display.add_row( ['%d:%d'%(runnum,fillnum),'%d:%d'%(lsnum,cmslsnum),dtime,pth,formatter.lumi(np.true_divide(delivered,thispresc)),formatter.lumi(np.true_divide(recorded,thispresc)),datasource.upper(),'%s'%bxlumistr] , fh=fh, csvwriter=csvwriter, ptable=ptable)                            
+                            display.add_row( ['%d:%d'%(runnum,fillnum),'%d:%d'%(lsnum,cmslsnum),dtime,pth,formatter.lumi(np.true_divide(delivered,thispresc)),formatter.lumi(np.true_divide(recorded,thispresc)),avgpu,datasource.upper(),'%s'%bxlumistr] , fh=fh, csvwriter=csvwriter, ptable=ptable)                            
                     else:       #normal xing display
                         if bxlumi is not None:
                             a = map(formatter.bxlumi,bxlumi)                            
@@ -352,7 +352,7 @@ def lumi_per_normtag(shards,lumiquerytype,dbengine,dbschema,runtot,formatter,dat
                 elif byls:       #--byls
                     if hltl1map: #--hltpath display
                         for pth in prescale_map.keys():
-                            thispresc = prescale_map[pth]                            
+                            thispresc = np.float64(prescale_map[pth])
                             display.add_row( ['%d:%d'%(runnum,fillnum),'%d:%d'%(lsnum,cmslsnum),dtime,pth,formatter.lumi(np.true_divide(delivered,thispresc)),formatter.lumi(np.true_divide(recorded,thispresc)),'%.1f'%(avgpu),datasource.upper()] , fh=fh, csvwriter=csvwriter, ptable=ptable)                            
                     else:        #normal display
                         display.add_row( ['%d:%d'%(runnum,fillnum),'%d:%d'%(lsnum,cmslsnum),dtime,beamstatus,'%d'%tegev,formatter.lumi(delivered),formatter.lumi(recorded),'%.1f'%(avgpu),datasource.upper()] , fh=fh, csvwriter=csvwriter, ptable=ptable)    
@@ -367,13 +367,13 @@ def lumi_per_normtag(shards,lumiquerytype,dbengine,dbschema,runtot,formatter,dat
                 if not cmson:
                     continue
                 for pth in prescale_map.keys():
-                    thispresc = prescale_map[pth]
+                    thispresc = np.float64(prescale_map[pth])
                     if (pth,runnum) not in runtot:
                         runtot[(pth,runnum)] = {'fill':fillnum,'dtime':dtime,'nls':0,'ncms':0,'delivered':0,'recorded':0}                        
                     runtot[ (pth,runnum)]['nls']+=1                
                     if cmson: runtot[ (pth,runnum) ]['ncms'] += 1
-                    runtot[ (pth,runnum) ]['delivered'] += np.true_divide(delivered,thispresc)
-                    runtot[ (pth,runnum) ]['recorded'] += np.true_divide(recorded,thispresc)      
+                    runtot[ (pth,runnum) ]['delivered'] += np.true_divide(delivered,thispresc )
+                    runtot[ (pth,runnum) ]['recorded'] += np.true_divide(recorded,thispresc )      
                 
 class ValidityChecker(object):
     def __init__(self, normdata):
@@ -518,7 +518,7 @@ def brilcalc_main(progname=sys.argv[0]):
           g_headers['runheader_hltpath'] = ['run:fill','time','ncms','hltpath','delivered(/ub)','recorded(/ub)']
           g_headers['footer_hltpath'] = ['hltpath','nfill','nrun','ncms','totdelivered(/ub)','totrecorded(/ub)']
           g_headers['bylsheader_hltpath'] = ['run:fill','ls','time','hltpath','delivered(/ub)','recorded(/ub)','avgpu','source']          
-          
+
           
           scalefactor = pargs.scalefactor          
           lumiunitstr = parseresult['-u']         
