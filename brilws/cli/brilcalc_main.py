@@ -124,7 +124,7 @@ def totalprescale(hltprescval,l1seedlogic,l1prescvals):
         totpresc = hltprescval*np.max(l1prescvals)    
     return totpresc
 
-def lumi_per_normtag(shards,lumiquerytype,dbengine,dbschema,runtot,formatter,datasource=None,normtag=None,withBX=False,byls=None,fh=None,csvwriter=None,ptable=None,scalefactor=1,totz=utctmzone,fillmin=None,fillmax=None,runmin=None,runmax=None,amodetagid=None,egev=None,beamstatusid=None,tssecmin=None,tssecmax=None,runlsSeries=None,hltl1map={},ignorel1mask=False,xingMin=0.,xingTr=0.,xingId=[],checkjson=False,datatagnameid=None,withfileinput = False):
+def lumi_per_normtag(shards,lumiquerytype,dbengine,dbschema,runtot,formatter,datasource=None,normtag=None,withBX=False,byls=None,fh=None,csvwriter=None,ptable=None,scalefactor=1,totz=utctmzone,fillmin=None,fillmax=None,runmin=None,runmax=None,amodetagid=None,egev=None,beamstatusid=None,tssecmin=None,tssecmax=None,runlsSeries=None,hltl1map={},ignorel1mask=False,xingMin=0.,xingTr=0.,xingId=[],checkjson=False,datatagnameid=None,withfileinput = False,dataset=None):
    
     if withfileinput:
         from brilws import fileapi
@@ -219,7 +219,10 @@ def lumi_per_normtag(shards,lumiquerytype,dbengine,dbschema,runtot,formatter,dat
                             hltprescval = 1
                             totpresc = 1
                         else:
-                            hltprescval = api.get_hltprescale(dbengine,runnum,ls_trglastscaled,g_hltconfigid,this_prescidx,this_hltpathid,schemaname=dbschema)
+                            if dataset is None:
+                              hltprescval = api.get_hltprescale(dbengine,runnum,ls_trglastscaled,g_hltconfigid,this_prescidx,this_hltpathid,schemaname=dbschema)
+                            else:
+                              hltprescval = api.get_hltprescale_in_dataset(dbengine,runnum,ls_trglastscaled,g_hltconfigid,this_prescidx,this_hltpathid,dataset,schemaname=dbschema)
                             rl = api.get_l1prescale(dbengine,runnum,ls_trglastscaled,l1candidates=l1candidates,prescidxs=this_prescidx,ignorel1mask=ignorel1mask ,schemaname=dbschema)
                             if not rl: continue
                             l1keys = [ k for k in rl.keys() if k[0]==this_prescidx ]
@@ -613,14 +616,25 @@ def brilcalc_main(progname=sys.argv[0]):
           
           runtot = {} #{(hltpath,run): { 'fill':fillnum,'time':dtime,'nls':1,'ncms':int(cmson),'delivered':delivered,'recorded':recorded} }
                                
-          hltl1map = None
-          
-          if pargs.hltpath is not None:
+          hltl1map = None #{hltconfigid:[[hltpathid,hltpathname,seedtype,[seedvalues]]]}
+          if pargs.hltpath is not None:           
               hltl1map = api.get_hlttrgl1seedmap(dbengine,hltpath=pargs.hltpath,schemaname=dbschema)
               if not hltl1map:
                   print('no hltpath to l1bit mapping found')
                   sys.exit(0)
-          
+              if pargs.dataset is not None:
+                  datasethltpairs = set()
+                  for k in hltl1map: 
+                    hpaths = [h[0] for h in hltl1map[k]]
+                    for hp in hpaths:                        
+                      datasethltpairs.add( (k,hp) )
+                  for (hltconfigid,hltpathid) in datasethltpairs:
+                    r = api.is_hltpathid_in_dataset(dbengine,hltpathid,pargs.dataset,hltconfigid,schemaname=dbschema)
+                  ##check hltpathid and dataset are in the same menu
+                    if not r:
+                      print( 'dataset {} and hltpath{} are not in the same menu'.format(pargs.dataset,pargs.hltpath) )
+                      sys.exit(0)
+
           rselectrange = [] 
           if datasources :
               for [qt,nt,ds,rs] in datasources:
@@ -650,7 +664,7 @@ def brilcalc_main(progname=sys.argv[0]):
               log.debug('shards: '+str(shards))
           
           for [qtype,ntag,dsource,rselect] in datasources:
-              lumi_per_normtag(shards,qtype,dbengine,dbschema,runtot,myformatter,datasource=dsource,normtag=ntag,withBX=pargs.withBX,byls=pargs.byls,fh=fh,csvwriter=csvwriter,ptable=ptable,scalefactor=scalefactor,totz=totz,fillmin=fillmin,fillmax=fillmax,runmin=runmin,runmax=runmax,amodetagid=amodetagid,egev=egev,beamstatusid=beamstatusid,tssecmin=tssecmin,tssecmax=tssecmax,runlsSeries=rselect,hltl1map=hltl1map,ignorel1mask=parseresult['--ignore-mask'],xingMin=pargs.xingMin,xingTr=pargs.xingTr,xingId=pargs.xingId,checkjson=checkjson,datatagnameid=datatagnameid,withfileinput=withfileinput)  
+              lumi_per_normtag(shards,qtype,dbengine,dbschema,runtot,myformatter,datasource=dsource,normtag=ntag,withBX=pargs.withBX,byls=pargs.byls,fh=fh,csvwriter=csvwriter,ptable=ptable,scalefactor=scalefactor,totz=totz,fillmin=fillmin,fillmax=fillmax,runmin=runmin,runmax=runmax,amodetagid=amodetagid,egev=egev,beamstatusid=beamstatusid,tssecmin=tssecmin,tssecmax=tssecmax,runlsSeries=rselect,hltl1map=hltl1map,ignorel1mask=parseresult['--ignore-mask'],xingMin=pargs.xingMin,xingTr=pargs.xingTr,xingId=pargs.xingId,checkjson=checkjson,datatagnameid=datatagnameid,withfileinput=withfileinput,dataset=pargs.dataset)  
           if pargs.filedata:
               [f.close() for f in shards] 
           if pargs.hltpath is None:
@@ -891,14 +905,22 @@ def brilcalc_main(progname=sys.argv[0]):
                   if not hltrunconfig:
                       print ('hltconfig not found')
                       sys.exit(0)
-                  hltconfigids = np.unique( [h[1] for h in hltrunconfig] )
-                  
+                  hltconfigids = np.unique( [h[1] for h in hltrunconfig] )        
               hltl1map = api.get_hlttrgl1seedmap(dbengine,hltpath=pargs.hltpath,hltconfigids=hltconfigids,schemaname=dbschema)
               # {hltconfigid: [[hltpathid,hltpathname,seedtype,[seedvalues]]]}
               if not hltl1map:
                   print ('hltl1seed mapping not found')
-                  sys.exit(0)                  
-
+                  sys.exit(0)              
+              if pargs.dataset is not None:
+                    hltconfigid = int(hltconfigids[0])
+                    hltpathid = int(hltl1map[hltconfigid][0][0])
+                    print(hltpathid)
+                    r = api.is_hltpathid_in_dataset(dbengine,hltpathid,pargs.dataset,hltconfigid,schemaname=dbschema)
+                    ##check hltpathid and dataset are in the same menu
+                    if not r:
+                      print( 'dataset {} and hltpath{} are not in the same menu'.format(pargs.dataset,pargs.hltpath) )
+                      sys.exit(0)
+                      
               if not pargs.totable:
                   fh = pargs.ofilehandle
                   print('# '+','.join(header),file=fh)
@@ -917,11 +939,14 @@ def brilcalc_main(progname=sys.argv[0]):
               if ptable:
                   display.show_table(ptable,pargs.outputstyle)         
               del ptable
-          elif is_prescale:                    
+          elif is_prescale:
               header = ['run','cmsls','prescidx']
-              if pargs.hltpath is not None: 
-                  header = header+['totprescval','hltpath/prescval','logic','l1bit/prescval']
-
+              if pargs.hltpath is not None:
+                  if pargs.dataset is not None:
+                    header = header+['totprescval','dataset prescval','hltpath/prescval','logic','l1bit/prescval']
+                  else:
+                    header = header+['totprescval','hltpath/prescval','logic','l1bit/prescval']
+                    
               hltrunconfig = api.get_hltrunconfig(dbengine,hltconfigid=pargs.hltconfigid,hltkey=pargs.hltkey,runnum=pargs.runmin,schemaname=dbschema)  #[['runnum','hltconfigid','hltkey'],['runnum','hltconfigid','hltkey']]
               runlist = [x[0] for x in hltrunconfig]
               hltconfigids = [x[1] for x in hltrunconfig]
@@ -935,9 +960,9 @@ def brilcalc_main(progname=sys.argv[0]):
               else:
                   ptable = display.create_table(header,header=True,maxwidth=60,align='l')
                   
-              if pargs.hltpath:                  
+              if pargs.hltpath:
                   hltl1map = api.get_hlttrgl1seedmap(dbengine,hltpath=pargs.hltpath,hltconfigids=hltconfigids,schemaname=dbschema)
-                  # {hltconfigid: [[hltpathid,hltpathname,seedtype,[seedvalues]]]}
+                  # {hltconfigid: [[hltpathid,hltpathname,seedtype,[seedvalues]]]}                   
                   if not hltl1map:
                       print ('No hltpathl1seed mapping found')
                       sys.exit(0)
@@ -946,6 +971,19 @@ def brilcalc_main(progname=sys.argv[0]):
                   if not selected_hltconfigids:
                       print ('No hltconfig found ')
                       sys.exit(0)
+                      
+                  datasetpresc = 1
+                  if pargs.dataset is not None:
+                    hltconfigid = list(selected_hltconfigids)[0]
+                    hltpathid = hltl1map[hltconfigid][0][0]
+                    r = api.is_hltpathid_in_dataset(dbengine,hltpathid,pargs.dataset,hltconfigid,schemaname=dbschema)
+                    ##check hltpathid and dataset are in the same menu
+                    if not r:
+                      print( 'dataset {} and hltpath {} are not in the same menu'.format(pargs.dataset,pargs.hltpath) )
+                      sys.exit(0)
+
+                    datasetprescs = api.get_dataset_presc(dbengine,hltconfigid,pargs.dataset,schemaname=dbschema)#{(lsnum,prescidx):prescval}
+                    
                   for [runnum,hltconfigid,hltkey] in [r for r in hltrunconfig if r[1] in selected_hltconfigids]:
                       if hltconfigid not in hltl1map:
                           continue
@@ -972,7 +1010,13 @@ def brilcalc_main(progname=sys.argv[0]):
                                   l1bitsStr = ' '.join(l1inner)
                                   hltpathStr = '/'.join([hltpathname,str(hltprescval)])
                                   totpresc = totalprescaleNEW(hltprescval,l1seedlogic,l1prescvals)
-                                  display.add_row( [ '%d'%runnum, '%d'%lsnum, '%d'%prescidx, '%.2f'%totpresc,'%s'%hltpathStr, '%s'%l1seedlogic, '%s'%l1bitsStr], fh=fh, csvwriter=csvwriter, ptable=ptable )  
+                                  if pargs.dataset is not None:
+                                      datasetpresc = datasetprescs[(lsnum,prescidx)]
+                                      #print('datasetpresc val ',lsnum,prescidx,datasetpresc)
+                                      totpresc = totpresc*datasetpresc
+                                      display.add_row( [ '%d'%runnum, '%d'%lsnum,'%d'%prescidx, '%d'%datasetpresc ,'%d'%totpresc,'%s'%hltpathStr, '%s'%l1seedlogic, '%s'%l1bitsStr], fh=fh, csvwriter=csvwriter, ptable=ptable )
+                                  else:
+                                      display.add_row( [ '%d'%runnum, '%d'%lsnum, '%d'%prescidx, '%d'%totpresc,'%s'%hltpathStr, '%s'%l1seedlogic, '%s'%l1bitsStr], fh=fh, csvwriter=csvwriter, ptable=ptable ) 
                   del hltl1map
               else:
                   if not presc:

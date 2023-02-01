@@ -8,7 +8,8 @@ options:
   -o OUTPUTFILE                Output csv file. Special file '-' for stdout.
   --pathinfo                   Show hltpath, l1seed expression
   --prescale                   Show trigger prescale changes
-  --hltpath HLTPATH            hltpath name/pattern 
+  --hltpath HLTPATH            hltpath name or fnmatch pattern 
+  --dataset DATASET            dataset name
   --hltconfig HLTCONFIG        HLT configid or hltkey/pattern  
   --ignore-mask                Ignore trigger bit masks
   --output-style OSTYLE        Screen output style. tab, html, csv [default: tab]
