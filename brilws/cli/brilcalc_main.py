@@ -1014,9 +1014,9 @@ def brilcalc_main(progname=sys.argv[0]):
                                       datasetpresc = datasetprescs[(lsnum,prescidx)]
                                       #print('datasetpresc val ',lsnum,prescidx,datasetpresc)
                                       totpresc = totpresc*datasetpresc
-                                      display.add_row( [ '%d'%runnum, '%d'%lsnum,'%d'%prescidx, '%d'%datasetpresc ,'%d'%totpresc,'%s'%hltpathStr, '%s'%l1seedlogic, '%s'%l1bitsStr], fh=fh, csvwriter=csvwriter, ptable=ptable )
+                                      display.add_row( [ '%d'%runnum, '%d'%lsnum,'%d'%prescidx, '%d'%datasetpresc ,'%.2f'%totpresc,'%s'%hltpathStr, '%s'%l1seedlogic, '%s'%l1bitsStr], fh=fh, csvwriter=csvwriter, ptable=ptable )
                                   else:
-                                      display.add_row( [ '%d'%runnum, '%d'%lsnum, '%d'%prescidx, '%d'%totpresc,'%s'%hltpathStr, '%s'%l1seedlogic, '%s'%l1bitsStr], fh=fh, csvwriter=csvwriter, ptable=ptable ) 
+                                      display.add_row( [ '%d'%runnum, '%d'%lsnum, '%d'%prescidx, '%.2f'%totpresc,'%s'%hltpathStr, '%s'%l1seedlogic, '%s'%l1bitsStr], fh=fh, csvwriter=csvwriter, ptable=ptable ) 
                   del hltl1map
               else:
                   if not presc:
