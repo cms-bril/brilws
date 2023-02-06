@@ -880,7 +880,9 @@ def brilcalc_main(progname=sys.argv[0]):
           parseresult = brilcalc_trg.validate(parseresult)
           ##parse selection params
           pargs = clicommonargs.parser(parseresult)
-
+          if not pargs.runmin:
+              print('-r runnumber option is required for trg command')
+              sys.exit(0)
           ##db params
           dbschema = ''
           if not pargs.dbconnect.find('oracle')!=-1: dbschema = 'cms_lumi_prod'
@@ -1014,7 +1016,7 @@ def brilcalc_main(progname=sys.argv[0]):
                                       datasetpresc = datasetprescs[(lsnum,prescidx)]
                                       #print('datasetpresc val ',lsnum,prescidx,datasetpresc)
                                       totpresc = totpresc*datasetpresc
-                                      display.add_row( [ '%d'%runnum, '%d'%lsnum,'%d'%prescidx, '%d'%datasetpresc ,'%.2f'%totpresc,'%s'%hltpathStr, '%s'%l1seedlogic, '%s'%l1bitsStr], fh=fh, csvwriter=csvwriter, ptable=ptable )
+                                      display.add_row( [ '%d'%runnum, '%d'%lsnum,'%d'%prescidx, '%.2f'%datasetpresc ,'%.2f'%totpresc,'%s'%hltpathStr, '%s'%l1seedlogic, '%s'%l1bitsStr], fh=fh, csvwriter=csvwriter, ptable=ptable )
                                   else:
                                       display.add_row( [ '%d'%runnum, '%d'%lsnum, '%d'%prescidx, '%.2f'%totpresc,'%s'%hltpathStr, '%s'%l1seedlogic, '%s'%l1bitsStr], fh=fh, csvwriter=csvwriter, ptable=ptable ) 
                   del hltl1map
