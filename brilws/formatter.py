@@ -9,7 +9,7 @@ def bxintensity(x):
 def bitprescFormatter(x):
     bitname = x[0]
     prescval = x[1]
-    return '%s/%d'%(bitname,prescval)
+    return '%s/%.2f'%(bitname,prescval)
 
 class Formatter:
     def __init__(self, formatstr, prec):
@@ -23,7 +23,7 @@ class Formatter:
         if self.formatstr=='e':
             return self.lumiE(x)
         if abs(x)<self.dec_prec_value:
-            return '0'    
+            return '0'
         return '{:.{}f}'.format(float(x),self.prec)
 
     def bxlumi(self,x):

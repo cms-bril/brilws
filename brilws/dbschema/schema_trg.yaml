@@ -37,7 +37,7 @@ TRGSCALER:                #per ls, per trg bit, per prescidx change
     - lsnum: uint32
     - prescidx: uint16
     - bitid: uint16              #0-127 algo, 128-191 techbits
-    - trgprescval: uint32
+    - trgprescval: float
    pk: [runnum,lsnum,bitid]
    
 HLTSCALER:               #per ls, per hltpath, per prescidx change
@@ -50,3 +50,19 @@ HLTSCALER:               #per ls, per hltpath, per prescidx change
     - hltprescval: uint32
    pk: [runnum,lsnum,hltpathid]
    
+DATASETSCALER:
+   columns:
+    - runnum: uint32
+    - lsnum: uint32
+    - prescidx: uint16
+    - hltconfigid: uint32
+    - datasetpathid: uint32
+    - datasetprescval: uint32
+   pk: [runnum,lsnum,datasetpathid]
+
+DATASETHLTPATHMAP:
+   columns:
+    - datasetpathid: uint32
+    - hltconfigid: uint32
+    - datasetpathname: string
+   pk: [datasetpathid,hltconfigid]
