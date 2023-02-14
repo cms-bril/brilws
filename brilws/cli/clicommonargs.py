@@ -129,7 +129,12 @@ class parser(object):
               elif '*' in self._argdict['--hltpath'] or '?' in self._argdict['--hltpath']:
                   raise ValueError('--dataset must be used in pair with a --hltpath argument without pattern')
               else:
-                  self._dataset = self._argdict['--dataset']
+                  ds = self._argdict['--dataset']
+                  if ds.find('Dataset_')!=0:
+                    self._dataset = 'Dataset_'+ds  
+                  else:
+                    self._dataset = ds
+  
         if '--hltconfig' in self._argdict:
             hltconfig = self._argdict['--hltconfig']
             if hltconfig:
