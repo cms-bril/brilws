@@ -1416,6 +1416,30 @@ def translate_fntosql(pattern):
     sqlresult = sqlresult.replace('!','^')    
     return sqlresult
 
+def is_hltpath_in_dataset(engine,hltconfigidhltpathidpairs,datasetname,schemaname=''):
+    '''
+    hltconfigidhltpathidpairs : [(hltconfigid,hltpathid)]
+    '''
+    datasettablename = dname = 'datasethltpathmap'
+    hlttablename = hname = 'hltpathl1seedmap'
+    if schemaname:
+        datasethltpathmap = '.'.join([schemaname,dname])
+        hltpathl1seedmap = '.'.join([schemaname,hname])
+    for (hltconfigid,hltpathid) in hltconfigidhltpathidpairs:
+      q = "select count(*) from {datasethltpathmap} d, {hltpathl1seedmap} h where h.hltconfigid=d.hltconfigid and d.hltconfigid=:hltconfigid and d.datasetpathname=:datasetname and h.hltpathid=:hltpathid".format(datasethltpathmap=datasethltpathmap,hltpathl1seedmap=hltpathl1seedmap)
+      binddict = {}
+      binddict['hltpathid'] = hltpathid
+      binddict['datasetname'] = datasetname
+      binddict['hltconfigid'] = hltconfigid
+      log.debug(q+','+str(binddict))
+    connection = engine.connect()
+    resultProxy = connection.execute(q,binddict)
+    for row in resultProxy:
+      result = int(row[0])
+      if result>0:
+        return True
+    return False
+
 def is_hltpathid_in_dataset(engine,hltpathid,datasetname,hltconfigid,schemaname=''):
     '''
     Check if a hltpathid and a dataset is in the same menu, no more relationship for now
@@ -1431,7 +1455,7 @@ def is_hltpathid_in_dataset(engine,hltpathid,datasetname,hltconfigid,schemaname=
     if schemaname:
         datasethltpathmap = '.'.join([schemaname,dname])
         hltpathl1seedmap = '.'.join([schemaname,hname])
-    q = "select count(*) from {datasethltpathmap} d, {hltpathl1seedmap} h where h.hltconfigid=d.hltconfigid and d.hltconfigid=:hltconfigid and d.datasetpathname=:datasetname and h.hltpathid=:hltpathid".format(datasethltpathmap=datasethltpathmap,hltpathl1seedmap=hltpathl1seedmap,)
+    q = "select count(*) from {datasethltpathmap} d, {hltpathl1seedmap} h where# h.hltconfigid=d.hltconfigid and d.hltconfigid=:hltconfigid and d.datasetpathname=:datasetname and h.hltpathid=:hltpathid".format(datasethltpathmap=datasethltpathmap,hltpathl1seedmap=hltpathl1seedmap)
     binddict = {}
     binddict['hltpathid'] = hltpathid
     binddict['datasetname'] = datasetname
@@ -1439,10 +1463,11 @@ def is_hltpathid_in_dataset(engine,hltpathid,datasetname,hltconfigid,schemaname=
     log.debug(q+','+str(binddict))
     connection = engine.connect()
     resultProxy = connection.execute(q,binddict)
-    result = 0
     for row in resultProxy:
       result = int(row[0])
-    return result
+      if result>0:
+          return True
+    return False
 
 def get_dataset_presc(engine,hltconfigid,datasetname,schemaname=''):
     '''

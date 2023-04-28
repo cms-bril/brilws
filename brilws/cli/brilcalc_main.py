@@ -628,12 +628,12 @@ def brilcalc_main(progname=sys.argv[0]):
                     hpaths = [h[0] for h in hltl1map[k]]
                     for hp in hpaths:                        
                       datasethltpairs.add( (k,hp) )
-                  for (hltconfigid,hltpathid) in datasethltpairs:
-                    r = api.is_hltpathid_in_dataset(dbengine,hltpathid,pargs.dataset,hltconfigid,schemaname=dbschema)
+                  #for (hltconfigid,hltpathid) in datasethltpairs:
+                  r = api.is_hltpath_in_dataset(dbengine,datasethltpairs,pargs.dataset,schemaname=dbschema)
                   ##check hltpathid and dataset are in the same menu
-                    if not r:
-                      print( 'dataset {} and hltpath{} are not in the same menu'.format(pargs.dataset,pargs.hltpath) )
-                      sys.exit(0)
+                  if not r:
+                    print( 'dataset {} and hltpath{} are not in the same menu'.format(pargs.dataset,pargs.hltpath) )
+                    sys.exit(0)
 
           rselectrange = [] 
           if datasources :
