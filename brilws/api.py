@@ -1455,7 +1455,7 @@ def is_hltpathid_in_dataset(engine,hltpathid,datasetname,hltconfigid,schemaname=
     if schemaname:
         datasethltpathmap = '.'.join([schemaname,dname])
         hltpathl1seedmap = '.'.join([schemaname,hname])
-    q = "select count(*) from {datasethltpathmap} d, {hltpathl1seedmap} h where# h.hltconfigid=d.hltconfigid and d.hltconfigid=:hltconfigid and d.datasetpathname=:datasetname and h.hltpathid=:hltpathid".format(datasethltpathmap=datasethltpathmap,hltpathl1seedmap=hltpathl1seedmap)
+    q = "select count(*) from {datasethltpathmap} d, {hltpathl1seedmap} h where h.hltconfigid=d.hltconfigid and d.hltconfigid=:hltconfigid and d.datasetpathname=:datasetname and h.hltpathid=:hltpathid".format(datasethltpathmap=datasethltpathmap,hltpathl1seedmap=hltpathl1seedmap)
     binddict = {}
     binddict['hltpathid'] = hltpathid
     binddict['datasetname'] = datasetname
