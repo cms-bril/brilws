@@ -1422,6 +1422,7 @@ def is_hltpath_in_dataset(engine,hltconfigidhltpathidpairs,datasetname,schemanam
     '''
     datasettablename = dname = 'datasethltpathmap'
     hlttablename = hname = 'hltpathl1seedmap'
+    connection = engine.connect()
     if schemaname:
         datasethltpathmap = '.'.join([schemaname,dname])
         hltpathl1seedmap = '.'.join([schemaname,hname])
@@ -1432,12 +1433,12 @@ def is_hltpath_in_dataset(engine,hltconfigidhltpathidpairs,datasetname,schemanam
       binddict['datasetname'] = datasetname
       binddict['hltconfigid'] = hltconfigid
       log.debug(q+','+str(binddict))
-    connection = engine.connect()
-    resultProxy = connection.execute(q,binddict)
-    for row in resultProxy:
-      result = int(row[0])
-      if result>0:
-        return True
+      resultProxy = connection.execute(q,binddict)
+
+      for row in resultProxy:
+        result = int(row[0])
+        if result>0:
+          return True
     return False
 
 def is_hltpathid_in_dataset(engine,hltpathid,datasetname,hltconfigid,schemaname=''):
