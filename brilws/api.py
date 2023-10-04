@@ -1,6 +1,6 @@
 import numpy as np
 import pandas as pd
-from sqlalchemy import exc,schema,types,Table,MetaData,Column
+from sqlalchemy import exc,schema,types,Table,MetaData,Column,text
 from datetime import datetime
 import decimal
 import os
@@ -927,7 +927,7 @@ def get_shard_and(engine,runnum=None,fillnum=None,tssec=None,schemaname=''):
     log.debug('get_shard_and: '+q)
     log.debug(str(binddict))
     connection = engine.connect()
-    row = connection.execute(q,binddict).fetchone()
+    row = connection.execute(text(q),binddict).fetchone()
     if not row:
         return None
     return row['id']
@@ -1038,7 +1038,7 @@ def unpackBlobtoArray(iblob,itemtypecode):
     #blobstr=iblob.readline()????
     if not iblob :
         return None
-    result.fromstring(iblob)
+    result.frombytes(iblob)
     return result
 
 def packListstrtoCLOB(iListstr,separator=','):
@@ -1130,7 +1130,7 @@ def buildselect_runls(inputSeries,alias=''):
     qstrs = []
     if inputSeries.empty:
         return None
-    for run,lsrange in inputSeries.iteritems():
+    for run,lsrange in inputSeries.items():
         runvar='r_%d'%(bind_runindex)       
         try:
             rn = run.item()
@@ -1139,7 +1139,7 @@ def buildselect_runls(inputSeries,alias=''):
         var_runs[runvar] = rn
         s = '%srunnum=:%s and '%(prefix,runvar)
         orss = []
-        for lsmin,lsmax in lsrange:
+        for (lsmin,lsmax) in lsrange:
             lminvar = 'lmin_%d'%(bind_lsindex)
             lmaxvar = 'lmax_%d'%(bind_lsindex)
             var_lmins[lminvar] = int(lsmin)
@@ -1264,7 +1264,7 @@ def build_idquery_condition(alias,runmin=None,runmax=None,fillmin=None,tssecmin=
             var_lmaxs = s_runls[3]
            
             qPieces.append(s_runls_str)
-            for runvarname,runvalue in var_runs.items():
+            for (runvarname,runvalue) in var_runs.items():
                 binddict[runvarname] = runvalue
             for lminname,lmin in var_lmins.items():                
                 binddict[lminname] = lmin
@@ -1464,6 +1464,7 @@ def is_hltpathid_in_dataset(engine,hltpathid,datasetname,hltconfigid,schemaname=
     log.debug(q+','+str(binddict))
     connection = engine.connect()
     resultProxy = connection.execute(q,binddict)
+    result = 0
     for row in resultProxy:
       result = int(row[0])
       if result>0:
@@ -1527,7 +1528,7 @@ def get_hlttrgl1seedmap(engine,hltpath=None,hltconfigids=None,schemaname=''):
         if hltconfigids:
             qfields.append("hltconfigid=:hltconfigid")
             binddict['hltconfigid'] = hltconfigids
-    elif isinstance(hltconfigids,collections.Iterable):    
+    elif isinstance(hltconfigids,collections.abc.Iterable):    
         (qf,s) = build_or_collection('hltconfigid','hltconfigid',hltconfigids)
         if qf:
             qfields.append(qf)
@@ -1599,7 +1600,7 @@ def get_prescidx_change(engine,runnums,schemaname=''):
         if runnums:
             qfields.append("runnum=:runnum")
             binddict['runnum'] = runnums
-    elif isinstance(runnums,collections.Iterable):
+    elif isinstance(runnums,collections.abc.Iterable):
         (qf,s) = build_or_collection('runnum','runnum',runnums)
         if qf:
             qfields.append(qf)
@@ -1636,7 +1637,7 @@ def get_hltrunconfig(engine,hltconfigid=None,hltkey=None,runnum=None,schemaname=
         if hltconfigid:
             qfields.append("hltconfigid=:hltconfigid")
             binddict['hltconfigid'] = hltconfigid
-    elif isinstance(hltconfigid,collections.Iterable):
+    elif isinstance(hltconfigid,collections.abc.Iterable):
         (qf,s) = build_or_collection('hltconfigid','hltconfigid',hltconfigid)
         if qf:
             qfields.append(qf)
@@ -1653,7 +1654,7 @@ def get_hltrunconfig(engine,hltconfigid=None,hltkey=None,runnum=None,schemaname=
         if runnum:
             qfields.append("runnum=:runnum")
             binddict['runnum'] = runnum
-    elif isinstance(runnum,collections.Iterable):
+    elif isinstance(runnum,collections.abc.Iterable):
         (qf,s) = build_or_collection('runnum','runnum',runnum)
         if qf:
             qfields.append(qf)
@@ -1740,7 +1741,7 @@ def get_l1prescale(engine,runnum,lsnum,l1candidates=None,prescidxs=None,ignorel1
         if l1candidates:
             qfields.append('r.bitname=:bitname')
             binddict['bitname']=l1candidates
-    elif isinstance(l1candidates,collections.Iterable):
+    elif isinstance(l1candidates,collections.abc.Iterable):
         (qf,s) = build_or_collection('r.bitname','bitname',l1candidates)
         if qf:
             qfields.append(qf)
@@ -1749,7 +1750,7 @@ def get_l1prescale(engine,runnum,lsnum,l1candidates=None,prescidxs=None,ignorel1
     if isinstance(prescidxs,int):
         qfields.append('l.prescidx=:prescidx')
         binddict['prescidx'] = prescidxs
-    elif isinstance(prescidxs,collections.Iterable):
+    elif isinstance(prescidxs,collections.abc.Iterable):
         (qf,s) = build_or_collection('l.prescidx','prescidx',prescidxs)
         if qf:
             qfields.append(qf)
