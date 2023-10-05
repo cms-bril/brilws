@@ -247,9 +247,9 @@ def lumi_per_normtag(shards,lumiquerytype,dbengine,dbschema,runtot,formatter,dat
                 g_returnedls.append((runnum,lsnum))
             if lumiquerytype == 'bestresultonline': ##bestlumi                                
                 if 'delivered' in row and row['delivered']:                    
-                    delivered = np.true_divide(row['delivered']*lslengthsec,scalefactor)             
+                    delivered = np.true_divide(float( row['delivered'] )*lslengthsec,scalefactor)             
                 if delivered>0 and 'recorded' in row and row['recorded']:
-                    recorded = np.true_divide(row['recorded']*lslengthsec,scalefactor)
+                    recorded = np.true_divide(float( row['recorded'] )*lslengthsec,scalefactor)
                 if delivered>0 and 'avgpu' in row and row['avgpu']:
                     avgpu = float(row['avgpu'])
                 ds = 'UNKNOWN' 
@@ -821,7 +821,7 @@ def brilcalc_main(progname=sys.argv[0]):
               
           rselectrange = []
           if pargs.runlsSeries is not None:
-              for r,l in pargs.runlsSeries.iteritems():
+              for r,l in pargs.runlsSeries.items():
                   if not r in rselectrange:
                       rselectrange.append(r)          
           shards = api.locate_shards(dbengine,runmin=pargs.runmin,runmax=pargs.runmax,fillmin=pargs.fillmin,fillmax=pargs.fillmax,tssecmin=pargs.tssecmin,tssecmax=pargs.tssecmax,orrunlist=rselectrange,schemaname=dbschema)

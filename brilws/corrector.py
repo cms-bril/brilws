@@ -47,7 +47,7 @@ def applyCorrection(funcs, funcroot):
         withBX = True
         totlumi = fr.root[1]
         bxlumi = None
-        if not isinstance(toproot,collections.Iterable) :
+        if not isinstance(toproot,collections.abc.Iterable) :
             withBX = False
         else:
             bxlumi = toproot
@@ -85,7 +85,7 @@ class FunctionFactory(object):
         ncollidingbx =  functionroot.root[2]
         coefsStr = kwds['coefs']
         coefs = np.fromstring(coefsStr, dtype=np.float64, sep=',')
-        if not isinstance(ivalue,collections.Iterable) : #is totallumi, in this case, need to use term totallumi/nbx
+        if not isinstance(ivalue,collections.abc.Iterable) : #is totallumi, in this case, need to use term totallumi/nbx
             with np.errstate(divide='ignore',invalid='ignore'):
                 ivalue = np.true_divide(ivalue,ncollidingbx)
                 if ivalue == np.inf:
@@ -93,7 +93,7 @@ class FunctionFactory(object):
                 ivalue = np.nan_to_num(ivalue)
         if len(coefs)>1:
             coefs = coefs[::-1] #reverse the order because polyval coefs order is reverse of np.poly1d
-        if isinstance(ivalue,collections.Iterable) :
+        if isinstance(ivalue,collections.abc.Iterable) :
             return P.polyval(float(ivalue),coefs)
         else:
             return ncollidingbx*P.polyval(float(ivalue),coefs)           
@@ -112,7 +112,7 @@ class FunctionFactory(object):
         totlumi = 0
         bxlumi = 0
 
-        if isinstance(l,collections.Iterable):
+        if isinstance(l,collections.abc.Iterable):
             bxlumi = np.array(l)
             totlumi = np.full_like(bxlumi, L)
         else:
@@ -129,7 +129,7 @@ class FunctionFactory(object):
         coefsStr = kwds['coefs']
 
         coefs = np.array(ast.literal_eval(coefsStr), dtype=np.float64)
-        if isinstance(l,collections.Iterable):
+        if isinstance(l,collections.abc.Iterable):
             return P.polyval2d(bxlumi,totlumi,coefs)
         else:
             return ncollidingbx*P.polyval2d(float(bxlumi),totlumi,coefs)
