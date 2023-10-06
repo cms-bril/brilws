@@ -131,7 +131,7 @@ def lumi_per_normtag(shards,lumiquerytype,dbengine,dbschema,runtot,formatter,dat
 
     validitychecker = None
     lastvalidity = None
-    if normtag and normtag is not 'withoutcorrection':
+    if normtag and normtag != 'withoutcorrection':
         normdata = api.iov_gettagdata(dbengine, normtag,schemaname=dbschema)
         if not normdata: raise ValueError('normtag %s does not exist'%normtag)
         validitychecker = ValidityChecker(normdata)
@@ -247,11 +247,11 @@ def lumi_per_normtag(shards,lumiquerytype,dbengine,dbschema,runtot,formatter,dat
                 g_returnedls.append((runnum,lsnum))
             if lumiquerytype == 'bestresultonline': ##bestlumi                                
                 if 'delivered' in row and row['delivered']:                    
-                    delivered = np.true_divide(row['delivered']*lslengthsec,scalefactor)             
+                    delivered = np.true_divide(float( row['delivered'] )*lslengthsec,scalefactor)             
                 if delivered>0 and 'recorded' in row and row['recorded']:
-                    recorded = np.true_divide(row['recorded']*lslengthsec,scalefactor)
+                    recorded = np.true_divide(float( row['recorded'] )*lslengthsec,scalefactor)
                 if delivered>0 and 'avgpu' in row and row['avgpu']:
-                    avgpu = row['avgpu']
+                    avgpu = float(row['avgpu'])
                 ds = 'UNKNOWN' 
                 if 'datasource' in row and row['datasource']:
                     ds = row['datasource']
@@ -296,14 +296,14 @@ def lumi_per_normtag(shards,lumiquerytype,dbengine,dbschema,runtot,formatter,dat
             else:               ###lumisource
                 if 'deadtimefrac' in row :
                     if row['deadtimefrac'] is not None:
-                        livefrac = 1.-row['deadtimefrac']
+                        livefrac = float(1.)-float(row['deadtimefrac'])
                     else:
                         if cmslsnum!=0:
                             g_nulldeadtime.setdefault(runnum,[]).append(lsnum)
                         livefrac = 0.
-                uncorrectedavglumi = row['avglumi'] #uncorrected, hz/ub
-                avglumi = uncorrectedavglumi
-                ncollidingbx = row['numbxbeamactive']
+                uncorrectedavglumi = float( row['avglumi'] )#uncorrected, hz/ub
+                avglumi = float( uncorrectedavglumi )
+                ncollidingbx = float( row['numbxbeamactive'] )
                 uncorrectedbxlumi = None
                 if 'bxlumiblob' in row and row['bxlumiblob'] is not None:                    
                     if withfileinput:
@@ -640,7 +640,7 @@ def brilcalc_main(progname=sys.argv[0]):
               for [qt,nt,ds,rs] in datasources:
                   if rs is None: 
                       continue
-                  for r,l in rs.iteritems():
+                  for r,l in rs.items():
                       if not r in rselectrange:
                           rselectrange.append(r)   
           withfileinput = False
@@ -748,7 +748,7 @@ def brilcalc_main(progname=sys.argv[0]):
 
           if checkjson:
               selectlist = []
-              for k,v in rselect.iteritems():
+              for k,v in rselect.items():
                   for vv in v:
                       rlist = api.expandrange(vv)
                       for r in rlist:
@@ -821,7 +821,7 @@ def brilcalc_main(progname=sys.argv[0]):
               
           rselectrange = []
           if pargs.runlsSeries is not None:
-              for r,l in pargs.runlsSeries.iteritems():
+              for r,l in pargs.runlsSeries.items():
                   if not r in rselectrange:
                       rselectrange.append(r)          
           shards = api.locate_shards(dbengine,runmin=pargs.runmin,runmax=pargs.runmax,fillmin=pargs.fillmin,fillmax=pargs.fillmax,tssecmin=pargs.tssecmin,tssecmax=pargs.tssecmax,orrunlist=rselectrange,schemaname=dbschema)
@@ -861,8 +861,8 @@ def brilcalc_main(progname=sys.argv[0]):
                           display.add_row( ['%d'%fillnum,'%d'%runnum,'%d'%lsnum,dtime,'%s'%bxintensitystr], fh=fh, csvwriter=csvwriter, ptable=ptable )
                   else:
                       egev = row['egev']
-                      intensity1 = row['intensity1']/pargs.scalefactor
-                      intensity2 = row['intensity2']/pargs.scalefactor
+                      intensity1 = float( row['intensity1'] )/pargs.scalefactor
+                      intensity2 = float( row['intensity2'] )/pargs.scalefactor
                       ncollidingbx = row['numbxbeamactive'] 
                       display.add_row( ['%d'%fillnum,'%d'%runnum,'%d'%lsnum,dtime,'%.1f'%egev,'%.4e'%intensity1,'%.4e'%intensity2, '%d'%ncollidingbx],fh=fh, csvwriter=csvwriter, ptable=ptable)
 
