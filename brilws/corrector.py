@@ -94,7 +94,7 @@ class FunctionFactory(object):
         if len(coefs)>1:
             coefs = coefs[::-1] #reverse the order because polyval coefs order is reverse of np.poly1d
         if isinstance(ivalue,collections.abc.Iterable) :
-            return P.polyval(float(ivalue),coefs)
+            return P.polyval(ivalue,coefs)
         else:
             return ncollidingbx*P.polyval(float(ivalue),coefs)           
             
