@@ -13,6 +13,7 @@ import prettytable
 from sqlalchemy import *
 from brilws import api,params,display
 from brilws.cli import clicommonargs
+from brilws.corrector import FunctionFactory
 
 log = logging.getLogger('brilws')
 #logformatter = logging.Formatter('%(levelname)s %(message)s')
@@ -24,6 +25,16 @@ log.setLevel(logging.ERROR)
 
 def query_creationutc():
     return '''select to_char(sys_extract_utc(systimestamp), 'YY/MM/DD HH24:MI:SS') from dual'''
+
+def validate_iovdata(iovdata):
+    for entry in iovdata:
+        for run, data in entry.items():
+            func_name = data["func"]
+            payload = data["payload"]
+            try:
+                FunctionFactory.validate_required_arguments(payload, func_name)
+            except ValueError as err:
+                raise ValueError(f"Invalid config at run {run}.") from err
 
 def briltag_main(progname=sys.argv[0]):
     
@@ -146,6 +157,7 @@ def briltag_main(progname=sys.argv[0]):
              iovdata = pargs.yamlobj['since']
          else:
              raise ValueError('since cannot be empty')
+         validate_iovdata(iovdata)
          iovtagid = api.iov_insertdata(dbengine,iovtagname,datasource,iovdata,applyto=applyto,isdefault=istypedefault,comments=comments,schemaname=dbschema)
                   
       elif args['<command>'] == 'insertdata':
