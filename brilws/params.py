@@ -1,5 +1,5 @@
-_timeopt_pattern = '^\d\d/\d\d/\d\d \d\d:\d\d:\d\d$|^\d{6}$|^\d{4}$'
-_fillnum_pattern = '^\d{4}$'
+_timeopt_pattern = '^\d\d/\d\d/\d\d \d\d:\d\d:\d\d$|^\d{6}$|^\d{4,5}$'
+_fillnum_pattern = '^\d{4,5}$'
 _runnum_pattern = '^\d{6}$'
 _time_pattern = '^\d\d/\d\d/\d\d \d\d:\d\d:\d\d$'
 _hltpath_pattern = '^(HLT|DST|AlCa)_[\w\*\?\[\]\!]+$'
