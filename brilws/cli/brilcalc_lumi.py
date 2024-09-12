@@ -55,6 +55,9 @@ def validate(optdict):
     if not result['-i'] and not result['-f'] and not result['-r'] and not result['--begin']:
         print ('Error: at least one time selection option in %s is required'%(','.join(['-i','-f','-r','--begin'])))
         sys.exit(0)
+    if result['-i'] and not os.path.exists(result['-i']):
+        print('Error: file %s does not exist.'%(result['-i']))
+        sys.exit(0)
     if result['--filedata'] and not result['--byls']:
         print ('Error: --filedata can only be used with --byls')
         sys.exit(0)            
