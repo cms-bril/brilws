@@ -99,7 +99,7 @@ def applyCorrection(funcs, funcroot):
 @collect_sanitizers
 class FunctionFactory(object):
     @staticmethod
-    def validate_required_arguments(params, func_name):
+    def sanitize_arguments(params, func_name):
         #TODO: Make this functions return a string option. Makes it easier to report all errors. If that is something desirable. May not be.
         if not hasattr(FunctionFactory, func_name):
             raise ValueError(f"Function '{func_name}' does not exist in class '{FunctionFactory.__name__}'.")
@@ -182,39 +182,36 @@ class FunctionFactory(object):
         required_params=(
             ("sigvis", "Luminometer visible cross-section."),
             ("eff", "Efficiency factor to be applied to 'sigvis'."),
-            ("slope", "Slope extracted from linear fit to sbil_1 / sbil_2 = a * sbil_2 + b."),
             ("frev", "LHC's revolution frequency."),
         )
     )
-    def slopeApproximation(self, functionroot, kwds):
+    def calibration(self, functionroot, kwds):
         ivalue = functionroot.root[0]
         ncollidingbx =  functionroot.root[2]
 
         if isinstance(ivalue, collections.Iterable):
-            lumi = (kwds["frev"] * ivalue) / (kwds["sigvis"] * kwds["eff"])
-            return lumi - kwds["slope"] * lumi**2
+            return (kwds["frev"] * ivalue) / (kwds["sigvis"] * kwds["eff"])
         else:
             ivalue = calculate_lumisection_sbil(ivalue, ncollidingbx)
             lumi = (kwds["frev"] * ivalue) / (kwds["sigvis"] * kwds["eff"])
-            return ncollidingbx * (lumi - kwds["slope"] * lumi**2)
+            return ncollidingbx * lumi
 
     @argument_sanitizer(
         required_params=(
             ("sigvis", "Luminometer visible cross-section."),
             ("eff", "Efficiency factor to be applied to 'sigvis'."),
-            ("slope", "Slope extracted from linear fit to sbil_1 / sbil_2 = a * sbil_2 + b."),
-            ("intercept", "Intercept extracted from linear fit to sbil_1 / sbil_2 = a * sbil_2 + b."),
+            ("alpha", "Non linearity factor to be applied. Must be in [SBIL^-1] units."),
             ("frev", "LHC's revolution frequency."),
         ),
         validators=(
-            (lambda kwds: not np.isclose(kwds["slope"], 0.0), "'slope' parameter can't be 0."),
+            (lambda kwds: not np.isclose(kwds["alpha"], 0.0), "'alpha' parameter can't be 0."),
         )
     )
-    def preciseCorrection(self, functionroot, kwds):
+    def calibration_plus_sbil_nonlinearity(self, functionroot, kwds):
         ivalue = functionroot.root[0]
         ncollidingbx =  functionroot.root[2]
 
-        alpha = kwds["slope"] / kwds["intercept"] ** 2
+        alpha = kwds["alpha"]
         if isinstance(ivalue, collections.Iterable):
             lumi = (kwds["frev"] * ivalue) / (kwds["sigvis"] * kwds["eff"])
             return (np.sqrt(4 * alpha * lumi + 1) - 1) / (2*alpha)
@@ -222,6 +219,30 @@ class FunctionFactory(object):
             ivalue = calculate_lumisection_sbil(ivalue, ncollidingbx)
             lumi = (kwds["frev"] * ivalue) / (kwds["sigvis"] * kwds["eff"])
             return ncollidingbx * (np.sqrt(4 * alpha * lumi + 1) - 1) / (2*alpha)
+
+    @argument_sanitizer(
+        required_params=( 
+            ("sigvis", "Luminometer visible cross-section."),
+            ("eff", "Efficiency factor to be applied to 'sigvis'."),
+            ("alpha", "Non linearity factor to be applied. Must be in [SBIL^-1] units."),
+            ("frev", "LHC's revolution frequency."),
+        ),
+        validators=(
+            (lambda kwds: not np.isclose(kwds["alpha"], 0.0), "'alpha' parameter can't be 0."),
+        )
+    )
+    def calibration_plus_sbir_nonlinearity(self, functionroot, kwds): 
+        ivalue = functionroot.root[0]
+        ncollidingbx =  functionroot.root[2]
+
+        alpha = kwds["alpha"]
+        if isinstance(ivalue, collections.Iterable):
+            ivalue = (np.sqrt(4 * alpha * ivalue + 1) - 1) / (2 * alpha)
+            return (kwds["frev"] * ivalue) / (kwds["sigvis"] * kwds["eff"])
+        else:
+            ivalue = calculate_lumisection_sbil(ivalue, ncollidingbx)
+            ivalue = (np.sqrt(4 * alpha * ivalue + 1) - 1) / (2 * alpha)
+            return ncollidingbx *  (kwds["frev"] * ivalue) / (kwds["sigvis"] * kwds["eff"])
 
     @argument_sanitizer(
         required_params= (
