@@ -164,7 +164,7 @@ class FunctionFactory(object):
         ivalue = functionroot.root[0]
         ncollidingbx =  functionroot.root[2]
         coefsStr = kwds['coefs']
-        coefs = np.fromstring(coefsStr, dtype=np.float, sep=',')
+        coefs = np.fromstring(coefsStr, dtype=float, sep=',')
         if not isinstance(ivalue, Iterable) : #is totallumi, in this case, need to use term totallumi/nbx
             with np.errstate(divide='ignore',invalid='ignore'):
                 ivalue = np.true_divide(ivalue,ncollidingbx)
@@ -279,7 +279,7 @@ class FunctionFactory(object):
        
         coefsStr = kwds['coefs']
 
-        coefs = np.array(ast.literal_eval(coefsStr), dtype=np.float)
+        coefs = np.array(ast.literal_eval(coefsStr), dtype=float)
         if isinstance(l, Iterable):
             return P.polyval2d(bxlumi,totlumi,coefs)
         else:
