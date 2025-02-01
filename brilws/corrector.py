@@ -1,9 +1,9 @@
 from functools import wraps
+from collections.abc import Iterable
 
 import ast
 import copy
 import inspect
-import collections
 
 from numpy.polynomial import polynomial as P
 
@@ -82,7 +82,7 @@ def applyCorrection(funcs, funcroot):
         withBX = True
         totlumi = fr.root[1]
         bxlumi = None
-        if not isinstance(toproot,collections.Iterable) :
+        if not isinstance(toproot, Iterable) :
             withBX = False
         else:
             bxlumi = toproot
@@ -165,7 +165,7 @@ class FunctionFactory(object):
         ncollidingbx =  functionroot.root[2]
         coefsStr = kwds['coefs']
         coefs = np.fromstring(coefsStr, dtype=np.float, sep=',')
-        if not isinstance(ivalue,collections.Iterable) : #is totallumi, in this case, need to use term totallumi/nbx
+        if not isinstance(ivalue, Iterable) : #is totallumi, in this case, need to use term totallumi/nbx
             with np.errstate(divide='ignore',invalid='ignore'):
                 ivalue = np.true_divide(ivalue,ncollidingbx)
                 if ivalue == np.inf:
@@ -173,7 +173,7 @@ class FunctionFactory(object):
                 ivalue = np.nan_to_num(ivalue)
         if len(coefs)>1:
             coefs = coefs[::-1] #reverse the order because polyval coefs order is reverse of np.poly1d
-        if isinstance(ivalue,collections.Iterable) :
+        if isinstance(ivalue, Iterable) :
             return P.polyval(ivalue,coefs)
         else:
             return ncollidingbx*P.polyval(ivalue,coefs)           
@@ -189,7 +189,7 @@ class FunctionFactory(object):
         ivalue = functionroot.root[0]
         ncollidingbx =  functionroot.root[2]
 
-        if isinstance(ivalue, collections.Iterable):
+        if isinstance(ivalue, Iterable):
             return (kwds["frev"] * ivalue) / (kwds["sigvis"] * kwds["eff"])
         else:
             ivalue = calculate_lumisection_sbil(ivalue, ncollidingbx)
@@ -212,7 +212,7 @@ class FunctionFactory(object):
         ncollidingbx =  functionroot.root[2]
 
         alpha = kwds["alpha"]
-        if isinstance(ivalue, collections.Iterable):
+        if isinstance(ivalue, Iterable):
             lumi = (kwds["frev"] * ivalue) / (kwds["sigvis"] * kwds["eff"])
             return (np.sqrt(4 * alpha * lumi + 1) - 1) / (2*alpha)
         else:
@@ -224,7 +224,7 @@ class FunctionFactory(object):
         required_params=( 
             ("sigvis", "Luminometer visible cross-section."),
             ("eff", "Efficiency factor to be applied to 'sigvis'."),
-            ("alpha", "Non linearity factor to be applied. Must be in [SBIL^-1] units."),
+            ("alpha", "Non linearity factor to be applied. Must be in [SBIR^-1] units."),
             ("frev", "LHC's revolution frequency."),
         ),
         validators=(
@@ -236,7 +236,7 @@ class FunctionFactory(object):
         ncollidingbx =  functionroot.root[2]
 
         alpha = kwds["alpha"]
-        if isinstance(ivalue, collections.Iterable):
+        if isinstance(ivalue, Iterable):
             ivalue = (np.sqrt(4 * alpha * ivalue + 1) - 1) / (2 * alpha)
             return (kwds["frev"] * ivalue) / (kwds["sigvis"] * kwds["eff"])
         else:
@@ -263,7 +263,7 @@ class FunctionFactory(object):
         totlumi = 0
         bxlumi = 0
 
-        if isinstance(l,collections.Iterable):
+        if isinstance(l, Iterable):
             bxlumi = np.array(l)
             totlumi = np.full_like(bxlumi, L)
         else:
@@ -280,7 +280,7 @@ class FunctionFactory(object):
         coefsStr = kwds['coefs']
 
         coefs = np.array(ast.literal_eval(coefsStr), dtype=np.float)
-        if isinstance(l,collections.Iterable):
+        if isinstance(l, Iterable):
             return P.polyval2d(bxlumi,totlumi,coefs)
         else:
             return ncollidingbx*P.polyval2d(bxlumi,totlumi,coefs)
